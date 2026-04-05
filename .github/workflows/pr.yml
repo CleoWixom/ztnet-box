@@ -1,0 +1,68 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: ["main"]
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  title:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check conventional commit format
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          echo "PR title: $TITLE"
+
+          # Conventional Commits: type(scope)?: description
+          # Допустимые типы
+          PATTERN="^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\([a-z0-9/_-]+\))?(!)?: .{1,}"
+
+          if ! echo "$TITLE" | grep -qE "$PATTERN"; then
+            echo "::error::PR title does not follow Conventional Commits format."
+            echo ""
+            echo "Expected: <type>(<scope>): <description>"
+            echo "Examples:"
+            echo "  feat(backend): add ZT Central API client"
+            echo "  fix(exitnode): correct nftables rule order"
+            echo "  chore(deps): update reqwest to 0.12.5"
+            echo ""
+            echo "Valid types: feat, fix, docs, style, refactor, perf, test, chore, ci, build, revert"
+            exit 1
+          fi
+
+          echo "PR title format is valid."
+
+  changed-files:
+    name: Verify No Secrets in Changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for accidental secrets
+        run: |
+          # Проверить что в diff нет паттернов токенов
+          DIFF=$(git diff origin/main...HEAD -- '*.rs' '*.toml' '*.yml' '*.yaml' '*.js' '*.html' '*.css' 2>/dev/null || true)
+
+          # ZeroTier токены: 10 hex символов
+          if echo "$DIFF" | grep -qE '\+.*[0-9a-f]{10}[^0-9a-f]' ; then
+            # Это могут быть network ID — не блокируем, только предупреждаем
+            echo "::warning::Found potential ZeroTier IDs in diff. Ensure no real auth tokens are committed."
+          fi
+
+          # GitHub-like tokens
+          if echo "$DIFF" | grep -qE '\+.*(ghp_|gho_|github_pat_)[A-Za-z0-9_]{20,}'; then
+            echo "::error::Possible GitHub token found in diff. Remove it before merging."
+            exit 1
+          fi
+
+          # Generic API key patterns
+          if echo "$DIFF" | grep -qE '\+.*api[_-]?key\s*[:=]\s*["\x27][A-Za-z0-9]{16,}'; then
+            echo "::error::Possible API key found in diff. Use config.yml or environment variables."
+            exit 1
+          fi
+
+          echo "Secret scan passed."

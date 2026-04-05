@@ -1,0 +1,169 @@
+name: Version
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "src/**"
+      - "www/**"
+      - "tests/**"
+      - "build.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    name: Bump Version & Tag
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+      bumped: ${{ steps.bump.outputs.bumped }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine version bump
+        id: bump
+        run: |
+          # Получить коммиты с последнего тега
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --oneline --format="%s")
+          else
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --format="%s")
+          fi
+
+          echo "Commits since last tag:"
+          echo "$COMMITS"
+
+          # Определить тип bump по Conventional Commits
+          BUMP="patch"
+          if echo "$COMMITS" | grep -qE "^BREAKING CHANGE:|^[a-z]+(\([^)]+\))?!:"; then
+            BUMP="major"
+          elif echo "$COMMITS" | grep -qE "^feat(\([^)]+\))?:"; then
+            BUMP="minor"
+          fi
+
+          echo "Bump type: $BUMP"
+
+          # Прочитать текущую версию из Cargo.toml
+          CURRENT=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "Current version: $CURRENT"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          case "$BUMP" in
+            major) NEW="${MAJOR+1}.0.0" ;;
+            minor) NEW="${MAJOR}.$((MINOR+1)).0" ;;
+            patch) NEW="${MAJOR}.${MINOR}.$((PATCH+1))" ;;
+          esac
+
+          echo "New version: $NEW"
+
+          # Не бампить если последний коммит уже является bump-коммитом
+          LAST_COMMIT_MSG=$(git log -1 --format="%s")
+          if echo "$LAST_COMMIT_MSG" | grep -q "^chore(release):"; then
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Проверить что тег ещё не существует
+          if git tag | grep -q "^v${NEW}$"; then
+            echo "Tag v${NEW} already exists, skipping"
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "new_version=$NEW" >> "$GITHUB_OUTPUT"
+          echo "bumped=true"      >> "$GITHUB_OUTPUT"
+
+      - name: Update Cargo.toml version
+        if: steps.bump.outputs.bumped == 'true'
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"${NEW_VERSION}\"/}" Cargo.toml
+          echo "Updated Cargo.toml to version ${NEW_VERSION}"
+
+      - name: Update CHANGELOG.md
+        if: steps.bump.outputs.bumped == 'true'
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          DATE=$(date +%Y-%m-%d)
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          # Собрать список изменений по секциям
+          if [ -z "$LAST_TAG" ]; then
+            LOG=$(git log --format="%s|%h" HEAD)
+          else
+            LOG=$(git log --format="%s|%h" "${LAST_TAG}..HEAD~1")
+          fi
+
+          BREAKING=""
+          FEATURES=""
+          FIXES=""
+          CHORES=""
+
+          while IFS='|' read -r MSG HASH; do
+            [ -z "$MSG" ] && continue
+            if echo "$MSG" | grep -qE "^BREAKING CHANGE:|^[a-z]+!:"; then
+              BREAKING="$BREAKING\n- $MSG ($HASH)"
+            elif echo "$MSG" | grep -qE "^feat(\([^)]+\))?:"; then
+              CLEAN=$(echo "$MSG" | sed 's/^feat([^)]*): //' | sed 's/^feat: //')
+              FEATURES="$FEATURES\n- $CLEAN ($HASH)"
+            elif echo "$MSG" | grep -qE "^fix(\([^)]+\))?:"; then
+              CLEAN=$(echo "$MSG" | sed 's/^fix([^)]*): //' | sed 's/^fix: //')
+              FIXES="$FIXES\n- $CLEAN ($HASH)"
+            else
+              CHORES="$CHORES\n- $MSG ($HASH)"
+            fi
+          done <<< "$LOG"
+
+          # Сформировать секцию
+          SECTION="## [${NEW_VERSION}] — ${DATE}"
+          [ -n "$BREAKING" ] && SECTION="$SECTION\n\n### ⚠ Breaking Changes\n$BREAKING"
+          [ -n "$FEATURES" ] && SECTION="$SECTION\n\n### Features\n$FEATURES"
+          [ -n "$FIXES"    ] && SECTION="$SECTION\n\n### Bug Fixes\n$FIXES"
+          [ -n "$CHORES"   ] && SECTION="$SECTION\n\n### Chores\n$CHORES"
+
+          # Вставить после строки "## [Unreleased]" или в начало
+          if grep -q "## \[Unreleased\]" CHANGELOG.md; then
+            python3 - <<PYEOF
+          import re
+
+          with open("CHANGELOG.md", "r") as f:
+              content = f.read()
+
+          section = """${SECTION}"""
+          new_content = re.sub(
+              r"(## \[Unreleased\].*?\n)",
+              r"\1\n" + section + "\n",
+              content,
+              count=1,
+              flags=re.DOTALL
+          )
+          with open("CHANGELOG.md", "w") as f:
+              f.write(new_content)
+          PYEOF
+          else
+            printf "${SECTION}\n\n" | cat - CHANGELOG.md > tmp_changelog && mv tmp_changelog CHANGELOG.md
+          fi
+
+      - name: Commit, tag and push
+        if: steps.bump.outputs.bumped == 'true'
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          git add Cargo.toml CHANGELOG.md
+          git commit -m "chore(release): v${NEW_VERSION} [skip ci]"
+          git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
+          git push origin main
+          git push origin "v${NEW_VERSION}"
