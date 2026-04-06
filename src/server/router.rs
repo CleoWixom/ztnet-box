@@ -1,7 +1,7 @@
 use super::{
     handlers::{
         central as central_handler, config as cfg_handler, local as local_handler,
-        system as sys_handler, tokens as tok_handler,
+        metrics as metrics_handler, system as sys_handler, tokens as tok_handler,
     },
     middleware::log_request,
     state::AppState,
@@ -114,6 +114,9 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
             get(cfg_handler::get_config).put(cfg_handler::update_config),
         )
         .nest("/settings/tokens", tokens)
+        .route("/metrics", get(metrics_handler::get_metrics))
+        .route("/metrics/raw", get(metrics_handler::get_raw))
+        .route("/metrics/status", get(metrics_handler::get_status))
         .nest("/local", local)
         .nest("/central", central);
 
