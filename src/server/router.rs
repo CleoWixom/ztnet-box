@@ -1,9 +1,13 @@
-use super::{middleware::log_request, state::AppState};
+use super::{
+    handlers::{config as cfg_handler, system as sys_handler},
+    middleware::log_request,
+    state::AppState,
+};
 use axum::{
     http::{HeaderName, HeaderValue, Method},
     middleware,
     response::{Html, IntoResponse},
-    routing::get,
+    routing::{get, post, put},
     Json, Router,
 };
 use serde_json::json;
@@ -15,7 +19,6 @@ use tower_http::{
 static INDEX_HTML: &str = include_str!("../../www/build/index.html");
 
 pub fn build_router(state: AppState) -> Router {
-    // CORS — только localhost
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers(Any)
@@ -25,24 +28,21 @@ pub fn build_router(state: AppState) -> Router {
         ]);
 
     let api = Router::new()
+        // Health
         .route("/health", get(health_handler))
-        .route("/system/zt-status", get(zt_status_handler))
-        .route(
-            "/system/zt-install",
-            axum::routing::post(zt_install_handler),
-        );
+        // System / ZeroTier detection
+        .route("/system/zt-status", get(sys_handler::zt_status))
+        .route("/system/zt-install", post(sys_handler::zt_install))
+        // Settings / Config
+        .route("/settings/config", get(cfg_handler::get_config))
+        .route("/settings/config", put(cfg_handler::update_config));
 
     Router::new()
-        // Фронтенд
         .route("/", get(index_handler))
-        // API
         .nest("/api", api)
-        // Фоллбэк для SPA
         .fallback(get(spa_fallback))
-        // Middleware
         .layer(middleware::from_fn(log_request))
         .layer(cors)
-        // Security headers
         .layer(SetResponseHeaderLayer::if_not_present(
             HeaderName::from_static("x-content-type-options"),
             HeaderValue::from_static("nosniff"),
@@ -73,31 +73,4 @@ async fn health_handler() -> impl IntoResponse {
         "status":  "ok",
         "version": env!("CARGO_PKG_VERSION"),
     }))
-}
-
-async fn zt_status_handler() -> impl IntoResponse {
-    let result = crate::zerotier::detection::detect();
-    Json(result)
-}
-
-async fn zt_install_handler() -> impl IntoResponse {
-    let pm = crate::zerotier::detection::detect_package_manager();
-    match pm {
-        Some(pm) => match crate::zerotier::detection::install(pm) {
-            Ok(result) => Json(json!(result)).into_response(),
-            Err(e) => (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": e.to_string(), "code": "ERR_INSTALL" })),
-            )
-                .into_response(),
-        },
-        None => (
-            axum::http::StatusCode::UNPROCESSABLE_ENTITY,
-            Json(json!({
-                "status": "unsupported_platform",
-                "reason": "No supported package manager found (apt, dnf, pacman, brew)"
-            })),
-        )
-            .into_response(),
-    }
 }
