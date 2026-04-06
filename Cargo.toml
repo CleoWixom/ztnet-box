@@ -1,0 +1,37 @@
+[package]
+name          = "ztnet-box"
+version       = "0.1.0"
+edition       = "2021"
+rust-version  = "1.75"
+description   = "Local web UI for ZeroTier management"
+license       = "MIT"
+repository    = "https://github.com/CleoWixom/ztnet-box"
+
+[[bin]]
+name = "ztnet-box"
+path = "src/main.rs"
+
+[dependencies]
+axum               = { version = "0.7", features = ["macros"] }
+tokio              = { version = "1",   features = ["full"] }
+serde              = { version = "1",   features = ["derive"] }
+serde_yaml         = "0.9"
+serde_json         = "1"
+reqwest            = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+thiserror          = "1"
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tower-http         = { version = "0.5", features = ["cors", "compression-gzip", "set-header"] }
+which              = "6"
+uuid               = { version = "1", features = ["v4"] }
+chrono             = { version = "0.4", features = ["serde"] }
+nix                = { version = "0.28", features = ["user", "process"] }
+anyhow             = "1"
+
+[build-dependencies]
+# только std, нет внешних build-deps
+
+[profile.release]
+strip     = true
+lto       = true
+opt-level = 3
