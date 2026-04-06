@@ -1,7 +1,7 @@
 use super::{
     handlers::{
         central as central_handler, config as cfg_handler, local as local_handler,
-        system as sys_handler,
+        system as sys_handler, tokens as tok_handler,
     },
     middleware::log_request,
     state::AppState,
@@ -92,6 +92,19 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .route("/user", get(central_handler::get_user))
         .route("/status", get(central_handler::get_status));
 
+    // /api/settings/tokens/*
+    let tokens = Router::new()
+        .route(
+            "/",
+            get(tok_handler::list_tokens).post(tok_handler::add_token),
+        )
+        .route("/validate", post(tok_handler::validate_token))
+        .route(
+            "/:id",
+            put(tok_handler::update_token).delete(tok_handler::delete_token),
+        )
+        .route("/:id/activate", post(tok_handler::activate_token));
+
     let api = Router::new()
         .route("/health", get(health_handler))
         .route("/system/zt-status", get(sys_handler::zt_status))
@@ -100,6 +113,7 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
             "/settings/config",
             get(cfg_handler::get_config).put(cfg_handler::update_config),
         )
+        .nest("/settings/tokens", tokens)
         .nest("/local", local)
         .nest("/central", central);
 
