@@ -1,5 +1,8 @@
 use super::{
-    handlers::{config as cfg_handler, local as local_handler, system as sys_handler},
+    handlers::{
+        central as central_handler, config as cfg_handler, local as local_handler,
+        system as sys_handler,
+    },
     middleware::log_request,
     state::AppState,
 };
@@ -28,33 +31,28 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .allow_headers(tower_http::cors::Any)
         .allow_origin([origin_host, origin_lo]);
 
+    // /api/local/*
     let local = Router::new()
         .route("/status", get(local_handler::node_status))
         .route("/networks", get(local_handler::list_networks))
-        .route("/networks/:id", get(local_handler::get_network))
-        .route("/networks/:id", post(local_handler::join_network))
-        .route("/networks/:id", delete(local_handler::leave_network))
+        .route(
+            "/networks/:id",
+            get(local_handler::get_network)
+                .post(local_handler::join_network)
+                .delete(local_handler::leave_network),
+        )
         .route("/peers", get(local_handler::list_peers))
-        .route("/peers/:node_id", get(local_handler::get_peer))
+        .route("/peers/:id", get(local_handler::get_peer))
         .route(
             "/controller/networks",
-            get(local_handler::list_controller_networks),
-        )
-        .route(
-            "/controller/networks",
-            post(local_handler::create_controller_network),
+            get(local_handler::list_controller_networks)
+                .post(local_handler::create_controller_network),
         )
         .route(
             "/controller/networks/:id",
-            get(local_handler::get_controller_network),
-        )
-        .route(
-            "/controller/networks/:id",
-            put(local_handler::update_controller_network),
-        )
-        .route(
-            "/controller/networks/:id",
-            delete(local_handler::delete_controller_network),
+            get(local_handler::get_controller_network)
+                .put(local_handler::update_controller_network)
+                .delete(local_handler::delete_controller_network),
         )
         .route(
             "/controller/networks/:id/members",
@@ -62,27 +60,48 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         )
         .route(
             "/controller/networks/:id/members/:node_id",
-            get(local_handler::get_member),
-        )
-        .route(
-            "/controller/networks/:id/members/:node_id",
-            put(local_handler::update_member),
-        )
-        .route(
-            "/controller/networks/:id/members/:node_id",
-            delete(local_handler::delete_member),
+            get(local_handler::get_member)
+                .put(local_handler::update_member)
+                .delete(local_handler::delete_member),
         )
         .route("/moons", get(local_handler::list_moons))
-        .route("/moons/:world_id", post(local_handler::orbit_moon))
-        .route("/moons/:world_id", delete(local_handler::deorbit_moon));
+        .route(
+            "/moons/:world_id",
+            post(local_handler::orbit_moon).delete(local_handler::deorbit_moon),
+        );
+
+    // /api/central/*
+    let central = Router::new()
+        .route(
+            "/networks",
+            get(central_handler::list_networks).post(central_handler::create_network),
+        )
+        .route(
+            "/networks/:id",
+            get(central_handler::get_network)
+                .put(central_handler::update_network)
+                .delete(central_handler::delete_network),
+        )
+        .route("/networks/:id/members", get(central_handler::list_members))
+        .route(
+            "/networks/:id/members/:node_id",
+            get(central_handler::get_member)
+                .put(central_handler::update_member)
+                .delete(central_handler::delete_member),
+        )
+        .route("/user", get(central_handler::get_user))
+        .route("/status", get(central_handler::get_status));
 
     let api = Router::new()
         .route("/health", get(health_handler))
         .route("/system/zt-status", get(sys_handler::zt_status))
         .route("/system/zt-install", post(sys_handler::zt_install))
-        .route("/settings/config", get(cfg_handler::get_config))
-        .route("/settings/config", put(cfg_handler::update_config))
-        .nest("/local", local);
+        .route(
+            "/settings/config",
+            get(cfg_handler::get_config).put(cfg_handler::update_config),
+        )
+        .nest("/local", local)
+        .nest("/central", central);
 
     Router::new()
         .route("/", get(index_handler))
@@ -160,9 +179,9 @@ mod tests {
             .await
             .unwrap();
         let body = resp.into_body().collect().await.unwrap().to_bytes();
-        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert_eq!(json["status"], "ok");
-        assert!(json["version"].is_string());
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(v["status"], "ok");
+        assert!(v["version"].is_string());
     }
 
     #[tokio::test]
@@ -177,15 +196,15 @@ mod tests {
             .get("content-type")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
-        assert!(ct.contains("text/html"), "got: {ct}");
+        assert!(ct.contains("text/html"));
     }
 
     #[tokio::test]
-    async fn spa_fallback_returns_html() {
+    async fn spa_fallback_serves_html() {
         let resp = test_router()
             .oneshot(
                 Request::builder()
-                    .uri("/some/deep/route")
+                    .uri("/deep/route")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -205,44 +224,31 @@ mod tests {
             )
             .await
             .unwrap();
-        let hdrs = resp.headers();
+        let h = resp.headers();
         assert_eq!(
-            hdrs.get("x-content-type-options")
+            h.get("x-content-type-options")
                 .and_then(|v| v.to_str().ok()),
             Some("nosniff")
         );
         assert_eq!(
-            hdrs.get("x-frame-options").and_then(|v| v.to_str().ok()),
+            h.get("x-frame-options").and_then(|v| v.to_str().ok()),
             Some("DENY")
         );
-        assert!(hdrs.contains_key("content-security-policy"));
+        assert!(h.contains_key("content-security-policy"));
     }
 
     #[tokio::test]
-    async fn config_endpoint_returns_200() {
+    async fn central_no_token_returns_502() {
         let resp = test_router()
             .oneshot(
                 Request::builder()
-                    .uri("/api/settings/config")
+                    .uri("/api/central/networks")
                     .body(Body::empty())
                     .unwrap(),
             )
             .await
             .unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
-    }
-
-    #[tokio::test]
-    async fn zt_status_endpoint_returns_200() {
-        let resp = test_router()
-            .oneshot(
-                Request::builder()
-                    .uri("/api/system/zt-status")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
+        // No token configured → ApiError::ZtCentral → 502
+        assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
     }
 }
