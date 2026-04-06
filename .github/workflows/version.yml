@@ -38,7 +38,7 @@ jobs:
           # Получить коммиты с последнего тега
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ -z "$LAST_TAG" ]; then
-            COMMITS=$(git log --oneline --format="%s")
+            COMMITS=$(git log --format="%s")
           else
             COMMITS=$(git log "${LAST_TAG}..HEAD" --format="%s")
           fi
@@ -57,13 +57,20 @@ jobs:
           echo "Bump type: $BUMP"
 
           # Прочитать текущую версию из Cargo.toml
-          CURRENT=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          # Regex устойчив к пробелам вокруг '=': version[ ]*=[ ]*"x.y.z"
+          CURRENT=$(grep -E '^version\s*=' Cargo.toml | head -1 | sed -E 's/version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
           echo "Current version: $CURRENT"
+
+          if [ -z "$CURRENT" ]; then
+            echo "ERROR: could not extract version from Cargo.toml"
+            exit 1
+          fi
 
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
 
+          # FIX: используем $(( )) арифметику, не ${VAR+N}
           case "$BUMP" in
-            major) NEW="${MAJOR+1}.0.0" ;;
+            major) NEW="$((MAJOR+1)).0.0" ;;
             minor) NEW="${MAJOR}.$((MINOR+1)).0" ;;
             patch) NEW="${MAJOR}.${MINOR}.$((PATCH+1))" ;;
           esac
@@ -91,8 +98,10 @@ jobs:
         if: steps.bump.outputs.bumped == 'true'
         run: |
           NEW_VERSION="${{ steps.bump.outputs.new_version }}"
-          sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"${NEW_VERSION}\"/}" Cargo.toml
+          # Устойчивый sed: матчит version с любым количеством пробелов вокруг '='
+          sed -i -E "0,/^version[[:space:]]*=/{s/^version[[:space:]]*=[[:space:]]*\"[^\"]+\"/version = \"${NEW_VERSION}\"/}" Cargo.toml
           echo "Updated Cargo.toml to version ${NEW_VERSION}"
+          grep '^version' Cargo.toml | head -1
 
       - name: Update CHANGELOG.md
         if: steps.bump.outputs.bumped == 'true'
@@ -116,47 +125,53 @@ jobs:
           while IFS='|' read -r MSG HASH; do
             [ -z "$MSG" ] && continue
             if echo "$MSG" | grep -qE "^BREAKING CHANGE:|^[a-z]+!:"; then
-              BREAKING="$BREAKING\n- $MSG ($HASH)"
+              BREAKING="${BREAKING}\n- ${MSG} (${HASH})"
             elif echo "$MSG" | grep -qE "^feat(\([^)]+\))?:"; then
-              CLEAN=$(echo "$MSG" | sed 's/^feat([^)]*): //' | sed 's/^feat: //')
-              FEATURES="$FEATURES\n- $CLEAN ($HASH)"
+              CLEAN=$(echo "$MSG" | sed -E 's/^feat\([^)]*\): //' | sed 's/^feat: //')
+              FEATURES="${FEATURES}\n- ${CLEAN} (${HASH})"
             elif echo "$MSG" | grep -qE "^fix(\([^)]+\))?:"; then
-              CLEAN=$(echo "$MSG" | sed 's/^fix([^)]*): //' | sed 's/^fix: //')
-              FIXES="$FIXES\n- $CLEAN ($HASH)"
+              CLEAN=$(echo "$MSG" | sed -E 's/^fix\([^)]*\): //' | sed 's/^fix: //')
+              FIXES="${FIXES}\n- ${CLEAN} (${HASH})"
             else
-              CHORES="$CHORES\n- $MSG ($HASH)"
+              CHORES="${CHORES}\n- ${MSG} (${HASH})"
             fi
           done <<< "$LOG"
 
-          # Сформировать секцию
-          SECTION="## [${NEW_VERSION}] — ${DATE}"
-          [ -n "$BREAKING" ] && SECTION="$SECTION\n\n### ⚠ Breaking Changes\n$BREAKING"
-          [ -n "$FEATURES" ] && SECTION="$SECTION\n\n### Features\n$FEATURES"
-          [ -n "$FIXES"    ] && SECTION="$SECTION\n\n### Bug Fixes\n$FIXES"
-          [ -n "$CHORES"   ] && SECTION="$SECTION\n\n### Chores\n$CHORES"
+          # Использовать Python для вставки в CHANGELOG (надёжнее bash heredoc)
+          python3 - "$NEW_VERSION" "$DATE" "$BREAKING" "$FEATURES" "$FIXES" "$CHORES" << 'PYEOF'
+          import sys, re
 
-          # Вставить после строки "## [Unreleased]" или в начало
-          if grep -q "## \[Unreleased\]" CHANGELOG.md; then
-            python3 - <<PYEOF
-          import re
+          new_version = sys.argv[1]
+          date        = sys.argv[2]
+          breaking    = sys.argv[3].replace('\\n', '\n').strip()
+          features    = sys.argv[4].replace('\\n', '\n').strip()
+          fixes       = sys.argv[5].replace('\\n', '\n').strip()
+          chores      = sys.argv[6].replace('\\n', '\n').strip()
+
+          section = f"## [{new_version}] — {date}"
+          if breaking: section += f"\n\n### ⚠ Breaking Changes\n{breaking}"
+          if features: section += f"\n\n### Features\n{features}"
+          if fixes:    section += f"\n\n### Bug Fixes\n{fixes}"
+          if chores:   section += f"\n\n### Chores\n{chores}"
 
           with open("CHANGELOG.md", "r") as f:
               content = f.read()
 
-          section = """${SECTION}"""
-          new_content = re.sub(
-              r"(## \[Unreleased\].*?\n)",
-              r"\1\n" + section + "\n",
-              content,
-              count=1,
-              flags=re.DOTALL
-          )
+          if "## [Unreleased]" in content:
+              new_content = re.sub(
+                  r"(## \[Unreleased\][^\n]*\n)",
+                  r"\1\n" + section + "\n\n",
+                  content,
+                  count=1,
+              )
+          else:
+              new_content = section + "\n\n" + content
+
           with open("CHANGELOG.md", "w") as f:
               f.write(new_content)
+
+          print(f"CHANGELOG.md updated with {new_version}")
           PYEOF
-          else
-            printf "${SECTION}\n\n" | cat - CHANGELOG.md > tmp_changelog && mv tmp_changelog CHANGELOG.md
-          fi
 
       - name: Commit, tag and push
         if: steps.bump.outputs.bumped == 'true'
