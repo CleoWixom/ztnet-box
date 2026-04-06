@@ -35,3 +35,7 @@ anyhow             = "1"
 strip     = true
 lto       = true
 opt-level = 3
+
+[dev-dependencies]
+tower      = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"

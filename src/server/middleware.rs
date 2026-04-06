@@ -6,24 +6,16 @@ use axum::{
 use std::time::Instant;
 use tracing::info;
 
-/// Логирование запросов: method path → status latency
+/// Логирует каждый запрос: METHOD /path → STATUS latency_ms
 pub async fn log_request(req: Request<Body>, next: Next) -> Response<Body> {
     let method = req.method().clone();
-    let path = req.uri().path().to_string();
+    let path = req.uri().path().to_owned();
     let start = Instant::now();
 
     let resp = next.run(req).await;
-
-    let latency = start.elapsed();
     let status = resp.status().as_u16();
+    let ms = start.elapsed().as_millis();
 
-    info!(
-        method = %method,
-        path   = %path,
-        status = status,
-        latency_ms = latency.as_millis(),
-        "request"
-    );
-
+    info!(method = %method, path = %path, status, latency_ms = ms, "←");
     resp
 }
