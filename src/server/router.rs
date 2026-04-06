@@ -1,5 +1,5 @@
 use super::{
-    handlers::{config as cfg_handler, system as sys_handler},
+    handlers::{config as cfg_handler, local as local_handler, system as sys_handler},
     middleware::log_request,
     state::AppState,
 };
@@ -7,7 +7,7 @@ use axum::{
     http::{HeaderName, HeaderValue, Method},
     middleware,
     response::{Html, IntoResponse},
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use serde_json::json;
@@ -18,22 +18,71 @@ static INDEX_HTML: &str = include_str!("../../www/build/index.html");
 pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
     let origin_host = format!("http://{host}:{port}")
         .parse::<HeaderValue>()
-        .expect("valid origin");
+        .expect("origin");
     let origin_lo = format!("http://localhost:{port}")
         .parse::<HeaderValue>()
-        .expect("valid origin");
+        .expect("origin");
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers(tower_http::cors::Any)
         .allow_origin([origin_host, origin_lo]);
 
+    let local = Router::new()
+        .route("/status", get(local_handler::node_status))
+        .route("/networks", get(local_handler::list_networks))
+        .route("/networks/:id", get(local_handler::get_network))
+        .route("/networks/:id", post(local_handler::join_network))
+        .route("/networks/:id", delete(local_handler::leave_network))
+        .route("/peers", get(local_handler::list_peers))
+        .route("/peers/:node_id", get(local_handler::get_peer))
+        .route(
+            "/controller/networks",
+            get(local_handler::list_controller_networks),
+        )
+        .route(
+            "/controller/networks",
+            post(local_handler::create_controller_network),
+        )
+        .route(
+            "/controller/networks/:id",
+            get(local_handler::get_controller_network),
+        )
+        .route(
+            "/controller/networks/:id",
+            put(local_handler::update_controller_network),
+        )
+        .route(
+            "/controller/networks/:id",
+            delete(local_handler::delete_controller_network),
+        )
+        .route(
+            "/controller/networks/:id/members",
+            get(local_handler::list_members),
+        )
+        .route(
+            "/controller/networks/:id/members/:node_id",
+            get(local_handler::get_member),
+        )
+        .route(
+            "/controller/networks/:id/members/:node_id",
+            put(local_handler::update_member),
+        )
+        .route(
+            "/controller/networks/:id/members/:node_id",
+            delete(local_handler::delete_member),
+        )
+        .route("/moons", get(local_handler::list_moons))
+        .route("/moons/:world_id", post(local_handler::orbit_moon))
+        .route("/moons/:world_id", delete(local_handler::deorbit_moon));
+
     let api = Router::new()
         .route("/health", get(health_handler))
         .route("/system/zt-status", get(sys_handler::zt_status))
         .route("/system/zt-install", post(sys_handler::zt_install))
         .route("/settings/config", get(cfg_handler::get_config))
-        .route("/settings/config", put(cfg_handler::update_config));
+        .route("/settings/config", put(cfg_handler::update_config))
+        .nest("/local", local);
 
     Router::new()
         .route("/", get(index_handler))
@@ -52,9 +101,7 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .layer(SetResponseHeaderLayer::if_not_present(
             HeaderName::from_static("content-security-policy"),
             HeaderValue::from_static(
-                "default-src 'self'; \
-                 script-src 'self' 'unsafe-inline'; \
-                 style-src 'self' 'unsafe-inline'",
+                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
             ),
         ))
         .with_state(state)
@@ -66,12 +113,9 @@ async fn index_handler() -> Html<&'static str> {
 async fn spa_fallback() -> Html<&'static str> {
     Html(INDEX_HTML)
 }
-
 async fn health_handler() -> impl IntoResponse {
     Json(json!({ "status": "ok", "version": env!("CARGO_PKG_VERSION") }))
 }
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -92,23 +136,29 @@ mod tests {
 
     #[tokio::test]
     async fn health_returns_200() {
-        let app = test_router();
-        let req = Request::builder()
-            .uri("/api/health")
-            .body(Body::empty())
+        let resp = test_router()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
             .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
     }
 
     #[tokio::test]
     async fn health_body_contains_ok() {
-        let app = test_router();
-        let req = Request::builder()
-            .uri("/api/health")
-            .body(Body::empty())
+        let resp = test_router()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
             .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
         let body = resp.into_body().collect().await.unwrap().to_bytes();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["status"], "ok");
@@ -117,37 +167,44 @@ mod tests {
 
     #[tokio::test]
     async fn index_returns_html() {
-        let app = test_router();
-        let req = Request::builder().uri("/").body(Body::empty()).unwrap();
-        let resp = app.oneshot(req).await.unwrap();
+        let resp = test_router()
+            .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
         let ct = resp
             .headers()
             .get("content-type")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
-        assert!(ct.contains("text/html"), "expected text/html, got {ct}");
+        assert!(ct.contains("text/html"), "got: {ct}");
     }
 
     #[tokio::test]
     async fn spa_fallback_returns_html() {
-        let app = test_router();
-        let req = Request::builder()
-            .uri("/some/deep/route")
-            .body(Body::empty())
+        let resp = test_router()
+            .oneshot(
+                Request::builder()
+                    .uri("/some/deep/route")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
             .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
     }
 
     #[tokio::test]
     async fn security_headers_present() {
-        let app = test_router();
-        let req = Request::builder()
-            .uri("/api/health")
-            .body(Body::empty())
+        let resp = test_router()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
             .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
         let hdrs = resp.headers();
         assert_eq!(
             hdrs.get("x-content-type-options")
@@ -163,23 +220,29 @@ mod tests {
 
     #[tokio::test]
     async fn config_endpoint_returns_200() {
-        let app = test_router();
-        let req = Request::builder()
-            .uri("/api/settings/config")
-            .body(Body::empty())
+        let resp = test_router()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/settings/config")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
             .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
     }
 
     #[tokio::test]
     async fn zt_status_endpoint_returns_200() {
-        let app = test_router();
-        let req = Request::builder()
-            .uri("/api/system/zt-status")
-            .body(Body::empty())
+        let resp = test_router()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/system/zt-status")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
             .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
     }
 }
