@@ -1,0 +1,20 @@
+server:
+  host: "127.0.0.1"   # привязка к localhost — безопасность без авторизации
+  port: 3000
+
+zerotier:
+  local:
+    api_url: "http://127.0.0.1:9993"
+    token_file: "/var/lib/zerotier-one/authtoken.secret"
+  central:
+    base_url: "https://api.zerotier.com/api/v1"
+    tokens: []          # управляется через Settings UI
+    active_token_id: "" # ID активного токена
+
+metrics:
+  enabled: true
+  prometheus_url: "http://127.0.0.1:9993/metrics"
+  poll_interval_seconds: 5
+
+exitnode:
+  nftables_preferred: true  # true = nftables, false = iptables
