@@ -129,45 +129,45 @@
 
 ---
 
-## feat/part2-exitnode ⏳ следующая
+## feat/part2-exitnode ✅ merged #9 (v0.3.0)
 
 **Цель:** backend для настройки Exit Node, только Linux.
 
 ### Задачи
 
 **`src/exitnode/platform.rs`** — переписать стаб:
-- [ ] `PlatformSupport { supported: bool, os: String, reason: Option<String> }`
-- [ ] `check() -> PlatformSupport` — `cfg!(target_os = "linux")`, иначе reason
+- [x] `PlatformSupport { supported: bool, os: String, reason: Option<String> }`
+- [x] `check() -> PlatformSupport` — `cfg!(target_os = "linux")`, иначе reason
 
 **`src/exitnode/deps.rs`** — переписать стаб:
-- [ ] `DepsStatus { iptables: Option<PathBuf>, nftables: Option<PathBuf>, is_root: bool, missing: Vec<String> }`
-- [ ] `check_deps() -> DepsStatus` — `which` + `nix::unistd::getuid() == 0`
-- [ ] `install_missing(preferred) -> Result<DepsStatus>` — без shell/curl/wget
+- [x] `DepsStatus { iptables: Option<PathBuf>, nftables: Option<PathBuf>, is_root: bool, missing: Vec<String> }`
+- [x] `check_deps() -> DepsStatus` — `which` + `nix::unistd::getuid() == 0`
+- [x] `install_missing(preferred) -> Result<DepsStatus>` — без shell/curl/wget
 
 **`src/exitnode/interfaces.rs`** — переписать стаб:
-- [ ] `NetworkInterface { name, addresses: Vec<String>, is_zerotier: bool }`
-- [ ] `list_interfaces() -> Result<Vec<NetworkInterface>>` — через `/proc/net/dev` + nix
+- [x] `NetworkInterface { name, addresses: Vec<String>, is_zerotier: bool }`
+- [x] `list_interfaces() -> Result<Vec<NetworkInterface>>` — через `/proc/net/dev` + nix
 
 **`src/exitnode/rules.rs`** — переписать стаб:
-- [ ] `ExitNodeRules { zt_iface, wan_iface, backend: FirewallBackend }`
-- [ ] `apply()`: ip_forward (`fs::write "/proc/sys/net/ipv4/ip_forward"`) + nftables/iptables через `Command`
-- [ ] `remove()`: полный откат правил
+- [x] `ExitNodeRules { zt_iface, wan_iface, backend: FirewallBackend }`
+- [x] `apply()`: ip_forward (`fs::write "/proc/sys/net/ipv4/ip_forward"`) + nftables/iptables через `Command`
+- [x] `remove()`: полный откат правил
 
 **`src/exitnode/mod.rs`** — переписать стаб:
-- [ ] `ExitNodeState { enabled, zt_network_id, wan_interface, backend, applied_at }`
-- [ ] `ExitNodeManager::enable(zt_net_id, wan_iface) -> Result<ExitNodeState>`
-- [ ] `ExitNodeManager::disable() -> Result<()>`
+- [x] `ExitNodeState { enabled, zt_network_id, wan_interface, backend, applied_at }`
+- [x] `ExitNodeManager::enable(zt_net_id, wan_iface) -> Result<ExitNodeState>`
+- [x] `ExitNodeManager::disable() -> Result<()>`
 
 **`src/server/handlers/exitnode.rs`** — новый файл:
-- [ ] `GET  /api/exitnode/platform`
-- [ ] `GET  /api/exitnode/deps`
-- [ ] `POST /api/exitnode/deps/install`
-- [ ] `GET  /api/exitnode/interfaces`
-- [ ] `GET  /api/exitnode/status`
-- [ ] `POST /api/exitnode/enable`
-- [ ] `POST /api/exitnode/disable`
+- [x] `GET  /api/exitnode/platform`
+- [x] `GET  /api/exitnode/deps`
+- [x] `POST /api/exitnode/deps/install`
+- [x] `GET  /api/exitnode/interfaces`
+- [x] `GET  /api/exitnode/status`
+- [x] `POST /api/exitnode/enable`
+- [x] `POST /api/exitnode/disable`
 
 ### Критерии готовности
-- [ ] Нет curl/wget/shell-скриптов
-- [ ] Root-проверка → `ApiError` 403 если не root
-- [ ] `remove()` полностью откатывает правила
+- [x] Нет curl/wget/shell-скриптов
+- [x] Root-проверка → `ApiError` 403 если не root
+- [x] `remove()` полностью откатывает правила
