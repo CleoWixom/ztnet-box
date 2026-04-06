@@ -6,7 +6,6 @@ use crate::{
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
-/// Состояние Exit Node (активен/выключен + интерфейсы).
 #[derive(Debug, Default)]
 pub struct ExitNodeState {
     pub enabled: bool,
@@ -14,7 +13,6 @@ pub struct ExitNodeState {
     pub wan_iface: Option<String>,
 }
 
-/// Глобальное состояние приложения, разделяемое между хэндлерами.
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<RwLock<Config>>,
@@ -25,7 +23,17 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// Стандартный конструктор — создаёт собственный MetricsCache.
     pub fn new(config: Config, config_path: PathBuf) -> Result<Self, ConfigError> {
+        Self::new_with_cache(config, config_path, Arc::new(MetricsCache::new()))
+    }
+
+    /// Конструктор с внешним MetricsCache (для main.rs, где коллектор запущен отдельно).
+    pub fn new_with_cache(
+        config: Config,
+        config_path: PathBuf,
+        metrics_cache: Arc<MetricsCache>,
+    ) -> Result<Self, ConfigError> {
         let tokens = config.zerotier.central.tokens.clone();
         let active_token_id = config.zerotier.central.active_token_id.clone();
 
@@ -33,7 +41,7 @@ impl AppState {
             config: Arc::new(RwLock::new(config)),
             config_path,
             token_store: Arc::new(TokenStore::new(tokens, active_token_id)),
-            metrics_cache: Arc::new(MetricsCache::new()),
+            metrics_cache,
             exitnode: Arc::new(RwLock::new(ExitNodeState::default())),
         })
     }
