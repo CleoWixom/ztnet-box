@@ -1,7 +1,8 @@
 use super::{
     handlers::{
-        central as central_handler, config as cfg_handler, local as local_handler,
-        metrics as metrics_handler, system as sys_handler, tokens as tok_handler,
+        central as central_handler, config as cfg_handler, exitnode as exit_handler,
+        local as local_handler, metrics as metrics_handler, system as sys_handler,
+        tokens as tok_handler,
     },
     middleware::log_request,
     state::AppState,
@@ -105,6 +106,18 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         )
         .route("/:id/activate", post(tok_handler::activate_token));
 
+    // /api/exitnode/*
+    let exitnode = Router::new()
+        .route("/platform", get(exit_handler::get_platform))
+        .route(
+            "/deps",
+            get(exit_handler::get_deps).post(exit_handler::install_deps),
+        )
+        .route("/interfaces", get(exit_handler::get_interfaces))
+        .route("/status", get(exit_handler::get_status))
+        .route("/enable", post(exit_handler::enable))
+        .route("/disable", post(exit_handler::disable));
+
     let api = Router::new()
         .route("/health", get(health_handler))
         .route("/system/zt-status", get(sys_handler::zt_status))
@@ -118,7 +131,8 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .route("/metrics/raw", get(metrics_handler::get_raw))
         .route("/metrics/status", get(metrics_handler::get_status))
         .nest("/local", local)
-        .nest("/central", central);
+        .nest("/central", central)
+        .nest("/exitnode", exitnode);
 
     Router::new()
         .route("/", get(index_handler))

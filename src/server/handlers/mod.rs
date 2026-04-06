@@ -1,5 +1,6 @@
 pub mod central;
 pub mod config;
+pub mod exitnode;
 pub mod local;
 pub mod metrics;
 pub mod system;
