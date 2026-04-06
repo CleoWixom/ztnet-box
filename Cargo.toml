@@ -25,7 +25,7 @@ tower-http         = { version = "0.5", features = ["cors", "compression-gzip", 
 which              = "6"
 uuid               = { version = "1", features = ["v4"] }
 chrono             = { version = "0.4", features = ["serde"] }
-nix                = { version = "0.28", features = ["user", "process"] }
+nix                = { version = "0.28", features = ["user", "process", "net"] }
 anyhow             = "1"
 
 [build-dependencies]
