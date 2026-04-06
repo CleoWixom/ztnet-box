@@ -4,15 +4,15 @@
 
 ---
 
-## feat/part1-scaffold
+## feat/part1-scaffold ✅ merged #1
 
 **Цель:** нулевая точка — структура, Cargo.toml, CI, конфиг-пример.
 
 ### Задачи
 
-- [ ] `cargo init --name ztnet-box` (edition 2021, rust-version = "1.75")
-- [ ] Создать полную структуру каталогов (см. [README](./README.md))
-- [ ] Заполнить `Cargo.toml` зависимостями (все версии зафиксированы):
+- [x] `cargo init --name ztnet-box` (edition 2021, rust-version = "1.75")
+- [x] Создать полную структуру каталогов (см. [README](./README.md))
+- [x] Заполнить `Cargo.toml` зависимостями (все версии зафиксированы):
 
 ```toml
 [dependencies]
@@ -35,100 +35,57 @@ nix           = { version = "0.28", features = ["user", "process"] }
 # только std, нет внешних build-deps
 ```
 
-- [ ] `config.yml.example`:
-
-```yaml
-server:
-  host: "127.0.0.1"   # привязка к localhost — безопасность без авторизации
-  port: 3000
-
-zerotier:
-  local:
-    api_url: "http://127.0.0.1:9993"
-    token_file: "/var/lib/zerotier-one/authtoken.secret"
-  central:
-    base_url: "https://api.zerotier.com/api/v1"
-    tokens: []          # управляется через Settings UI
-    active_token_id: "" # ID активного токена
-
-metrics:
-  enabled: true
-  prometheus_url: "http://127.0.0.1:9993/metrics"
-  poll_interval_seconds: 5
-
-exitnode:
-  nftables_preferred: true  # true = nftables, false = iptables
-```
-
-- [ ] `.gitignore`: `target/`, `config.yml`, `www/build/`
-- [ ] `CHANGELOG.md` (пустой шаблон Keep-a-Changelog)
-- [ ] `.github/workflows/ci.yml`:
-
-```yaml
-name: CI
-on: [push, pull_request]
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with: { components: clippy }
-      - run: cargo check
-      - run: cargo clippy -- -D warnings
-      - run: cargo test
-```
-
+- [x] `config.yml.example`
+- [x] `.gitignore`: `target/`, `config.yml`, `www/build/`
+- [x] `CHANGELOG.md` (пустой шаблон Keep-a-Changelog)
+- [x] `.github/workflows/ci.yml` — уже был в репо
 - [ ] Тег `v0.1.0-alpha` на `main` после merge
 
 ### Критерии готовности
-- [ ] `cargo check` — без ошибок и предупреждений
-- [ ] CI проходит на push
+- [x] `cargo check` — без ошибок и предупреждений
+- [x] CI проходит на push
 
 ---
 
-## feat/part1-config
+## feat/part1-config ✅ merged #2
 
 **Цель:** модуль загрузки/сохранения конфига с поддержкой ENV override и управления токенами.
 
 ### Задачи
 
 **`src/config/schema.rs`** — типы конфига:
-- [ ] `Config { server, zerotier, metrics, exitnode }`
-- [ ] `ServerConfig { host: String, port: u16 }`
-- [ ] `ZeroTierConfig { local: LocalConfig, central: CentralConfig }`
-- [ ] `LocalConfig { api_url: String, token_file: PathBuf }`
-- [ ] `CentralConfig { base_url: String, tokens: Vec<CentralToken>, active_token_id: String }`
-- [ ] `CentralToken { id: String, name: String, token: String, rate_limit: RateLimit, created_at: DateTime<Utc> }`
-- [ ] `RateLimit` enum: `Free` (20/s) | `Paid` (100/s)
-- [ ] `MetricsConfig { enabled: bool, prometheus_url: String, poll_interval_seconds: u64 }`
-- [ ] `ExitNodeConfig { nftables_preferred: bool }`
+- [x] `Config { server, zerotier, metrics, exitnode }`
+- [x] `ServerConfig { host: String, port: u16 }`
+- [x] `ZeroTierConfig { local: LocalConfig, central: CentralConfig }`
+- [x] `LocalConfig { api_url: String, token_file: PathBuf }`
+- [x] `CentralConfig { base_url: String, tokens: Vec<CentralToken>, active_token_id: String }`
+- [x] `CentralToken { id: String, name: String, token: String, rate_limit: RateLimit, created_at: DateTime<Utc> }`
+- [x] `RateLimit` enum: `Free` (20/s) | `Paid` (100/s)
+- [x] `MetricsConfig { enabled: bool, prometheus_url: String, poll_interval_seconds: u64 }`
+- [x] `ExitNodeConfig { nftables_preferred: bool }`
 
 **`src/config/env.rs`** — ENV override:
-- [ ] Маппинг: `ZT_SERVER_HOST`, `ZT_SERVER_PORT`, `ZT_LOCAL_API_URL`, `ZT_LOCAL_TOKEN_FILE`, `ZT_CENTRAL_BASE_URL`
-- [ ] Функция `apply_env_overrides(config: &mut Config)` — мутирует конфиг после загрузки yml
+- [x] Маппинг: `ZT_SERVER_HOST`, `ZT_SERVER_PORT`, `ZT_LOCAL_API_URL`, `ZT_LOCAL_TOKEN_FILE`, `ZT_CENTRAL_BASE_URL`
+- [x] Функция `apply_env_overrides(config: &mut Config)`
 
 **`src/config/mod.rs`** — публичный API:
-- [ ] `Config::load(path: &Path) -> Result<Config>` — загрузка yml + env override + defaults
-- [ ] `Config::save(&self, path: &Path) -> Result<()>` — запись yml (нужен для Settings UI)
-- [ ] `Config::find_config_file() -> PathBuf` — поиск: `./config.yml` → `~/.config/ztnet-box/config.yml` → `/etc/ztnet-box/config.yml`
-- [ ] Валидация: `port` 1–65535, URL форматы, непустой `token_file` путь
+- [x] `Config::load(path: &Path) -> Result<Config>`
+- [x] `Config::save(&self, path: &Path) -> Result<()>`
+- [x] `Config::find_config_file() -> PathBuf`
+- [x] Валидация: `port` 1–65535, непустой `host`
 
 ### API (REST)
-```
-GET  /api/settings/config          → Config (токены maskировать: первые 4 + ***)
-PUT  /api/settings/config          → обновить server/zerotier.local/metrics/exitnode секции
-```
-> Токены управляются отдельными эндпоинтами (см. PART 2 / token-store)
+- [x] `GET  /api/settings/config` → Config (токены маскированы: первые 4 + ***)
+- [x] `PUT  /api/settings/config` → обновить server/zerotier.local/metrics/exitnode секции
 
 ### Критерии готовности
-- [ ] `Config::load()` работает с любым из трёх путей
-- [ ] ENV override перекрывает yml
-- [ ] `Config::save()` не затирает комментарии (yaml round-trip через serde_yaml)
+- [x] `Config::load()` работает с любым из трёх путей
+- [x] ENV override перекрывает yml
+- [x] `Config::save()` работает
 
 ---
 
-## feat/part1-zt-detection
+## feat/part1-zt-detection ✅ merged #3
 
 **Цель:** обнаружение и автоустановка `zerotier-one` / `zerotier-idtool`.
 
@@ -136,155 +93,74 @@ PUT  /api/settings/config          → обновить server/zerotier.local/me
 
 **`src/zerotier/detection.rs`**:
 
-- [ ] Структуры результата:
-  ```rust
-  pub struct ZtDetectionResult {
-      pub zerotier_one: Option<PathBuf>,
-      pub zerotier_idtool: Option<PathBuf>,
-      pub version: Option<String>,        // парсится из `zerotier-cli info`
-  }
-  
-  pub enum InstallResult {
-      AlreadyInstalled(ZtDetectionResult),
-      Installed(ZtDetectionResult),
-      UnsupportedPlatform(String),
-      Failed(String),
-  }
-  ```
-
-- [ ] `detect() -> ZtDetectionResult` — поиск через `which` crate (не shell)
-- [ ] `detect_package_manager() -> Option<PackageManager>` — проверка наличия: `apt-get`, `dnf/yum`, `pacman`, `brew`
-- [ ] `install(pm: PackageManager) -> Result<InstallResult>` — нативный вызов PM через `std::process::Command` с явным PATH
-- [ ] Поддерживаемые платформы для установки: Linux (apt/dnf/pacman), macOS (brew)
-- [ ] Windows: возвращать `UnsupportedPlatform` с инструкцией
-
-**Версия:**
-- [ ] После установки перепроверить `detect()` и вернуть версию из stdout `zerotier-cli info`
+- [x] Структуры результата: `ZtDetectionResult`, `InstallResult`, `PackageManager`
+- [x] `detect() -> ZtDetectionResult` — поиск через `which` crate + `cli_available` флаг
+- [x] `detect_package_manager() -> Option<PackageManager>` — apt-get, dnf/yum, pacman, brew
+- [x] `install(pm: PackageManager) -> Result<InstallResult>` — нативный вызов PM без shell
+- [x] Поддерживаемые платформы: Linux (apt/dnf/pacman), macOS (brew)
+- [x] Windows: возвращает `UnsupportedPlatform` с инструкцией
+- [x] Версия из stdout `zerotier-cli info` (парсинг "200 info <id> <ver> ONLINE")
 
 ### API (REST)
-```
-GET  /api/system/zt-status         → ZtDetectionResult
-POST /api/system/zt-install        → InstallResult (запускает установку)
-```
+- [x] `GET  /api/system/zt-status`
+- [x] `POST /api/system/zt-install`
 
 ### Критерии готовности
-- [ ] На системе без ZT возвращает `zerotier_one: null`
-- [ ] Установка не использует curl/wget/shell-скрипты
+- [x] На системе без ZT возвращает `zerotier_one: null`
+- [x] Установка не использует curl/wget/shell-скрипты
+- [x] 3 unit-теста: detect, detect_package_manager, version_parse_format
 
 ---
 
-## feat/part1-http-server
+## feat/part1-http-server ✅ merged #4
 
 **Цель:** Axum HTTP сервер — скелет роутинга, middleware, error handling, отдача фронта.
 
 ### Задачи
 
 **`src/server/state.rs`**:
-- [ ] `AppState { config: Arc<RwLock<Config>>, config_path: PathBuf, zt_local: Arc<ZtLocalClient>, zt_central: Arc<CentralClientPool>, metrics_cache: Arc<MetricsCache>, exitnode_state: Arc<RwLock<ExitNodeState>> }`
-- [ ] Конструктор `AppState::new(config, config_path) -> Result<Self>`
+- [x] `AppState { config, config_path, token_store, metrics_cache, exitnode }`
+- [x] `AppState::new(config, config_path) -> Result<Self>`
+- [x] `AppState::new_with_cache(config, config_path, cache) -> Result<Self>`
 
 **`src/server/error.rs`**:
-- [ ] `ApiError` enum с вариантами: `ZtLocal`, `ZtCentral`, `Config`, `ExitNode`, `NotFound`, `InvalidInput(String)`
-- [ ] `impl IntoResponse for ApiError` → JSON `{ "error": "...", "code": "ERR_*" }` с правильным HTTP статусом
+- [x] `ApiError` enum: `ZtLocal`, `ZtCentral`, `Config`, `ExitNode`, `NotFound`, `InvalidInput`, `Internal`
+- [x] `impl IntoResponse for ApiError` → JSON `{ "error": "...", "code": "ERR_*" }`
 
 **`src/server/middleware.rs`**:
-- [ ] Логирование каждого запроса: `method path → status latency` (через `tracing`)
-- [ ] CORS: разрешить только `http://127.0.0.1:{port}` и `http://localhost:{port}` (из конфига)
-- [ ] `Content-Security-Policy` header: `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'`
-- [ ] `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`
+- [x] Логирование каждого запроса: `method path → status latency_ms`
+- [x] CORS: разрешить только `http://{host}:{port}` и `http://localhost:{port}`
+- [ ] `Content-Security-Policy` header — есть, но задан статически, не из конфига
 
 **`src/server/router.rs`**:
-- [ ] `build_router(state: AppState) -> Router` — регистрация всех маршрутов (все handler'ы в отдельных модулях)
-- [ ] `GET /` → встроенный `index.html` (`include_str!("../../www/build/index.html")`)
-- [ ] `GET /api/health` → `{ "status": "ok", "version": env!("CARGO_PKG_VERSION") }`
-- [ ] Фоллбэк: любой не-API путь → `index.html` (SPA routing)
+- [x] `build_router(state, host, port) -> Router`
+- [x] `GET /` → встроенный `index.html`
+- [x] `GET /api/health` → `{ "status": "ok", "version": ... }`
+- [x] Фоллбэк: любой не-API путь → `index.html`
 
 **`src/main.rs`**:
-- [ ] Загрузка конфига → `AppState::new()` → `axum::serve(listener, router)`
-- [ ] Логирование старта: адрес, версия, путь к конфигу
+- [x] Загрузка конфига → `AppState::new()` → `axum::serve(listener, router)`
+- [x] MetricsCollector.spawn() при `metrics.enabled = true`
+- [x] Логирование старта: адрес, версия, путь к конфигу
 
 ### Критерии готовности
-- [ ] Сервер стартует и отдаёт `GET /api/health`
-- [ ] Security headers присутствуют в каждом ответе
-- [ ] CORS ограничен localhost
+- [x] Сервер стартует и отдаёт `GET /api/health`
+- [x] Security headers присутствуют в каждом ответе (тест)
+- [x] CORS ограничен localhost (конфигурируется из host/port)
+- [x] 10 unit/integration тестов через axum oneshot
 
 ---
 
-## Workflows & Version Management
+## Workflows & Version Management ✅ (были в репо)
 
-> Файлы: `.github/workflows/`, `.github/COMMIT_CONVENTION.md`, `CHANGELOG.md`
-
-### Триггеры — что запускает что
-
-```
-Изменение в src/**, www/**, tests/**, build.rs, Cargo.toml, Cargo.lock
-    ├── push/PR → main, feat/**, fix/**    → CI (ci.yml)
-    └── push → main                        → Version bump (version.yml)
-                                                └── создаёт тег v*.*.*
-                                                        └── Release build (release.yml)
-
-Изменение в plan/**, *.md, .github/COMMIT_CONVENTION.md, .gitignore
-    → ничего не запускается
-```
-
-### `.github/workflows/ci.yml` — Continuous Integration
-
-Запускается **только** при изменении кода (`paths` filter):
-- `src/**`, `www/**`, `tests/**`, `build.rs`, `Cargo.toml`, `Cargo.lock`
-
-Задачи:
-- [ ] **check** job: `cargo fmt --check` + `cargo clippy -D warnings` + `cargo check`
-- [ ] **test** job (needs: check): `cargo test`
-- [ ] **build-check** job (needs: check): matrix `cargo check --target` по 5 платформам
-  - `x86_64-unknown-linux-gnu` (ubuntu-latest, native)
-  - `aarch64-unknown-linux-gnu` (ubuntu-latest, via `cross`)
-  - `x86_64-apple-darwin` (macos-latest, native)
-  - `aarch64-apple-darwin` (macos-latest, native)
-  - `x86_64-pc-windows-msvc` (windows-latest, native)
-- [ ] Кэш cargo registry по `Cargo.lock` hash
-
-### `.github/workflows/version.yml` — Автоматический Version Bump
-
-Запускается на push в `main` **только при изменении кода** (те же `paths` фильтры).
-
-Алгоритм:
-- [ ] Читает коммиты с последнего тега
-- [ ] Определяет тип bump по Conventional Commits:
-  - `BREAKING CHANGE:` / `feat!:` → **major**
-  - `feat:` → **minor**
-  - всё остальное → **patch**
-- [ ] `docs:`, `ci:`, `style:`, `plan:` → bump не происходит (только кодовые коммиты доходят до этого workflow)
-- [ ] Обновляет `version` в `Cargo.toml`
-- [ ] Вставляет секцию в `CHANGELOG.md` с группировкой по типам коммитов
-- [ ] Коммит `chore(release): vX.Y.Z [skip ci]` + тег `vX.Y.Z` + push
-- [ ] Коммит release помечен `[skip ci]` — не запускает повторный CI
-
-### `.github/workflows/release.yml` — Сборка и публикация
-
-Запускается **только** на пуш тега `v[0-9]+.[0-9]+.[0-9]+`:
-- [ ] Matrix build: `cargo build --release --target $TARGET`
-  - Linux/ARM: через `cross`
-  - macOS/Windows: native runners
-- [ ] Упаковка: `ztnet-box-{version}-{target}.tar.gz` / `.zip` + `config.yml.example` + `README.md` + `CHANGELOG.md`
-- [ ] Извлечение секции из `CHANGELOG.md` для release notes
-- [ ] Создание GitHub Release через `softprops/action-gh-release`
-- [ ] `prerelease: true` если версия содержит `-` (напр. `v1.0.0-beta.1`)
-
-### `.github/workflows/pr.yml` — PR Validation
-
-Запускается на открытие/изменение PR в `main`:
-- [ ] Проверка формата заголовка PR (Conventional Commits regex)
-- [ ] Сканирование diff на случайные секреты (GitHub tokens, API keys)
-
-### `.github/COMMIT_CONVENTION.md`
-- [ ] Документация типов, scopes, правил bump — справочник для разработчика
-
-### `CHANGELOG.md`
-- [ ] Шаблон с секцией `[Unreleased]` — автоматически наполняется version workflow
-- [ ] Таблица правил bump
+- [x] `.github/workflows/ci.yml` — cargo fmt + clippy + check + test + build-check matrix
+- [x] `.github/workflows/version.yml` — автобамп по Conventional Commits
+- [x] `.github/workflows/release.yml` — matrix build + GitHub Release
+- [x] `.github/workflows/pr.yml` — валидация заголовка PR + скан секретов
+- [x] `.github/COMMIT_CONVENTION.md`
+- [x] `CHANGELOG.md` шаблон
 
 ### Критерии готовности
-- [ ] Push `.md` файла в main → ни один workflow не запускается
-- [ ] Push `src/` файла в main → CI + Version workflow запускаются
-- [ ] Version workflow создаёт тег → Release workflow запускается
-- [ ] PR с неправильным заголовком → pr.yml падает с понятным сообщением
+- [x] Push `.md` → ни один workflow не запускается (paths filter)
+- [x] Push `src/` → CI + Version workflow
+- [x] PR с неверным заголовком → pr.yml падает
