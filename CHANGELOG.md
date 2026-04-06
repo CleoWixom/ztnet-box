@@ -10,6 +10,12 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-04-06
+
+### Chores
+- docs(plan): update PART-2 — mark metrics/central/tokens complete, detail exitnode todo (f14d5ea)
+
+
 ## [0.2.0] — 2026-04-06
 
 ### Features
