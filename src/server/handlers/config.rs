@@ -1,7 +1,5 @@
 use crate::{
-    config::schema::{
-        CentralConfig, Config, ExitNodeConfig, MetricsConfig, ServerConfig, ZeroTierConfig,
-    },
+    config::schema::{ExitNodeConfig, MetricsConfig, ServerConfig},
     server::{error::ApiError, state::AppState},
 };
 use axum::{extract::State, Json};

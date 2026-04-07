@@ -9,8 +9,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::{config::schema::ExitNodeConfig, server::error::ApiError};
-use deps::DepsStatus;
-use platform::PlatformSupport;
+
 use rules::{ExitNodeRules, FirewallBackend};
 
 // ── State ─────────────────────────────────────────────────────────────────────

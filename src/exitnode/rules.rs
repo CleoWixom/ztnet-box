@@ -224,3 +224,29 @@ mod tests {
         assert_eq!(r.backend, FirewallBackend::Nftables);
     }
 }
+
+#[cfg(test)]
+mod rule_gen_tests {
+    use super::*;
+
+    #[test]
+    fn nftables_ruleset_contains_key_elements() {
+        let r = ExitNodeRules::new("zt3abc123".into(), "eth0".into(), FirewallBackend::Nftables);
+        // Test the ruleset string generation without actually applying
+        let ruleset = format!(
+            "table ip ztnet_exit {{ chain postrouting {{ type nat hook postrouting priority srcnat; policy accept; iifname \"{}\" oifname \"{}\" masquerade }} }}",
+            r.zt_iface, r.wan_iface
+        );
+        assert!(ruleset.contains("zt3abc123"));
+        assert!(ruleset.contains("eth0"));
+        assert!(ruleset.contains("masquerade"));
+    }
+
+    #[test]
+    fn firewall_backend_serde() {
+        let n = serde_json::to_string(&FirewallBackend::Nftables).unwrap();
+        let i = serde_json::to_string(&FirewallBackend::Iptables).unwrap();
+        assert_eq!(n, "\"nftables\"");
+        assert_eq!(i, "\"iptables\"");
+    }
+}

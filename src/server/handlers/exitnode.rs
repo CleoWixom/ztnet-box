@@ -1,5 +1,5 @@
 use crate::{
-    exitnode::{deps, interfaces, platform, ExitNodeManager},
+    exitnode::{deps, interfaces, platform},
     server::{error::ApiError, state::AppState},
 };
 use axum::{extract::State, response::IntoResponse, Json};
