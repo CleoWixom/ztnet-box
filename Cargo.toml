@@ -1,6 +1,6 @@
 [package]
 name          = "ztnet-box"
-version = "0.4.0"
+version       = "0.4.0"
 edition       = "2021"
 rust-version  = "1.75"
 description   = "Local web UI for ZeroTier management"
@@ -10,6 +10,10 @@ repository    = "https://github.com/CleoWixom/ztnet-box"
 [[bin]]
 name = "ztnet-box"
 path = "src/main.rs"
+
+[lib]
+name = "ztnet_box"
+path = "src/lib.rs"
 
 [dependencies]
 axum               = { version = "0.7", features = ["macros"] }
@@ -31,11 +35,13 @@ anyhow             = "1"
 [build-dependencies]
 # только std, нет внешних build-deps
 
-[profile.release]
-strip     = true
-lto       = true
-opt-level = 3
-
 [dev-dependencies]
-tower      = { version = "0.5", features = ["util"] }
+tower          = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
+
+[profile.release]
+opt-level     = 3
+lto           = true
+codegen-units = 1
+strip         = true
+panic         = "abort"

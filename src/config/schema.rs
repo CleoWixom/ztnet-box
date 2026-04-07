@@ -160,3 +160,37 @@ impl CentralToken {
         format!("{prefix}***")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_serde_round_trip() {
+        let cfg = Config::default();
+        let yaml = serde_yaml::to_string(&cfg).unwrap();
+        let back: Config = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(back.server.port, cfg.server.port);
+        assert_eq!(back.server.host, cfg.server.host);
+        assert_eq!(back.zerotier.local.api_url, cfg.zerotier.local.api_url);
+    }
+
+    #[test]
+    fn central_token_masked() {
+        let t = CentralToken::new("test".into(), "abcdefghijklmnop".into(), RateLimit::Free);
+        let masked = t.masked_token();
+        assert!(masked.starts_with("abcd"));
+        assert!(masked.contains("***"));
+        assert!(!masked.contains("efghijklmnop"));
+    }
+
+    #[test]
+    fn rate_limit_serde() {
+        let free = serde_json::to_string(&RateLimit::Free).unwrap();
+        let paid = serde_json::to_string(&RateLimit::Paid).unwrap();
+        assert_eq!(free, "\"free\"");
+        assert_eq!(paid, "\"paid\"");
+        let back: RateLimit = serde_json::from_str(&paid).unwrap();
+        assert!(matches!(back, RateLimit::Paid));
+    }
+}
