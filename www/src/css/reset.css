@@ -1,0 +1,14 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: var(--fs-base); color: var(--c-text); background: var(--c-bg); }
+body { font-family: var(--font); line-height: 1.5; overflow-x: hidden; }
+a { color: var(--c-primary); text-decoration: none; }
+a:hover { color: var(--c-primary-h); }
+button, input, select, textarea { font: inherit; }
+ul, ol { list-style: none; }
+img { max-width: 100%; }
+hr { border: none; border-top: 1px solid var(--c-border); }
+:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
+::selection { background: rgba(79,124,255,.3); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 3px; }
