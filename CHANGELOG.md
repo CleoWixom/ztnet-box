@@ -10,6 +10,12 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-04-07
+
+### Chores
+- docs(plan): PART-3 complete — all frontend merged in #10 (v0.4.0) (9d1fa23)
+
+
 ## [0.4.0] — 2026-04-07
 
 ### Chores
