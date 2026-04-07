@@ -3,3 +3,4 @@ config.yml
 www/build/
 !www/build/.gitkeep
 Cargo.lock
+/www/build/index.html
