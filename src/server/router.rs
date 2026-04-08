@@ -8,6 +8,7 @@ use super::{
     state::AppState,
 };
 use axum::{
+    extract::DefaultBodyLimit,
     http::{HeaderName, HeaderValue, Method},
     middleware,
     response::{Html, IntoResponse},
@@ -151,9 +152,14 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .layer(SetResponseHeaderLayer::if_not_present(
             HeaderName::from_static("content-security-policy"),
             HeaderValue::from_static(
-                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'",
             ),
         ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("referrer-policy"),
+            HeaderValue::from_static("no-referrer"),
+        ))
+        .layer(DefaultBodyLimit::max(64 * 1024))
         .with_state(state)
 }
 
@@ -266,6 +272,16 @@ mod tests {
             Some("DENY")
         );
         assert!(h.contains_key("content-security-policy"));
+        let csp = h
+            .get("content-security-policy")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        assert!(csp.contains("img-src"));
+        assert!(csp.contains("connect-src"));
+        assert_eq!(
+            h.get("referrer-policy").and_then(|v| v.to_str().ok()),
+            Some("no-referrer")
+        );
     }
 
     #[tokio::test]

@@ -1,5 +1,5 @@
 use crate::{
-    server::{error::ApiError, state::AppState},
+    server::{error::ApiError, state::AppState, validate},
     zerotier::local::{client::ZtLocalClient, types::*},
 };
 use axum::{
@@ -9,20 +9,14 @@ use axum::{
     Json,
 };
 
-// ── Client helper ─────────────────────────────────────────────────────────────
-
 async fn client(state: &AppState) -> Result<ZtLocalClient, ApiError> {
     let cfg = state.config.read().await;
     ZtLocalClient::from_config(&cfg.zerotier.local)
 }
 
-// ── Node ──────────────────────────────────────────────────────────────────────
-
 pub async fn node_status(State(s): State<AppState>) -> Result<impl IntoResponse, ApiError> {
     Ok(Json(client(&s).await?.node_status().await?))
 }
-
-// ── Joined Networks ───────────────────────────────────────────────────────────
 
 pub async fn list_networks(State(s): State<AppState>) -> Result<impl IntoResponse, ApiError> {
     Ok(Json(client(&s).await?.networks().await?))
@@ -32,6 +26,7 @@ pub async fn get_network(
     State(s): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
+    validate::network_id(&id)?;
     Ok(Json(client(&s).await?.network(&id).await?))
 }
 
@@ -40,6 +35,7 @@ pub async fn join_network(
     Path(id): Path<String>,
     Json(body): Json<NetworkMembershipUpdate>,
 ) -> Result<impl IntoResponse, ApiError> {
+    validate::network_id(&id)?;
     Ok(Json(client(&s).await?.join_network(&id, &body).await?))
 }
 
@@ -47,11 +43,10 @@ pub async fn leave_network(
     State(s): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
+    validate::network_id(&id)?;
     client(&s).await?.leave_network(&id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
-
-// ── Peers ─────────────────────────────────────────────────────────────────────
 
 pub async fn list_peers(State(s): State<AppState>) -> Result<impl IntoResponse, ApiError> {
     Ok(Json(client(&s).await?.peers().await?))
@@ -61,10 +56,9 @@ pub async fn get_peer(
     State(s): State<AppState>,
     Path(node_id): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
+    validate::node_id(&node_id)?;
     Ok(Json(client(&s).await?.peer(&node_id).await?))
 }
-
-// ── Controller Networks ───────────────────────────────────────────────────────
 
 pub async fn list_controller_networks(
     State(s): State<AppState>,
@@ -78,15 +72,14 @@ pub async fn create_controller_network(
 ) -> Result<impl IntoResponse, ApiError> {
     let cl = client(&s).await?;
     let status = cl.node_status().await?;
-    Ok(Json(
-        cl.create_controller_network(&status.address, &body).await?,
-    ))
+    Ok(Json(cl.create_controller_network(&status.address, &body).await?))
 }
 
 pub async fn get_controller_network(
     State(s): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
+    validate::network_id(&id)?;
     Ok(Json(client(&s).await?.controller_network(&id).await?))
 }
 
@@ -95,28 +88,24 @@ pub async fn update_controller_network(
     Path(id): Path<String>,
     Json(body): Json<ControllerNetworkCreate>,
 ) -> Result<impl IntoResponse, ApiError> {
-    Ok(Json(
-        client(&s)
-            .await?
-            .update_controller_network(&id, &body)
-            .await?,
-    ))
+    validate::network_id(&id)?;
+    Ok(Json(client(&s).await?.update_controller_network(&id, &body).await?))
 }
 
 pub async fn delete_controller_network(
     State(s): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
+    validate::network_id(&id)?;
     client(&s).await?.delete_controller_network(&id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
-
-// ── Controller Members ────────────────────────────────────────────────────────
 
 pub async fn list_members(
     State(s): State<AppState>,
     Path(net_id): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
+    validate::network_id(&net_id)?;
     Ok(Json(client(&s).await?.network_members(&net_id).await?))
 }
 
@@ -124,9 +113,9 @@ pub async fn get_member(
     State(s): State<AppState>,
     Path((net_id, node_id)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, ApiError> {
-    Ok(Json(
-        client(&s).await?.network_member(&net_id, &node_id).await?,
-    ))
+    validate::network_id(&net_id)?;
+    validate::node_id(&node_id)?;
+    Ok(Json(client(&s).await?.network_member(&net_id, &node_id).await?))
 }
 
 pub async fn update_member(
@@ -134,23 +123,20 @@ pub async fn update_member(
     Path((net_id, node_id)): Path<(String, String)>,
     Json(body): Json<ControllerMemberUpdate>,
 ) -> Result<impl IntoResponse, ApiError> {
-    Ok(Json(
-        client(&s)
-            .await?
-            .update_member(&net_id, &node_id, &body)
-            .await?,
-    ))
+    validate::network_id(&net_id)?;
+    validate::node_id(&node_id)?;
+    Ok(Json(client(&s).await?.update_member(&net_id, &node_id, &body).await?))
 }
 
 pub async fn delete_member(
     State(s): State<AppState>,
     Path((net_id, node_id)): Path<(String, String)>,
 ) -> Result<StatusCode, ApiError> {
+    validate::network_id(&net_id)?;
+    validate::node_id(&node_id)?;
     client(&s).await?.delete_member(&net_id, &node_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
-
-// ── Moons ─────────────────────────────────────────────────────────────────────
 
 pub async fn list_moons(State(s): State<AppState>) -> Result<impl IntoResponse, ApiError> {
     Ok(Json(client(&s).await?.moons().await?))
@@ -161,6 +147,7 @@ pub async fn orbit_moon(
     Path(world_id): Path<String>,
     Json(body): Json<OrbitRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    validate::world_id(&world_id)?;
     Ok(Json(client(&s).await?.orbit_moon(&world_id, &body).await?))
 }
 
@@ -168,6 +155,7 @@ pub async fn deorbit_moon(
     State(s): State<AppState>,
     Path(world_id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
+    validate::world_id(&world_id)?;
     client(&s).await?.deorbit_moon(&world_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

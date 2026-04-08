@@ -7,7 +7,7 @@ mod server;
 mod zerotier;
 
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use crate::metrics::{cache::MetricsCache, collector::MetricsCollector};
@@ -41,6 +41,13 @@ async fn main() -> anyhow::Result<()> {
             url      = %cfg.metrics.prometheus_url,
             interval = cfg.metrics.poll_interval_seconds,
             "metrics collector started"
+        );
+    }
+
+    if host != "127.0.0.1" && host != "::1" && host != "localhost" {
+        warn!(
+            host = %host,
+            "SECURITY: server bound to non-loopback address — ensure network-level access control"
         );
     }
 

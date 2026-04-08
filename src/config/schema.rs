@@ -45,6 +45,9 @@ pub struct CentralConfig {
 pub struct CentralToken {
     pub id: String,
     pub name: String,
+    /// Raw token — stored in config file only.
+    /// Never returned directly by API; always go through `masked_token()` or `TokenView`.
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub token: String,
     pub rate_limit: RateLimit,
     pub created_at: DateTime<Utc>,
