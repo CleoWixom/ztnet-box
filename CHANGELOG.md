@@ -10,6 +10,9 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-04-08
+
+
 ### Security
 - fix: complete Content-Security-Policy — add `img-src 'self' data:` (required for QR canvas) and `connect-src 'self'`
 - feat: add `Referrer-Policy: no-referrer` security header to all responses
