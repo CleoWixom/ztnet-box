@@ -10,6 +10,13 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.6.3] — 2026-04-08
+
+### Chores
+- Merge pull request #12 from CleoWixom/feat/part4-security (f29c75b)
+- docs(plan): add updates.md — comprehensive feature backlog from ZT docs audit (74e50b8)
+
+
 ## [0.6.2] — 2026-04-08
 
 
