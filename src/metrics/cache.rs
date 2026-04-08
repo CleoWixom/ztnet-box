@@ -211,9 +211,7 @@ fn build_snapshot(samples: &[MetricSample]) -> MetricsSnapshot {
             .map(|s| s.value);
         let lat_count = samples
             .iter()
-            .find(|s| {
-                s.name == "zt_peer_latency_count" && s.labels.get("node_id") == Some(node_id)
-            })
+            .find(|s| s.name == "zt_peer_latency_count" && s.labels.get("node_id") == Some(node_id))
             .map(|s| s.value);
         let latency_ms = match (lat_sum, lat_count) {
             (Some(sum), Some(cnt)) if cnt > 0.0 => Some(sum / cnt),
@@ -232,9 +230,7 @@ fn build_snapshot(samples: &[MetricSample]) -> MetricsSnapshot {
             .sum();
         let total_paths = samples
             .iter()
-            .filter(|s| {
-                s.name == "zt_peer_path_count" && s.labels.get("node_id") == Some(node_id)
-            })
+            .filter(|s| s.name == "zt_peer_path_count" && s.labels.get("node_id") == Some(node_id))
             .map(|s| s.value as u32)
             .sum();
 
@@ -296,10 +292,9 @@ fn build_snapshot(samples: &[MetricSample]) -> MetricsSnapshot {
     // ── Networks ──────────────────────────────────────────────────────────────
     // Collect unique network_ids from zt_network_packets
     let mut net_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for s in samples
-        .iter()
-        .filter(|s| s.name == "zt_network_packets" || s.name == "zt_network_multicast_groups_subscribed")
-    {
+    for s in samples.iter().filter(|s| {
+        s.name == "zt_network_packets" || s.name == "zt_network_multicast_groups_subscribed"
+    }) {
         if let Some(id) = s.labels.get("network_id") {
             net_ids.insert(id.clone());
         }
@@ -339,7 +334,8 @@ fn build_snapshot(samples: &[MetricSample]) -> MetricsSnapshot {
             multicast_subscriptions,
         });
     }
-    snap.networks.sort_by(|a, b| a.network_id.cmp(&b.network_id));
+    snap.networks
+        .sort_by(|a, b| a.network_id.cmp(&b.network_id));
 
     snap
 }
@@ -428,7 +424,11 @@ zt_peer_packet_errors{node_id="aabbccddee"} 1
         cache.update_from_raw(SAMPLE_METRICS.to_string()).await;
         let snap = cache.snapshot().await.unwrap();
         assert_eq!(snap.peers.len(), 2);
-        let peer = snap.peers.iter().find(|p| p.node_id == "aabbccddee").unwrap();
+        let peer = snap
+            .peers
+            .iter()
+            .find(|p| p.node_id == "aabbccddee")
+            .unwrap();
         // avg = 125.0 / 5 = 25.0 ms
         assert_eq!(peer.latency_ms, Some(25.0));
     }
@@ -438,7 +438,11 @@ zt_peer_packet_errors{node_id="aabbccddee"} 1
         let cache = MetricsCache::new();
         cache.update_from_raw(SAMPLE_METRICS.to_string()).await;
         let snap = cache.snapshot().await.unwrap();
-        let peer = snap.peers.iter().find(|p| p.node_id == "aabbccddee").unwrap();
+        let peer = snap
+            .peers
+            .iter()
+            .find(|p| p.node_id == "aabbccddee")
+            .unwrap();
         assert_eq!(peer.active_paths, 2);
         assert_eq!(peer.total_paths, 3); // active(2) + inactive(1)
     }
@@ -448,7 +452,11 @@ zt_peer_packet_errors{node_id="aabbccddee"} 1
         let cache = MetricsCache::new();
         cache.update_from_raw(SAMPLE_METRICS.to_string()).await;
         let snap = cache.snapshot().await.unwrap();
-        let peer = snap.peers.iter().find(|p| p.node_id == "aabbccddee").unwrap();
+        let peer = snap
+            .peers
+            .iter()
+            .find(|p| p.node_id == "aabbccddee")
+            .unwrap();
         assert_eq!(peer.rx_packets, 300.0);
         assert_eq!(peer.tx_packets, 250.0);
         assert_eq!(peer.packet_errors, 1.0);
@@ -501,6 +509,9 @@ zt_peer_packet_errors{node_id="aabbccddee"} 1
     async fn cache_records_error() {
         let cache = MetricsCache::new();
         cache.record_error("connection refused".to_string()).await;
-        assert_eq!(cache.last_error().await.as_deref(), Some("connection refused"));
+        assert_eq!(
+            cache.last_error().await.as_deref(),
+            Some("connection refused")
+        );
     }
 }

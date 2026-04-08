@@ -55,5 +55,9 @@ impl MetricsCollector {
 fn read_token(path: &PathBuf) -> Option<String> {
     let token = std::fs::read_to_string(path).ok()?;
     let token = token.trim().to_string();
-    if token.is_empty() { None } else { Some(token) }
+    if token.is_empty() {
+        None
+    } else {
+        Some(token)
+    }
 }

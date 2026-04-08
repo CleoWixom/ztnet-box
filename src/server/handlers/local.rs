@@ -72,7 +72,9 @@ pub async fn create_controller_network(
 ) -> Result<impl IntoResponse, ApiError> {
     let cl = client(&s).await?;
     let status = cl.node_status().await?;
-    Ok(Json(cl.create_controller_network(&status.address, &body).await?))
+    Ok(Json(
+        cl.create_controller_network(&status.address, &body).await?,
+    ))
 }
 
 pub async fn get_controller_network(
@@ -89,7 +91,12 @@ pub async fn update_controller_network(
     Json(body): Json<ControllerNetworkCreate>,
 ) -> Result<impl IntoResponse, ApiError> {
     validate::network_id(&id)?;
-    Ok(Json(client(&s).await?.update_controller_network(&id, &body).await?))
+    Ok(Json(
+        client(&s)
+            .await?
+            .update_controller_network(&id, &body)
+            .await?,
+    ))
 }
 
 pub async fn delete_controller_network(
@@ -115,7 +122,9 @@ pub async fn get_member(
 ) -> Result<impl IntoResponse, ApiError> {
     validate::network_id(&net_id)?;
     validate::node_id(&node_id)?;
-    Ok(Json(client(&s).await?.network_member(&net_id, &node_id).await?))
+    Ok(Json(
+        client(&s).await?.network_member(&net_id, &node_id).await?,
+    ))
 }
 
 pub async fn update_member(
@@ -125,7 +134,12 @@ pub async fn update_member(
 ) -> Result<impl IntoResponse, ApiError> {
     validate::network_id(&net_id)?;
     validate::node_id(&node_id)?;
-    Ok(Json(client(&s).await?.update_member(&net_id, &node_id, &body).await?))
+    Ok(Json(
+        client(&s)
+            .await?
+            .update_member(&net_id, &node_id, &body)
+            .await?,
+    ))
 }
 
 pub async fn delete_member(
