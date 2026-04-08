@@ -29,6 +29,9 @@ async fn main() -> anyhow::Result<()> {
     let host = cfg.server.host.clone();
     let port = cfg.server.port;
 
+    // Security: warn if bound to a public address
+    server::middleware::warn_if_public_bind(&host);
+
     let metrics_cache = Arc::new(MetricsCache::new());
 
     if cfg.metrics.enabled {

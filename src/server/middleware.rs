@@ -4,18 +4,27 @@ use axum::{
     middleware::Next,
 };
 use std::time::Instant;
-use tracing::info;
+use tracing::{info, warn};
 
-/// Логирует каждый запрос: METHOD /path → STATUS latency_ms
+/// Logs each request: METHOD /path → STATUS latency_ms
 pub async fn log_request(req: Request<Body>, next: Next) -> Response<Body> {
     let method = req.method().clone();
     let path = req.uri().path().to_owned();
     let start = Instant::now();
-
     let resp = next.run(req).await;
-    let status = resp.status().as_u16();
     let ms = start.elapsed().as_millis();
-
-    info!(method = %method, path = %path, status, latency_ms = ms, "←");
+    info!(method = %method, path = %path, status = resp.status().as_u16(), latency_ms = ms, "←");
     resp
+}
+
+/// Emits a warning if the server is bound to a non-localhost address.
+pub fn warn_if_public_bind(host: &str) {
+    if host != "127.0.0.1" && host != "::1" && host != "localhost" {
+        warn!(
+            host = %host,
+            "SECURITY: Server is bound to a public address. \
+             ZeroBox has no authentication — ensure network-level access control \
+             (firewall, VPN, etc.) is in place."
+        );
+    }
 }

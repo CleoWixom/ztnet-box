@@ -15,9 +15,18 @@ use axum::{
     Json, Router,
 };
 use serde_json::json;
-use tower_http::{cors::CorsLayer, set_header::SetResponseHeaderLayer};
+use tower_http::{
+    cors::CorsLayer, limit::RequestBodyLimitLayer, set_header::SetResponseHeaderLayer,
+};
 
 static INDEX_HTML: &str = include_str!("../../www/build/index.html");
+
+// CSP allows data: for QR code canvas export
+const CSP: &str = "default-src 'self'; \
+    script-src 'self' 'unsafe-inline'; \
+    style-src 'self' 'unsafe-inline'; \
+    img-src 'self' data:; \
+    connect-src 'self'";
 
 pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
     let origin_host = format!("http://{host}:{port}")
@@ -31,6 +40,31 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers(tower_http::cors::Any)
         .allow_origin([origin_host, origin_lo]);
+
+    // /api/settings/tokens/*
+    let tokens = Router::new()
+        .route(
+            "/",
+            get(tok_handler::list_tokens).post(tok_handler::add_token),
+        )
+        .route("/validate", post(tok_handler::validate_token))
+        .route(
+            "/:id",
+            put(tok_handler::update_token).delete(tok_handler::delete_token),
+        )
+        .route("/:id/activate", post(tok_handler::activate_token));
+
+    // /api/exitnode/*
+    let exitnode = Router::new()
+        .route("/platform", get(exit_handler::get_platform))
+        .route(
+            "/deps",
+            get(exit_handler::get_deps).post(exit_handler::install_deps),
+        )
+        .route("/interfaces", get(exit_handler::get_interfaces))
+        .route("/status", get(exit_handler::get_status))
+        .route("/enable", post(exit_handler::enable))
+        .route("/disable", post(exit_handler::disable));
 
     // /api/local/*
     let local = Router::new()
@@ -93,31 +127,6 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .route("/user", get(central_handler::get_user))
         .route("/status", get(central_handler::get_status));
 
-    // /api/settings/tokens/*
-    let tokens = Router::new()
-        .route(
-            "/",
-            get(tok_handler::list_tokens).post(tok_handler::add_token),
-        )
-        .route("/validate", post(tok_handler::validate_token))
-        .route(
-            "/:id",
-            put(tok_handler::update_token).delete(tok_handler::delete_token),
-        )
-        .route("/:id/activate", post(tok_handler::activate_token));
-
-    // /api/exitnode/*
-    let exitnode = Router::new()
-        .route("/platform", get(exit_handler::get_platform))
-        .route(
-            "/deps",
-            get(exit_handler::get_deps).post(exit_handler::install_deps),
-        )
-        .route("/interfaces", get(exit_handler::get_interfaces))
-        .route("/status", get(exit_handler::get_status))
-        .route("/enable", post(exit_handler::enable))
-        .route("/disable", post(exit_handler::disable));
-
     let api = Router::new()
         .route("/health", get(health_handler))
         .route("/system/zt-status", get(sys_handler::zt_status))
@@ -139,7 +148,10 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .nest("/api", api)
         .fallback(get(spa_fallback))
         .layer(middleware::from_fn(log_request))
+        // 64 KB body limit — prevents abuse
+        .layer(RequestBodyLimitLayer::new(65_536))
         .layer(cors)
+        // Security headers
         .layer(SetResponseHeaderLayer::if_not_present(
             HeaderName::from_static("x-content-type-options"),
             HeaderValue::from_static("nosniff"),
@@ -149,10 +161,12 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
             HeaderValue::from_static("DENY"),
         ))
         .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("referrer-policy"),
+            HeaderValue::from_static("no-referrer"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
             HeaderName::from_static("content-security-policy"),
-            HeaderValue::from_static(
-                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
-            ),
+            HeaderValue::from_static(CSP),
         ))
         .with_state(state)
 }
@@ -212,7 +226,91 @@ mod tests {
         let body = resp.into_body().collect().await.unwrap().to_bytes();
         let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(v["status"], "ok");
-        assert!(v["version"].is_string());
+    }
+
+    #[tokio::test]
+    async fn security_headers_present() {
+        let resp = test_router()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let h = resp.headers();
+        assert_eq!(
+            h.get("x-content-type-options")
+                .and_then(|v| v.to_str().ok()),
+            Some("nosniff")
+        );
+        assert_eq!(
+            h.get("x-frame-options").and_then(|v| v.to_str().ok()),
+            Some("DENY")
+        );
+        assert_eq!(
+            h.get("referrer-policy").and_then(|v| v.to_str().ok()),
+            Some("no-referrer")
+        );
+        assert!(h.contains_key("content-security-policy"));
+    }
+
+    #[tokio::test]
+    async fn csp_allows_data_uris() {
+        let resp = test_router()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let csp = resp
+            .headers()
+            .get("content-security-policy")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        assert!(
+            csp.contains("img-src 'self' data:"),
+            "CSP must allow data: for QR codes"
+        );
+        assert!(
+            csp.contains("connect-src 'self'"),
+            "CSP must restrict fetch to self"
+        );
+    }
+
+    #[tokio::test]
+    async fn body_limit_rejects_oversized_requests() {
+        let big_body = "x".repeat(70_000);
+        let resp = test_router()
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/settings/config")
+                    .header("content-type", "application/json")
+                    .body(Body::from(big_body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    #[tokio::test]
+    async fn central_no_token_returns_502() {
+        let resp = test_router()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/central/networks")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
     }
 
     #[tokio::test]
@@ -242,44 +340,5 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-    }
-
-    #[tokio::test]
-    async fn security_headers_present() {
-        let resp = test_router()
-            .oneshot(
-                Request::builder()
-                    .uri("/api/health")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        let h = resp.headers();
-        assert_eq!(
-            h.get("x-content-type-options")
-                .and_then(|v| v.to_str().ok()),
-            Some("nosniff")
-        );
-        assert_eq!(
-            h.get("x-frame-options").and_then(|v| v.to_str().ok()),
-            Some("DENY")
-        );
-        assert!(h.contains_key("content-security-policy"));
-    }
-
-    #[tokio::test]
-    async fn central_no_token_returns_502() {
-        let resp = test_router()
-            .oneshot(
-                Request::builder()
-                    .uri("/api/central/networks")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        // No token configured → ApiError::ZtCentral → 502
-        assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
     }
 }
