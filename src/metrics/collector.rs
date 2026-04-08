@@ -1,16 +1,20 @@
 use super::cache::MetricsCache;
 use reqwest::Client;
-use std::{sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
-/// Background metrics collector - use `MetricsCollector::start()` to launch.
+/// Background metrics collector. Launch with `MetricsCollector::start()`.
 pub struct MetricsCollector;
 
 impl MetricsCollector {
-    /// Запускает фоновый сбор метрик. Возвращает JoinHandle.
+    /// Spawn a background task that polls the ZeroTier metrics endpoint.
+    ///
+    /// `metricstoken_file` — path to `metricstoken.secret` (Bearer auth).
+    /// If the file doesn't exist or is empty, auth header is omitted.
     pub fn start(
         url: String,
         interval_secs: u64,
         cache: Arc<MetricsCache>,
+        metricstoken_file: PathBuf,
     ) -> tokio::task::JoinHandle<()> {
         let client = Client::new();
         let interval = Duration::from_secs(interval_secs.max(1));
@@ -19,7 +23,17 @@ impl MetricsCollector {
             let mut ticker = tokio::time::interval(interval);
             loop {
                 ticker.tick().await;
-                match client.get(&url).send().await {
+
+                // Read token from file each tick so hot-reload works without restart
+                let token = read_token(&metricstoken_file);
+
+                let req = client.get(&url);
+                let req = match &token {
+                    Some(t) => req.bearer_auth(t),
+                    None => req,
+                };
+
+                match req.send().await {
                     Ok(resp) => match resp.text().await {
                         Ok(text) => cache.update_from_raw(text).await,
                         Err(e) => {
@@ -34,5 +48,16 @@ impl MetricsCollector {
                 }
             }
         })
+    }
+}
+
+/// Read and trim the metrics token from disk. Returns None if missing / empty.
+fn read_token(path: &std::path::Path) -> Option<String> {
+    let token = std::fs::read_to_string(path).ok()?;
+    let token = token.trim().to_string();
+    if token.is_empty() {
+        None
+    } else {
+        Some(token)
     }
 }

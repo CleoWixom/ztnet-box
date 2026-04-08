@@ -87,6 +87,17 @@ async fn security_headers_on_every_response() {
         Some("DENY")
     );
     assert!(h.contains_key("content-security-policy"));
+    // CSP must include img-src data: (for QR canvas) and connect-src self
+    let csp = h
+        .get("content-security-policy")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    assert!(csp.contains("img-src"), "CSP must include img-src");
+    assert!(csp.contains("connect-src"), "CSP must include connect-src");
+    assert_eq!(
+        h.get("referrer-policy").and_then(|v| v.to_str().ok()),
+        Some("no-referrer")
+    );
 }
 
 // ── Settings/config ───────────────────────────────────────────────────────────
@@ -296,4 +307,53 @@ async fn zt_status_returns_detection_result() {
     assert_eq!(resp.status(), StatusCode::OK);
     let body = json_body(resp).await;
     assert!(body["cli_available"].is_boolean());
+}
+
+// ── Input validation ──────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn invalid_network_id_returns_422() {
+    // "badid" is not 16 hex chars → should be rejected before hitting ZT
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .uri("/api/local/networks/badid")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
+async fn invalid_node_id_in_peer_returns_422() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .uri("/api/local/peers/gg")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
+async fn oversized_body_returns_413() {
+    let big = vec![b'x'; 65 * 1024]; // 65 KB > 64 KB limit
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/settings/config")
+                .header("content-type", "application/json")
+                .body(Body::from(big))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    // 413 Payload Too Large
+    assert_eq!(resp.status(), StatusCode::PAYLOAD_TOO_LARGE);
 }

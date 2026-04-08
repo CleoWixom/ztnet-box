@@ -1,5 +1,5 @@
 server:
-  host: "127.0.0.1"   # привязка к localhost — безопасность без авторизации
+  host: "127.0.0.1"   # bind to localhost — no auth needed (change with caution)
   port: 3000
 
 zerotier:
@@ -8,13 +8,18 @@ zerotier:
     token_file: "/var/lib/zerotier-one/authtoken.secret"
   central:
     base_url: "https://api.zerotier.com/api/v1"
-    tokens: []          # управляется через Settings UI
-    active_token_id: "" # ID активного токена
+    tokens: []          # managed via Settings UI
+    active_token_id: "" # ID of the active token
 
 metrics:
   enabled: true
+  # ZeroTier metrics endpoint (available at :9993/metrics since ZT 1.14)
   prometheus_url: "http://127.0.0.1:9993/metrics"
-  poll_interval_seconds: 5
+  poll_interval_seconds: 15
+  # Separate auth token for the metrics endpoint (distinct from authtoken.secret)
+  # See: https://docs.zerotier.com/metrics-monitoring/#metrics-endpoint
+  # ZT 1.16.1+ also requires allowMetrics: true in local.conf
+  metricstoken_file: "/var/lib/zerotier-one/metricstoken.secret"
 
 exitnode:
   nftables_preferred: true  # true = nftables, false = iptables

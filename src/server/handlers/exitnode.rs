@@ -1,6 +1,7 @@
 use crate::{
     exitnode::{deps, interfaces, platform},
-    server::{error::ApiError, state::AppState},
+    server::{error::ApiError, state::AppState, validate},
+    zerotier::local_config,
 };
 use axum::{extract::State, response::IntoResponse, Json};
 use serde::Deserialize;
@@ -20,7 +21,6 @@ pub async fn get_deps(_: State<AppState>) -> impl IntoResponse {
 // ── POST /api/exitnode/deps/install ──────────────────────────────────────────
 
 pub async fn install_deps(State(s): State<AppState>) -> Result<impl IntoResponse, ApiError> {
-    // Root check
     #[cfg(unix)]
     if !nix::unistd::getuid().is_root() {
         return Err(ApiError::ExitNode(
@@ -57,6 +57,8 @@ pub async fn get_status(State(s): State<AppState>) -> impl IntoResponse {
 pub struct EnableRequest {
     pub zt_interface: String,
     pub wan_interface: String,
+    /// ZeroTier network_id — used to check allowDefault in <id>.local.conf
+    pub network_id: Option<String>,
 }
 
 pub async fn enable(
@@ -68,10 +70,54 @@ pub async fn enable(
             "zt_interface and wan_interface are required".into(),
         ));
     }
-    s.exitnode_manager
+
+    // allowDefault conflict check
+    // If a network_id is provided, read its local.conf and warn if allowDefault is not set.
+    // Exit Node gateway itself doesn't need allowDefault=1 — clients do.
+    // We surface this as a non-blocking warning in the response.
+    let mut warnings: Vec<String> = Vec::new();
+    if let Some(ref net_id) = req.network_id {
+        if let Ok(_) = validate::network_id(net_id) {
+            match local_config::read_network(net_id) {
+                Ok(nc) => {
+                    if nc.allow_default != Some(true) {
+                        warnings.push(format!(
+                            "allowDefault is not set for network {net_id}. \
+                             ZeroTier clients using this exit node must set allowDefault=1 \
+                             in their network settings to route all traffic through this gateway."
+                        ));
+                    }
+                    if nc.allow_global != Some(true) {
+                        warnings.push(format!(
+                            "allowGlobal is not set for network {net_id}. \
+                             IPv6 routing through the exit node requires allowGlobal=1."
+                        ));
+                    }
+                }
+                Err(_) => {
+                    // local.conf doesn't exist yet — that's fine, just warn
+                    warnings.push(format!(
+                        "No local.conf found for network {net_id}. \
+                         Clients may need allowDefault=1 to use this exit node."
+                    ));
+                }
+            }
+        }
+    }
+
+    let state = s
+        .exitnode_manager
         .enable(req.zt_interface, req.wan_interface)
-        .await
-        .map(Json)
+        .await?;
+
+    Ok(Json(serde_json::json!({
+        "enabled": state.enabled,
+        "zt_network_id": state.zt_network_id,
+        "wan_interface": state.wan_interface,
+        "backend": state.backend,
+        "applied_at": state.applied_at,
+        "warnings": warnings,
+    })))
 }
 
 // ── POST /api/exitnode/disable ────────────────────────────────────────────────

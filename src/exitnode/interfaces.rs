@@ -67,6 +67,7 @@ fn list_unix() -> Result<Vec<NetworkInterface>, String> {
     Ok(result)
 }
 
+#[cfg(unix)]
 fn is_zerotier_iface(name: &str) -> bool {
     name.starts_with("zt") && name.len() > 2
 }

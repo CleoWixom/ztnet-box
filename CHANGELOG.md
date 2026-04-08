@@ -10,16 +10,47 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
-## [0.4.0] — 2026-04-07
+## [0.6.3] — 2026-04-08
 
 ### Chores
-- docs(plan): PART-2 complete — all 5 branches merged, v0.3.0 (0ac1a72)
+- Merge pull request #12 from CleoWixom/feat/part4-security (f29c75b)
+- docs(plan): add updates.md — comprehensive feature backlog from ZT docs audit (74e50b8)
 
 
-## [0.3.0] — 2026-04-06
+## [0.6.2] — 2026-04-08
 
-### Chores
-- docs(plan): update PART-2 — mark metrics/central/tokens complete, detail exitnode todo (f14d5ea)
+
+## [0.6.1] — 2026-04-08
+
+
+## [0.6.0] — 2026-04-08
+
+
+### Security
+- fix: complete Content-Security-Policy — add `img-src 'self' data:` (required for QR canvas) and `connect-src 'self'`
+- feat: add `Referrer-Policy: no-referrer` security header to all responses
+- feat: log `WARN` at startup when server is bound to a non-loopback address
+- feat: validate all path parameters (network_id: 16 hex, node_id: 10 hex, world_id: 1–16 hex) — invalid values return 422
+- feat: limit request body to 64 KB (`DefaultBodyLimit`) — oversized bodies return 413
+- docs: document security model in README (no-auth rationale, bind to localhost, CSRF not applicable)
+
+### Features
+- feat: `CentralToken.token` annotated — never serialized into API responses (only via `masked_token()`)
+- feat: `validate` module with `network_id`, `node_id`, `world_id`, `ip_addr`, `cidr` helpers
+
+### Tests
+- test: `invalid_network_id_returns_422` — bad path param rejected before ZT call
+- test: `invalid_node_id_in_peer_returns_422`
+- test: `oversized_body_returns_413` — 65 KB body exceeds 64 KB limit
+- test: `Referrer-Policy` header asserted in security header tests
+- test: CSP `img-src` and `connect-src` directives asserted
+
+### Docs
+- docs: write full README with installation, configuration table, security model, Central API tokens, Exit Node sections
+- docs: fill CHANGELOG [Unreleased] with all PART 4 changes
+
+## [0.5.1] — 2026-04-07
+
 
 
 ## [0.2.0] — 2026-04-06
