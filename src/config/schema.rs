@@ -66,8 +66,12 @@ pub enum RateLimit {
 #[serde(default)]
 pub struct MetricsConfig {
     pub enabled: bool,
+    /// ZeroTier metrics endpoint — e.g. `http://127.0.0.1:9993/metrics`
     pub prometheus_url: String,
     pub poll_interval_seconds: u64,
+    /// Path to `metricstoken.secret` for Bearer auth on the ZeroTier metrics endpoint.
+    /// Separate from `authtoken.secret`. Leave empty to skip auth.
+    pub metricstoken_file: std::path::PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -133,7 +137,10 @@ impl Default for MetricsConfig {
         Self {
             enabled: true,
             prometheus_url: "http://127.0.0.1:9993/metrics".into(),
-            poll_interval_seconds: 5,
+            poll_interval_seconds: 15,
+            metricstoken_file: std::path::PathBuf::from(
+                "/var/lib/zerotier-one/metricstoken.secret",
+            ),
         }
     }
 }

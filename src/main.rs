@@ -36,10 +36,12 @@ async fn main() -> anyhow::Result<()> {
             cfg.metrics.prometheus_url.clone(),
             cfg.metrics.poll_interval_seconds,
             Arc::clone(&metrics_cache),
+            cfg.metrics.metricstoken_file.clone(),
         );
         info!(
             url      = %cfg.metrics.prometheus_url,
             interval = cfg.metrics.poll_interval_seconds,
+            token_file = %cfg.metrics.metricstoken_file.display(),
             "metrics collector started"
         );
     }
