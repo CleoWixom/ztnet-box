@@ -1,16 +1,12 @@
-#![allow(dead_code, unused_imports)]
-
-mod config;
-mod exitnode;
-mod metrics;
-mod server;
-mod zerotier;
-
 use std::sync::Arc;
 use tracing::{info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-use crate::metrics::{cache::MetricsCache, collector::MetricsCollector};
+use ztnet_box::{
+    config,
+    metrics::{cache::MetricsCache, collector::MetricsCollector},
+    server,
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -39,8 +35,8 @@ async fn main() -> anyhow::Result<()> {
             cfg.metrics.metricstoken_file.clone(),
         );
         info!(
-            url      = %cfg.metrics.prometheus_url,
-            interval = cfg.metrics.poll_interval_seconds,
+            url        = %cfg.metrics.prometheus_url,
+            interval   = cfg.metrics.poll_interval_seconds,
             token_file = %cfg.metrics.metricstoken_file.display(),
             "metrics collector started"
         );

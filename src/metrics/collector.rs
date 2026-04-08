@@ -52,7 +52,7 @@ impl MetricsCollector {
 }
 
 /// Read and trim the metrics token from disk. Returns None if missing / empty.
-fn read_token(path: &PathBuf) -> Option<String> {
+fn read_token(path: &std::path::Path) -> Option<String> {
     let token = std::fs::read_to_string(path).ok()?;
     let token = token.trim().to_string();
     if token.is_empty() {

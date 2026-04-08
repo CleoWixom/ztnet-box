@@ -7,8 +7,7 @@ pub fn network_id(id: &str) -> Result<(), ApiError> {
         Ok(())
     } else {
         Err(ApiError::InvalidInput(format!(
-            "invalid network_id '{}': must be exactly 16 hex characters",
-            id
+            "invalid network_id '{id}': must be exactly 16 hex characters"
         )))
     }
 }
@@ -19,8 +18,7 @@ pub fn node_id(id: &str) -> Result<(), ApiError> {
         Ok(())
     } else {
         Err(ApiError::InvalidInput(format!(
-            "invalid node_id '{}': must be exactly 10 hex characters",
-            id
+            "invalid node_id '{id}': must be exactly 10 hex characters"
         )))
     }
 }
@@ -31,8 +29,7 @@ pub fn world_id(id: &str) -> Result<(), ApiError> {
         Ok(())
     } else {
         Err(ApiError::InvalidInput(format!(
-            "invalid world_id '{}': must be 1–16 hex characters",
-            id
+            "invalid world_id '{id}': must be 1–16 hex characters"
         )))
     }
 }
@@ -40,7 +37,7 @@ pub fn world_id(id: &str) -> Result<(), ApiError> {
 /// IPv4/IPv6 address
 pub fn ip_addr(s: &str) -> Result<std::net::IpAddr, ApiError> {
     s.parse::<std::net::IpAddr>()
-        .map_err(|_| ApiError::InvalidInput(format!("invalid IP address: '{}'", s)))
+        .map_err(|_| ApiError::InvalidInput(format!("invalid IP address: '{s}'")))
 }
 
 /// CIDR notation, e.g. "192.168.1.0/24"
@@ -48,19 +45,17 @@ pub fn cidr(s: &str) -> Result<(), ApiError> {
     let parts: Vec<&str> = s.splitn(2, '/').collect();
     if parts.len() != 2 {
         return Err(ApiError::InvalidInput(format!(
-            "invalid CIDR '{}': expected addr/prefix",
-            s
+            "invalid CIDR '{s}': expected addr/prefix"
         )));
     }
     ip_addr(parts[0])?;
     let prefix: u8 = parts[1]
         .parse()
-        .map_err(|_| ApiError::InvalidInput(format!("invalid CIDR prefix in '{}'", s)))?;
+        .map_err(|_| ApiError::InvalidInput(format!("invalid CIDR prefix in '{s}'")))?;
     let max_prefix = if parts[0].contains(':') { 128 } else { 32 };
     if prefix > max_prefix {
         return Err(ApiError::InvalidInput(format!(
-            "CIDR prefix {} out of range (max {})",
-            prefix, max_prefix
+            "CIDR prefix {prefix} out of range (max {max_prefix})"
         )));
     }
     Ok(())
