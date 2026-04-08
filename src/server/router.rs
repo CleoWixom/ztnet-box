@@ -1,8 +1,8 @@
 use super::{
     handlers::{
         central as central_handler, config as cfg_handler, exitnode as exit_handler,
-        local as local_handler, metrics as metrics_handler, system as sys_handler,
-        tokens as tok_handler,
+        local as local_handler, local_config as lc_handler, metrics as metrics_handler,
+        system as sys_handler, tokens as tok_handler,
     },
     middleware::log_request,
     state::AppState,
@@ -70,6 +70,17 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .route(
             "/moons/:world_id",
             post(local_handler::orbit_moon).delete(local_handler::deorbit_moon),
+        )
+        // local.conf (ZeroTier node settings)
+        .route(
+            "/config",
+            get(lc_handler::get_local_conf).put(lc_handler::update_local_conf),
+        )
+        // per-network local.conf (allowManaged/Global/Default/DNS)
+        .route(
+            "/networks/:id/localconf",
+            get(lc_handler::get_network_local_conf)
+                .put(lc_handler::update_network_local_conf),
         );
 
     // /api/central/*
