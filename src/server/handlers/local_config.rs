@@ -13,9 +13,7 @@ use axum::{
 
 // ── GET /api/local/config ─────────────────────────────────────────────────────
 
-pub async fn get_local_conf(
-    State(_s): State<AppState>,
-) -> Result<Json<LocalConf>, ApiError> {
+pub async fn get_local_conf(State(_s): State<AppState>) -> Result<Json<LocalConf>, ApiError> {
     let path = local_config::local_conf_path();
     local_config::read(&path)
         .map(Json)
@@ -34,15 +32,13 @@ pub async fn update_local_conf(
     Json(req): Json<UpdateLocalConfRequest>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let path = local_config::local_conf_path();
-    let mut conf = local_config::read(&path)
-        .map_err(|e| ApiError::ZtLocal(e.to_string()))?;
+    let mut conf = local_config::read(&path).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
 
     if let Some(settings) = req.settings {
         // Validate before writing
         let warnings = local_config::validate_settings(&settings);
         conf.settings = Some(settings);
-        local_config::write(&path, &conf)
-            .map_err(|e| ApiError::ZtLocal(e.to_string()))?;
+        local_config::write(&path, &conf).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
         return Ok(Json(serde_json::json!({
             "status": "ok",
             "warnings": warnings,
@@ -83,8 +79,7 @@ pub async fn update_network_local_conf(
         }));
     }
 
-    local_config::write_network(&id, &conf)
-        .map_err(|e| ApiError::ZtLocal(e.to_string()))?;
+    local_config::write_network(&id, &conf).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
 
     Ok(Json(serde_json::json!({
         "status": "ok",

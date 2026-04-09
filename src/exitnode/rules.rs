@@ -26,7 +26,11 @@ pub struct ExitNodeRules {
 
 impl ExitNodeRules {
     pub fn new(zt_iface: String, wan_iface: String, backend: FirewallBackend) -> Self {
-        Self { zt_iface, wan_iface, backend }
+        Self {
+            zt_iface,
+            wan_iface,
+            backend,
+        }
     }
 
     /// Применяет правила EXIT NODE:
@@ -246,42 +250,82 @@ impl ExitNodeRules {
     fn apply_iptables(&self) -> Result<(), RulesError> {
         // NAT MASQUERADE
         self.run_iptables(&[
-            "-t", "nat", "-A", "POSTROUTING",
-            "-i", &self.zt_iface, "-o", &self.wan_iface,
-            "-j", "MASQUERADE",
+            "-t",
+            "nat",
+            "-A",
+            "POSTROUTING",
+            "-i",
+            &self.zt_iface,
+            "-o",
+            &self.wan_iface,
+            "-j",
+            "MASQUERADE",
         ])?;
         // Forward ZT → WAN
         self.run_iptables(&[
-            "-A", "FORWARD",
-            "-i", &self.zt_iface, "-o", &self.wan_iface,
-            "-j", "ACCEPT",
+            "-A",
+            "FORWARD",
+            "-i",
+            &self.zt_iface,
+            "-o",
+            &self.wan_iface,
+            "-j",
+            "ACCEPT",
         ])?;
         // Forward WAN → ZT (established/related only)
         self.run_iptables(&[
-            "-A", "FORWARD",
-            "-i", &self.wan_iface, "-o", &self.zt_iface,
-            "-m", "state", "--state", "ESTABLISHED,RELATED",
-            "-j", "ACCEPT",
+            "-A",
+            "FORWARD",
+            "-i",
+            &self.wan_iface,
+            "-o",
+            &self.zt_iface,
+            "-m",
+            "state",
+            "--state",
+            "ESTABLISHED,RELATED",
+            "-j",
+            "ACCEPT",
         ])
     }
 
     fn remove_iptables(&self) -> Result<(), RulesError> {
         // -D deletes rule; ignore errors (rule may already be gone)
         let _ = self.run_iptables(&[
-            "-t", "nat", "-D", "POSTROUTING",
-            "-i", &self.zt_iface, "-o", &self.wan_iface,
-            "-j", "MASQUERADE",
+            "-t",
+            "nat",
+            "-D",
+            "POSTROUTING",
+            "-i",
+            &self.zt_iface,
+            "-o",
+            &self.wan_iface,
+            "-j",
+            "MASQUERADE",
         ]);
         let _ = self.run_iptables(&[
-            "-D", "FORWARD",
-            "-i", &self.zt_iface, "-o", &self.wan_iface,
-            "-j", "ACCEPT",
+            "-D",
+            "FORWARD",
+            "-i",
+            &self.zt_iface,
+            "-o",
+            &self.wan_iface,
+            "-j",
+            "ACCEPT",
         ]);
         let _ = self.run_iptables(&[
-            "-D", "FORWARD",
-            "-i", &self.wan_iface, "-o", &self.zt_iface,
-            "-m", "state", "--state", "ESTABLISHED,RELATED",
-            "-j", "ACCEPT",
+            "-D",
+            "FORWARD",
+            "-i",
+            &self.wan_iface,
+            "-o",
+            &self.zt_iface,
+            "-m",
+            "state",
+            "--state",
+            "ESTABLISHED,RELATED",
+            "-j",
+            "ACCEPT",
         ]);
         Ok(())
     }

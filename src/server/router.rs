@@ -79,8 +79,7 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         // per-network local.conf (allowManaged/Global/Default/DNS)
         .route(
             "/networks/:id/localconf",
-            get(lc_handler::get_network_local_conf)
-                .put(lc_handler::update_network_local_conf),
+            get(lc_handler::get_network_local_conf).put(lc_handler::update_network_local_conf),
         );
 
     // /api/central/*

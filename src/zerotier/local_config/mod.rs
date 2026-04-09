@@ -194,9 +194,9 @@ pub fn validate_settings(s: &LocalSettings) -> Vec<ValidationWarning> {
         }
     }
     if let Some(ref allowed) = s.allow_management_from {
-        let has_public = allowed.iter().any(|a| {
-            !a.starts_with("127.") && !a.starts_with("::1") && a != "localhost"
-        });
+        let has_public = allowed
+            .iter()
+            .any(|a| !a.starts_with("127.") && !a.starts_with("::1") && a != "localhost");
         if has_public {
             warnings.push(ValidationWarning {
                 field: "allowManagementFrom".into(),
