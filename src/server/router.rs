@@ -2,7 +2,7 @@ use super::{
     handlers::{
         central as central_handler, config as cfg_handler, exitnode as exit_handler,
         local as local_handler, local_config as lc_handler, metrics as metrics_handler,
-        system as sys_handler, tokens as tok_handler,
+        physnet as physnet_handler, system as sys_handler, tokens as tok_handler,
     },
     middleware::log_request,
     state::AppState,
@@ -129,6 +129,14 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .route("/enable", post(exit_handler::enable))
         .route("/disable", post(exit_handler::disable));
 
+    // /api/physnet/*
+    let physnet = Router::new()
+        .route("/platform", get(physnet_handler::get_platform))
+        .route("/deps", get(physnet_handler::get_deps))
+        .route("/status", get(physnet_handler::get_status))
+        .route("/enable", post(physnet_handler::enable))
+        .route("/disable", post(physnet_handler::disable));
+
     let api = Router::new()
         .route("/health", get(health_handler))
         .route("/system/zt-status", get(sys_handler::zt_status))
@@ -143,7 +151,8 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .route("/metrics/status", get(metrics_handler::get_status))
         .nest("/local", local)
         .nest("/central", central)
-        .nest("/exitnode", exitnode);
+        .nest("/exitnode", exitnode)
+        .nest("/physnet", physnet);
 
     Router::new()
         .route("/", get(index_handler))
