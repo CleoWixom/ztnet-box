@@ -2,7 +2,7 @@ use super::{
     handlers::{
         central as central_handler, config as cfg_handler, exitnode as exit_handler,
         local as local_handler, local_config as lc_handler, metrics as metrics_handler,
-        system as sys_handler, tokens as tok_handler,
+        physnet as physnet_handler, system as sys_handler, tokens as tok_handler,
     },
     middleware::log_request,
     state::AppState,
@@ -113,8 +113,7 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         // per-network local.conf (allowManaged/Global/Default/DNS)
         .route(
             "/networks/:id/localconf",
-            get(lc_handler::get_network_local_conf)
-                .put(lc_handler::update_network_local_conf),
+            get(lc_handler::get_network_local_conf).put(lc_handler::update_network_local_conf),
         );
 
     // /api/central/*
@@ -139,6 +138,39 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .route("/user", get(central_handler::get_user))
         .route("/status", get(central_handler::get_status));
 
+    // /api/settings/tokens/*
+    let tokens = Router::new()
+        .route(
+            "/",
+            get(tok_handler::list_tokens).post(tok_handler::add_token),
+        )
+        .route("/validate", post(tok_handler::validate_token))
+        .route(
+            "/:id",
+            put(tok_handler::update_token).delete(tok_handler::delete_token),
+        )
+        .route("/:id/activate", post(tok_handler::activate_token));
+
+    // /api/exitnode/*
+    let exitnode = Router::new()
+        .route("/platform", get(exit_handler::get_platform))
+        .route(
+            "/deps",
+            get(exit_handler::get_deps).post(exit_handler::install_deps),
+        )
+        .route("/interfaces", get(exit_handler::get_interfaces))
+        .route("/status", get(exit_handler::get_status))
+        .route("/enable", post(exit_handler::enable))
+        .route("/disable", post(exit_handler::disable));
+
+    // /api/physnet/*
+    let physnet = Router::new()
+        .route("/platform", get(physnet_handler::get_platform))
+        .route("/deps", get(physnet_handler::get_deps))
+        .route("/status", get(physnet_handler::get_status))
+        .route("/enable", post(physnet_handler::enable))
+        .route("/disable", post(physnet_handler::disable));
+
     let api = Router::new()
         .route("/health", get(health_handler))
         .route("/system/zt-status", get(sys_handler::zt_status))
@@ -153,7 +185,8 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .route("/metrics/status", get(metrics_handler::get_status))
         .nest("/local", local)
         .nest("/central", central)
-        .nest("/exitnode", exitnode);
+        .nest("/exitnode", exitnode)
+        .nest("/physnet", physnet);
 
     Router::new()
         .route("/", get(index_handler))

@@ -77,7 +77,7 @@ pub async fn enable(
     // We surface this as a non-blocking warning in the response.
     let mut warnings: Vec<String> = Vec::new();
     if let Some(ref net_id) = req.network_id {
-        if let Ok(_) = validate::network_id(net_id) {
+        if validate::network_id(net_id).is_ok() {
             match local_config::read_network(net_id) {
                 Ok(nc) => {
                     if nc.allow_default != Some(true) {

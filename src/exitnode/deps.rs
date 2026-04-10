@@ -37,9 +37,8 @@ pub fn check_deps() -> DepsStatus {
         missing.push("ip_forward (will be enabled automatically)".into());
     }
     if !rp_filter_ok {
-        missing.push(
-            "rp_filter=2 (required for client traffic; will be fixed automatically)".into(),
-        );
+        missing
+            .push("rp_filter=2 (required for client traffic; will be fixed automatically)".into());
     }
 
     DepsStatus {
@@ -57,7 +56,11 @@ pub fn install_missing(prefer_nftables: bool) -> Result<DepsStatus, String> {
     let pm =
         detect_package_manager().ok_or_else(|| "No supported package manager found".to_string())?;
 
-    let pkg = if prefer_nftables { "nftables" } else { "iptables" };
+    let pkg = if prefer_nftables {
+        "nftables"
+    } else {
+        "iptables"
+    };
 
     let ok = match pm {
         Pm::Apt => run(&["/usr/bin/apt-get", "install", "-y", pkg]),

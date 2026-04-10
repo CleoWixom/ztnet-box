@@ -2,6 +2,7 @@ use crate::{
     config::{schema::Config, ConfigError},
     exitnode::ExitNodeManager,
     metrics::cache::MetricsCache,
+    physnet::PhysNetState,
     zerotier::central::token_store::TokenStore,
 };
 use std::{path::PathBuf, sync::Arc};
@@ -14,6 +15,7 @@ pub struct AppState {
     pub token_store: Arc<TokenStore>,
     pub metrics_cache: Arc<MetricsCache>,
     pub exitnode_manager: Arc<ExitNodeManager>,
+    pub physnet_state: Arc<RwLock<PhysNetState>>,
 }
 
 impl AppState {
@@ -40,6 +42,7 @@ impl AppState {
             token_store,
             metrics_cache,
             exitnode_manager: Arc::new(ExitNodeManager::new(exitnode_cfg)),
+            physnet_state: Arc::new(RwLock::new(PhysNetState::default())),
         })
     }
 }

@@ -6,134 +6,301 @@
 > - [Physical Network Routing](https://docs.zerotier.com/route-between-phys-and-virt/)
 > - [Layer 2 Bridge](https://docs.zerotier.com/bridging/)
 > - [TCP Relay](https://docs.zerotier.com/relay/)
->
-> Аудит кода выполнен: `src/exitnode/`, `src/zerotier/local/`, `src/server/handlers/`.
 
 ---
 
-## Аудит соответствия: текущий код vs документация
+## Статус реализации
 
-### Что реализовано ✅
-- IPv4 ip_forward через `fs::write("/proc/sys/net/ipv4/ip_forward")`
-- MASQUERADE через iptables и nftables
-- FORWARD rules (ZT→WAN, ESTABLISHED,RELATED)
-- Определение backend: nftables/iptables
-- Базовая отдача интерфейсов через getifaddrs
-
-### Чего не хватало — исправлено ✅
-| Фича | Документация | Статус |
-|---|---|---|
-| `rp_filter=2` для Linux клиентов | [exitnode#rp_filter](https://docs.zerotier.com/exitnode/#a-linux-gotcha-rp_filter) | ✅ реализовано |
-| iptables-persistent / netfilter-persistent | [exitnode](https://docs.zerotier.com/exitnode/) | ✅ реализовано |
-| allowGlobal + allowDefault conflict check | [exitnode#allowglobal](https://docs.zerotier.com/exitnode/#allowglobal-and-allowdefault) | ✅ реализовано |
-| local.conf read/write (ZT settings) | [config](https://docs.zerotier.com/config/) | ✅ реализовано |
-| `<network>.local.conf` read/write | [config#network-specific](https://docs.zerotier.com/config/) | ✅ реализовано |
-| FORWARD chain в nftables ruleset | [exitnode](https://docs.zerotier.com/exitnode/) | ✅ реализовано |
-| DepsStatus: rp_filter_ok + persist_available | — | ✅ реализовано |
-
-### Чего не хватает ❌
-| Фича | Документация | Статус |
-|---|---|---|
-| IPv6 ip6tables rules | [exitnode#ipv6](https://docs.zerotier.com/exitnode/#ipv6-optional) | ❌ отсутствует |
-| NDP Proxy (ndppd) для IPv6 gateway | [exitnode#ndp](https://docs.zerotier.com/exitnode/#set-up-gateway-ndp-proxying-not-always-needed) | ❌ отсутствует |
-| IPv6 Security (ip6tables stateful) | [exitnode#ipv6-security](https://docs.zerotier.com/exitnode/#ipv6-security) | ❌ отсутствует |
-| Physical Network Routing | [route-between-phys-and-virt](https://docs.zerotier.com/route-between-phys-and-virt/) | ❌ новый раздел |
-| Layer 2 Bridge (systemd-networkd) | [bridging](https://docs.zerotier.com/bridging/) | ❌ новый раздел |
-| TCP Relay (pylon) | [relay](https://docs.zerotier.com/relay/) | ❌ новый раздел |
-| Log Panel (frontend + backend) | — | ❌ не реализовано |
-
----
-
-## Приоритеты реализации
-
-| Приоритет | Задача | Сложность | Статус |
+| Задача | Приоритет | Статус | Версия |
 |---|---|---|---|
-| 🔴 High | rp_filter fix в Exit Node | Low | ✅ |
-| 🔴 High | iptables-persistent/persist rules | Low | ✅ |
-| 🔴 High | allowDefault/allowGlobal conflict check | Low | ✅ |
-| 🔴 High | ZeroTier local.conf R/W API | Medium | ✅ |
-| 🟡 Medium | Physical Network Routing | Medium | ❌ |
-| 🟡 Medium | Log Panel (frontend + backend) | Medium | ❌ |
-| 🟡 Medium | IPv6 ip6tables for Exit Node | Medium | ❌ |
-| 🟢 Low | Layer 2 Bridge | High | ❌ |
-| 🟢 Low | TCP Relay + SSH deploy | High | ❌ |
-| 🟢 Low | NDP Proxy (ndppd) | Medium | ❌ |
-| 🟢 Low | Package workflows (deb/rpm/pkg/msi) | Medium | ❌ |
-| 🟢 Low | Screenshots workflow | Low | ❌ |
-
-
-
----
-
-## 1. ZeroTier Settings (local.conf) ✅ реализовано
-
-- `src/zerotier/local_config/mod.rs` — `LocalConf`, `NetworkLocalConf`, `LocalSettings`
-- `GET/PUT /api/local/config` — читает/пишет `/var/lib/zerotier-one/local.conf`
-- `GET/PUT /api/local/networks/:id/localconf` — читает/пишет `<id>.local.conf`
-- Валидация конфликтов: `forceTcpRelay+portMapping`, совпадающие порты, `zt*` в blacklist, публичный `allowManagementFrom`
-- Conflict check при `enable` exit node: предупреждение если `allowDefault` не установлен
+| rp_filter fix + persist in sysctl.conf | 🔴 High | ✅ Реализовано | v0.6.3 |
+| iptables-persistent / persist rules | 🔴 High | ✅ Реализовано | v0.6.3 |
+| allowDefault/allowGlobal conflict check | 🔴 High | ✅ Реализовано | v0.6.3 |
+| ZeroTier local.conf R/W API | 🟡 Medium | ✅ Реализовано | v0.6.3 |
+| Input validation (network_id, node_id, CIDR) | 🟡 Medium | ✅ Реализовано | v0.6.3 |
+| Security headers (CSP img-src data:, Referrer-Policy) | 🟡 Medium | ✅ Реализовано | v0.6.x |
+| Body limit 64KB | 🟡 Medium | ✅ Реализовано | v0.6.x |
+| Public bind warning | 🟡 Medium | ✅ Реализовано | v0.6.x |
+| IPv6 ip6tables for Exit Node | 🟡 Medium | ⏳ В работе | — |
+| Physical Network Routing | 🟡 Medium | ⏳ Следующая | — |
+| Log Panel (frontend + backend) | 🟡 Medium | ⏳ Следующая | — |
+| Layer 2 Bridge | 🟢 Low | ⏳ Следующая | — |
+| TCP Relay + SSH deploy | 🟢 Low | ⏳ Следующая | — |
+| NDP Proxy (ndppd) | 🟢 Low | ⏳ Следующая | — |
+| Package workflows (deb/rpm/pkg/msi) | 🟢 Low | ⏳ Следующая | — |
+| Screenshots workflow | 🟢 Low | ⏳ Следующая | — |
 
 ---
 
-## 2. Exit Node — доработка ✅ реализовано
+## 1. ✅ Exit Node — доработки (РЕАЛИЗОВАНО v0.6.3)
 
-- `rp_filter=2` в `rules.rs`: `check_rp_filter()`, `fix_rp_filter()`, запись в `/etc/sysctl.conf`
-- `persist_rules()`: `netfilter-persistent save` → `iptables-save` → `/etc/iptables/rules.v4` (iptables); `nft list ruleset` → `/etc/nftables.conf` + `systemctl enable nftables` (nftables)
-- FORWARD chain добавлен в nftables ruleset
-- `DepsStatus`: новые поля `rp_filter_ok`, `persist_available`
-- Exit Node enable: `allowDefault`/`allowGlobal` conflict check + warnings в response
+### Реализовано
+- `rp_filter=2` — `ExitNodeRules::check_rp_filter()`, `fix_rp_filter()`, запись в `/proc/sys/net/ipv4/conf/all/rp_filter` + append в `/etc/sysctl.conf`
+- `persist_rules()` — iptables: netfilter-persistent / iptables-save → `/etc/iptables/rules.v4`; nftables: `/etc/nftables.conf` + systemctl enable
+- `rp_filter_ok` и `persist_available` в `DepsStatus`
+- FORWARD chain добавлен в nftables ruleset (был пропущен)
+- `allowDefault=true + allowManaged=false` → warning в ответе API
 
----
-
-## 3. Physical Network Routing ❌ не реализовано
-
-*(описание из плана ниже)*
-
-### Backend: новый модуль `src/physnet/`
-[см. оригинальный план — раздел 3]
-
----
-
-## 4. Layer 2 Bridge ❌ не реализовано
-
-[см. оригинальный план — раздел 4]
+### Ещё нужно (IPv6)
+- [ ] IPv6 ip6tables stateful firewall rules для Exit Node gateway
+- [ ] `enable_ipv6: bool` + `ipv6_prefix: Option<String>` в `ExitNodeRules`
+- [ ] NDP Proxy (ndppd) detection/install/configure
+- [ ] allowGlobal + allowDefault обязательны для IPv6 — предупреждение в UI
+- [ ] FreeBSD → `UnsupportedPlatform` в platform.rs
 
 ---
 
-## 5. TCP Relay ❌ не реализовано
+## 2. ✅ ZeroTier local.conf R/W API (РЕАЛИЗОВАНО v0.6.3)
 
-[см. оригинальный план — раздел 5]
+### Реализовано
+- `src/zerotier/local_config/mod.rs` — `LocalConf`, `LocalSettings`, `NetworkLocalConf`
+- `read()` / `write()` / `read_network()` / `write_network()`
+- `local_conf_path()` — определяет путь по платформе (Linux/macOS/Windows)
+- `validate_settings()` — возвращает `Vec<ValidationWarning>`:
+  - `forceTcpRelay + portMappingEnabled` → предупреждение
+  - `primaryPort == secondaryPort` → предупреждение
+  - `interfacePrefixBlacklist` содержит `zt` → предупреждение
+  - `allowManagementFrom` с публичным IP → предупреждение
+- `GET/PUT /api/local/config`
+- `GET/PUT /api/local/networks/:id/localconf`
+
+### UI (ещё не реализовано)
+- [ ] Страница Settings > ZeroTier Node в frontend
+- [ ] Форма: ports, portMapping, forceTcpRelay, bind, interfaceBlacklist, allowManagementFrom
+- [ ] Отображение предупреждений из validate_settings
 
 ---
 
-## 6. Log Panel ❌ не реализовано
+## 3. ✅ Input Validation (РЕАЛИЗОВАНО v0.6.x)
 
-[см. оригинальный план — раздел 6]
-
----
-
-## 7. Package Build Pipeline ❌ не реализовано
-
-[см. оригинальный план — раздел 7]
+- `src/server/validate.rs` — `network_id()`, `node_id()`, `world_id()`, `ip_addr()`, `cidr()`
+- Применено в `local_config` handler
+- 12 unit-тестов
 
 ---
 
-## 8. WebUI Screenshots ❌ не реализовано
+## 4. IPv6 для Exit Node ⏳
 
-[см. оригинальный план — раздел 8]
+**Ветка:** `feat/exitnode-ipv6`
+
+```rust
+// Добавить в ExitNodeRules:
+pub enable_ipv6: bool,
+pub ipv6_prefix: Option<String>,  // e.g. "2001:db8::/64"
+
+fn apply_ipv6_forwarding(&self) -> Result<(), RulesError> {
+    // ip6tables stateful (рекомендованный вариант из документации):
+    // -A FORWARD -i zt+ -s $prefix -j ACCEPT
+    // -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+    // Writes 1 to /proc/sys/net/ipv6/conf/all/forwarding
+}
+
+fn remove_ipv6_rules(&self) -> Result<(), RulesError>
+```
+
+REST: добавить `enable_ipv6` и `ipv6_prefix` в `EnableRequest`
+
+---
+
+## 5. Physical Network Routing ⏳
+
+**Ветка:** `feat/physnet-routing`  
+**Источник:** https://docs.zerotier.com/route-between-phys-and-virt/
+
+### Backend: `src/physnet/`
+
+```rust
+pub struct PhysNetConfig {
+    pub zt_iface:   String,     // zt...
+    pub phy_iface:  String,     // eth0
+    pub phy_subnet: String,     // 192.168.100.0/24
+    pub zt_addr:    String,     // ZT IP этой ноды
+    pub network_id: String,
+}
+
+pub struct PhysNetState {
+    pub enabled:   bool,
+    pub config:    Option<PhysNetConfig>,
+    pub applied_at: Option<DateTime<Utc>>,
+}
+```
+
+Правила (из документации):
+```
+iptables -t nat -A POSTROUTING -o $PHY_IFACE -j MASQUERADE
+iptables -A FORWARD -i $PHY_IFACE -o $ZT_IFACE -m state --state RELATED,ESTABLISHED -j ACCEPT
+iptables -A FORWARD -i $ZT_IFACE -o $PHY_IFACE -j ACCEPT
+```
+
+Проверки конфликтов:
+- Exit Node активен → WARN
+- L2 Bridge активен → ERROR
+- `phy_subnet` пересекается с ZT подсетью → WARN
+
+REST API:
+```
+GET  /api/physnet/platform
+GET  /api/physnet/deps
+GET  /api/physnet/status
+POST /api/physnet/enable   body: PhysNetConfig
+POST /api/physnet/disable
+```
+
+---
+
+## 6. Log Panel ⏳
+
+**Ветка:** `feat/log-panel`
+
+### Backend: `src/server/log_collector.rs`
+
+```rust
+pub struct LogEntry {
+    pub timestamp: DateTime<Utc>,
+    pub level:     LogLevel,
+    pub message:   String,
+    pub target:    String,
+}
+
+pub enum LogLevel { Debug, Info, Warn, Error }
+
+pub struct LogCollector {
+    buffer:    Arc<RwLock<VecDeque<LogEntry>>>,
+    tx:        broadcast::Sender<LogEntry>,
+    min_level: Arc<RwLock<LogLevel>>,
+}
+```
+
+Реализовать как кастомный `tracing::Layer`.
+
+REST API:
+```
+GET  /api/logs              ?level=warn&limit=100
+GET  /api/logs/stream       SSE — live поток
+PUT  /api/logs/level        body: { level: "debug"|"info"|"warn"|"error"|"all" }
+DELETE /api/logs            очистить буфер
+```
+
+### Frontend: нижний sidebar
+
+```javascript
+const LogPanel = (() => {
+    // Bottom bar: [▲ Logs · N entries · LEVEL] [buttons]
+    // Auto-collapse by default
+    // SSE streaming with EventSource
+    // Level selector, Clear, Stop/Start
+})();
+```
+
+---
+
+## 7. Layer 2 Bridge ⏳
+
+**Ветка:** `feat/l2-bridge`  
+**Источник:** https://docs.zerotier.com/bridging/
+
+### Backend: `src/bridge/`
+
+```rust
+pub struct BridgeConfig {
+    pub zt_iface:     String,
+    pub phy_iface:    String,
+    pub bridge_iface: String,       // br0
+    pub bridge_addr:  Option<String>,
+    pub gateway:      Option<String>,
+    pub network_id:   String,
+}
+
+pub struct BridgeDeps {
+    pub systemd_networkd: bool,
+    pub systemd_resolved: bool,
+    pub is_root:          bool,
+    pub dhcpcd_conflict:  bool,
+    pub ifupdown_conflict: bool,
+    pub missing:          Vec<String>,
+}
+```
+
+Применение: запись systemd-networkd файлов + restart  
+Удаление конфликтов: apt remove dhcpcd5 ifupdown isc-dhcp-client
+
+REST API:
+```
+GET  /api/bridge/platform
+GET  /api/bridge/deps
+POST /api/bridge/deps/install
+GET  /api/bridge/status
+POST /api/bridge/enable
+POST /api/bridge/disable
+```
+
+---
+
+## 8. TCP Relay ⏳
+
+**Ветка:** `feat/tcp-relay`  
+**Источник:** https://docs.zerotier.com/relay/
+
+### Функциональность
+
+Local config через `local.conf`:
+- `tcpFallbackRelay: "ip/port"` 
+- `forceTcpRelay: bool`
+
+SSH remote deploy (pylon docker container):
+- Авторизация: root/password | key
+- Установка Docker если нет
+- Остановка UFW (конфликтует с Docker)
+- `docker run zerotier/pylon:latest reflect`
+
+REST API:
+```
+GET  /api/relay/status
+PUT  /api/relay/local         обновить local.conf
+POST /api/relay/deploy        body: RelayDeployConfig (SSH)
+GET  /api/relay/verify        проверить доступность
+DELETE /api/relay/remote      остановить remote relay
+```
+
+---
+
+## 9. Package Workflows ⏳
+
+**Файл:** `.github/workflows/packages.yml`  
+**Триггер:** push тега `v*.*.*`
+
+Форматы:
+- `.deb` (amd64, arm64) — cargo-deb + postinst systemd unit
+- `.rpm` (x86_64, aarch64) — fpm
+- `.pkg.tar.zst` (Arch) — fpm / makepkg
+- `.msi` (Windows) — WiX Toolset
+- Homebrew formula `ztnet-box.rb`
+
+Зависимости пакетов: `zerotier-one >= 1.10, iptables | nftables`
+
+---
+
+## 10. Screenshots Workflow ⏳
+
+**Файл:** `.github/workflows/screenshots.yml`  
+**Триггер:** `workflow_dispatch`
+
+Инструмент: Playwright (chromium)  
+Viewports: desktop (1440×900) + mobile (390×844 / iPhone 14)  
+Страницы: dashboard, networks, controllers, exitnode, settings/tokens  
+Результат: PR с обновлёнными `docs/screenshots/*.png`
 
 ---
 
 ## Ветки реализации
 
 ```
-main
- ├── feat/update-exitnode-rp-filter      ✅ merged
- ├── feat/local-conf-api                 ✅ merged
- ├── feat/physnet-routing                ❌ не начато
- ├── feat/l2-bridge                      ❌ не начато
- ├── feat/tcp-relay                      ❌ не начато
- ├── feat/log-panel                      ❌ не начато
- ├── feat/package-workflows              ❌ не начато
- └── feat/screenshot-workflow            ❌ не начато
+main (v0.6.3)
+ ├── feat/exitnode-ipv6          ⏳ IPv6 ip6tables + ndppd
+ ├── feat/physnet-routing        ⏳ Physical Network Routing
+ ├── feat/log-panel              ⏳ Log Panel sidebar
+ ├── feat/l2-bridge              ⏳ Layer 2 Bridge
+ ├── feat/tcp-relay              ⏳ TCP Relay + SSH deploy
+ ├── feat/package-workflows      ⏳ .deb/.rpm/.pkg/.msi
+ └── feat/screenshot-workflow    ⏳ WebUI screenshots
 ```
