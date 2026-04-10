@@ -4,5 +4,6 @@ pub mod exitnode;
 pub mod local;
 pub mod local_config;
 pub mod metrics;
+pub mod physnet;
 pub mod system;
 pub mod tokens;
