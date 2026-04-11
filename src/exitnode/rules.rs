@@ -223,8 +223,7 @@ impl ExitNodeRules {
                 "ACCEPT",
             ]);
         } else {
-            let _ =
-                self.run_ip6tables(&["-D", "FORWARD", "-i", &self.zt_iface, "-j", "ACCEPT"]);
+            let _ = self.run_ip6tables(&["-D", "FORWARD", "-i", &self.zt_iface, "-j", "ACCEPT"]);
         }
         let _ = self.run_ip6tables(&[
             "-D",
