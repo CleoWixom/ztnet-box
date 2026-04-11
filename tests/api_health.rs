@@ -557,7 +557,6 @@ async fn bridge_enable_invalid_network_id_returns_422() {
         .unwrap();
     // bad network_id → 422, or 403 if not root
     assert!(
-        resp.status() == StatusCode::UNPROCESSABLE_ENTITY
-            || resp.status() == StatusCode::FORBIDDEN
+        resp.status() == StatusCode::UNPROCESSABLE_ENTITY || resp.status() == StatusCode::FORBIDDEN
     );
 }

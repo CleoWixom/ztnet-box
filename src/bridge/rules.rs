@@ -113,10 +113,7 @@ pub fn remove(cfg: &BridgeConfig) -> Result<(), BridgeError> {
 #[cfg(target_os = "linux")]
 fn write_netdev(cfg: &BridgeConfig) -> Result<(), BridgeError> {
     let path = format!("/etc/systemd/network/10-ztnet-{}.netdev", cfg.bridge_iface);
-    let content = format!(
-        "[NetDev]\nName={br}\nKind=bridge\n",
-        br = cfg.bridge_iface
-    );
+    let content = format!("[NetDev]\nName={br}\nKind=bridge\n", br = cfg.bridge_iface);
     std::fs::write(&path, content)?;
     Ok(())
 }
@@ -139,10 +136,7 @@ fn write_network(cfg: &BridgeConfig) -> Result<(), BridgeError> {
     std::fs::write(&master_path, master)?;
 
     // Bridge itself network file
-    let br_path = format!(
-        "/etc/systemd/network/10-ztnet-{}.network",
-        cfg.bridge_iface
-    );
+    let br_path = format!("/etc/systemd/network/10-ztnet-{}.network", cfg.bridge_iface);
     let mut br_net = format!("[Match]\nName={br}\n\n[Network]\n", br = cfg.bridge_iface);
     match &cfg.bridge_addr {
         Some(addr) => {
@@ -163,18 +157,12 @@ fn write_network(cfg: &BridgeConfig) -> Result<(), BridgeError> {
 #[cfg(target_os = "linux")]
 fn remove_netdev_files(cfg: &BridgeConfig) {
     let files = [
-        format!(
-            "/etc/systemd/network/10-ztnet-{}.netdev",
-            cfg.bridge_iface
-        ),
+        format!("/etc/systemd/network/10-ztnet-{}.netdev", cfg.bridge_iface),
         format!(
             "/etc/systemd/network/10-ztnet-{}-master.network",
             cfg.bridge_iface
         ),
-        format!(
-            "/etc/systemd/network/10-ztnet-{}.network",
-            cfg.bridge_iface
-        ),
+        format!("/etc/systemd/network/10-ztnet-{}.network", cfg.bridge_iface),
     ];
     for f in &files {
         let _ = std::fs::remove_file(f);

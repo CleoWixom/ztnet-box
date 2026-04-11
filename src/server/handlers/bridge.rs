@@ -24,9 +24,7 @@ pub async fn install_deps(State(_s): State<AppState>) -> Result<impl IntoRespons
     if !nix::unistd::getuid().is_root() {
         return Err(ApiError::ZtLocal("Root required to install deps".into()));
     }
-    deps::install(true)
-        .map(Json)
-        .map_err(ApiError::ZtLocal)
+    deps::install(true).map(Json).map_err(ApiError::ZtLocal)
 }
 
 // ── GET /api/bridge/status ────────────────────────────────────────────────────
