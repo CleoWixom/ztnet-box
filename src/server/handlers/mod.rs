@@ -1,3 +1,4 @@
+pub mod bridge;
 pub mod central;
 pub mod config;
 pub mod exitnode;

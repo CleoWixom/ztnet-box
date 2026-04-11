@@ -25,7 +25,7 @@
 | Physical Network Routing | 🟡 Medium | ✅ Реализовано | v0.6.4 |
 | IPv6 ip6tables for Exit Node | 🟡 Medium | ✅ Реализовано | v0.6.5 |
 | Log Panel (frontend + backend) | 🟡 Medium | ✅ Реализовано | v0.7.0 |
-| Layer 2 Bridge | 🟢 Low | ⏳ Следующая | — |
+| Layer 2 Bridge | 🟢 Low | ✅ Реализовано | v0.7.1 |
 | TCP Relay + SSH deploy | 🟢 Low | ⏳ Следующая | — |
 | NDP Proxy (ndppd) | 🟢 Low | ⏳ Следующая | — |
 | Package workflows (deb/rpm/pkg/msi) | 🟢 Low | ⏳ Следующая | — |
@@ -207,10 +207,23 @@ const LogPanel = (() => {
 
 ---
 
-## 7. Layer 2 Bridge ⏳
+## 7. ✅ Layer 2 Bridge (РЕАЛИЗОВАНО v0.7.1)
 
-**Ветка:** `feat/l2-bridge`  
-**Источник:** https://docs.zerotier.com/bridging/
+### Реализовано
+- `src/bridge/mod.rs` — `BridgeConfig`, `BridgeState`
+- `src/bridge/platform.rs` — Linux-only guard
+- `src/bridge/deps.rs` — проверка iproute2, systemd-networkd, конфликты dhcpcd/ifupdown; `install()` удаляет конфликты и включает networkd
+- `src/bridge/rules.rs` — `apply()`: `ip link add br0`, enslaved zt+phy, опциональный addr/route, systemd-networkd `.netdev`+`.network` файлы; `remove()`: detach, `ip link del`, удаление unit-файлов; все helpers под `#[cfg(target_os = "linux")]`
+- `src/server/handlers/bridge.rs` — 6 handlers: platform, deps, deps/install, status, enable (с валидацией + physnet conflict check), disable
+- `src/server/state.rs` — `bridge_state: Arc<RwLock<BridgeState>>`
+- `src/server/router.rs` — `/api/bridge/*`
+- `src/server/handlers/physnet.rs` — передаёт реальный `bridge_on` в `conflicts::check()`
+- `www/src/js/pages/bridge.js` — полный UI: deps checklist, форма (zt/phy/br iface, network, addr, gw), статус-карточка, инструкция по ZT Central
+- `www/src/html/shell.html` — nav «L2 Bridge» + `Router.on('/bridge', ...)`
+- 4 unit-теста в `bridge/rules.rs` и `bridge/deps.rs`
+- 4 integration теста
+
+---
 
 ### Backend: `src/bridge/`
 
@@ -311,7 +324,7 @@ Viewports: desktop (1440×900) + mobile (390×844 / iPhone 14)
 main (v0.6.5)
  ├── feat/exitnode-ipv6          ✅ IPv6 ip6tables + ip6_forward
  ├── feat/log-panel              ✅ Log Panel sidebar
- ├── feat/l2-bridge              ⏳ Layer 2 Bridge
+ ├── feat/l2-bridge              ✅ Layer 2 Bridge
  ├── feat/tcp-relay              ⏳ TCP Relay + SSH deploy
  ├── feat/package-workflows      ⏳ .deb/.rpm/.pkg/.msi
  └── feat/screenshot-workflow    ⏳ WebUI screenshots

@@ -1,4 +1,5 @@
 use crate::{
+    bridge::BridgeState,
     config::{schema::Config, ConfigError},
     exitnode::ExitNodeManager,
     metrics::cache::MetricsCache,
@@ -17,6 +18,7 @@ pub struct AppState {
     pub metrics_cache: Arc<MetricsCache>,
     pub exitnode_manager: Arc<ExitNodeManager>,
     pub physnet_state: Arc<RwLock<PhysNetState>>,
+    pub bridge_state: Arc<RwLock<BridgeState>>,
     pub log_collector: LogCollector,
 }
 
@@ -54,6 +56,7 @@ impl AppState {
             metrics_cache,
             exitnode_manager: Arc::new(ExitNodeManager::new(exitnode_cfg)),
             physnet_state: Arc::new(RwLock::new(PhysNetState::default())),
+            bridge_state: Arc::new(RwLock::new(BridgeState::default())),
             log_collector,
         })
     }
