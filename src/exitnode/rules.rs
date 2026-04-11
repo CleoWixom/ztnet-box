@@ -108,6 +108,7 @@ impl ExitNodeRules {
     }
 
     /// Appends or updates a sysctl key=value in /etc/sysctl.conf.
+    #[cfg(target_os = "linux")]
     fn append_sysctl(key: &str, value: &str) -> Result<(), RulesError> {
         let path = "/etc/sysctl.conf";
         let content = std::fs::read_to_string(path).unwrap_or_default();
