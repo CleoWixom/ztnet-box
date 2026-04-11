@@ -13,7 +13,7 @@ use axum::{
     http::{HeaderName, HeaderValue, Method},
     middleware,
     response::{Html, IntoResponse},
-    routing::{delete, get, post, put},
+    routing::{get, post, put},
     Json, Router,
 };
 use serde_json::json;
