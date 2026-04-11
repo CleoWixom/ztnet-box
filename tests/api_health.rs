@@ -268,6 +268,10 @@ async fn exitnode_deps_returns_structure() {
     let body = json_body(resp).await;
     assert!(body["is_root"].is_boolean());
     assert!(body["missing"].is_array());
+    // IPv6 fields present
+    assert!(body["ipv6_forward_enabled"].is_boolean());
+    // ip6tables may be null (not installed) or a string path — either is valid
+    assert!(body["ip6tables"].is_null() || body["ip6tables"].is_string());
 }
 
 #[tokio::test]
@@ -289,6 +293,46 @@ async fn exitnode_enable_without_body_returns_422() {
             || resp.status() == StatusCode::FORBIDDEN
             || resp.status() == StatusCode::BAD_GATEWAY
     );
+}
+
+#[tokio::test]
+async fn exitnode_enable_with_invalid_ipv6_prefix_returns_422() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/exitnode/enable")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"zt_interface":"zt3abc","wan_interface":"eth0","enable_ipv6":true,"ipv6_prefix":"not-a-cidr"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    // Invalid CIDR → 422 or 403 (not root on CI)
+    assert!(
+        resp.status() == StatusCode::UNPROCESSABLE_ENTITY
+            || resp.status() == StatusCode::FORBIDDEN
+    );
+}
+
+#[tokio::test]
+async fn exitnode_status_includes_ipv6_fields() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .uri("/api/exitnode/status")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = json_body(resp).await;
+    assert!(body["enable_ipv6"].is_boolean());
+    // ipv6_prefix is null when not set
+    assert!(body["ipv6_prefix"].is_null() || body["ipv6_prefix"].is_string());
 }
 
 // ── ZT Detection ─────────────────────────────────────────────────────────────

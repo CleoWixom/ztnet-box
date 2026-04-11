@@ -10,6 +10,24 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.6.5] — 2026-04-11
+
+### Features
+- feat(exitnode): IPv6 ip6tables support — `enable_ipv6` + `ipv6_prefix` fields in `ExitNodeRules`, `ExitNodeState`, `EnableRequest`
+- feat(exitnode): `with_ipv6(enable, prefix)` builder on `ExitNodeRules` — backward-compatible
+- feat(exitnode): `enable_ipv6_forward()` — writes `/proc/sys/net/ipv6/conf/all/forwarding` + sysctl.conf persist
+- feat(exitnode): `apply_ipv6_forwarding()` — ip6tables stateful FORWARD + NAT MASQUERADE rules
+- feat(exitnode): `remove_ipv6_rules()` — clean removal of ip6tables rules on disable
+- feat(exitnode): `ip6tables` path + `ipv6_forward_enabled` added to `DepsStatus`
+- feat(exitnode): CIDR validation for `ipv6_prefix` in handler; IPv6-specific warnings in enable response
+- feat(frontend): ip6tables dep step in Exit Node checklist; IPv6 checkbox + prefix field; IPv6 row in Status card
+
+### Tests
+- test(exitnode): `with_ipv6_builder`, `with_ipv6_no_prefix`, `ipv6_forward_disabled_by_default` unit tests
+- test(exitnode): `exitnode_deps_returns_structure` extended with `ip6tables`/`ipv6_forward_enabled` assertions
+- test(exitnode): `exitnode_enable_with_invalid_ipv6_prefix_returns_422` integration test
+- test(exitnode): `exitnode_status_includes_ipv6_fields` integration test
+
 ## [0.6.3] — 2026-04-08
 
 ### Chores
