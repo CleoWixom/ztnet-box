@@ -130,11 +130,7 @@ impl LogCollector {
 
     /// Clear the ring buffer.
     pub fn clear(&self) {
-        self.inner
-            .buffer
-            .lock()
-            .expect("log buffer lock")
-            .clear();
+        self.inner.buffer.lock().expect("log buffer lock").clear();
     }
 
     /// Change the minimum capture level at runtime.
@@ -308,7 +304,12 @@ mod tests {
     fn min_level_filter_on_entries() {
         let c = LogCollector::new();
         c.set_level(LogLevel::Trace);
-        for &lvl in &[LogLevel::Debug, LogLevel::Info, LogLevel::Warn, LogLevel::Error] {
+        for &lvl in &[
+            LogLevel::Debug,
+            LogLevel::Info,
+            LogLevel::Warn,
+            LogLevel::Error,
+        ] {
             c.push(LogEntry {
                 timestamp: Utc::now(),
                 level: lvl,

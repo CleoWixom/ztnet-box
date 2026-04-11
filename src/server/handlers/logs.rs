@@ -25,10 +25,7 @@ fn default_limit() -> usize {
     200
 }
 
-pub async fn get_logs(
-    State(s): State<AppState>,
-    Query(q): Query<LogQuery>,
-) -> impl IntoResponse {
+pub async fn get_logs(State(s): State<AppState>, Query(q): Query<LogQuery>) -> impl IntoResponse {
     let min_level = q.level.as_deref().and_then(|l| l.parse::<LogLevel>().ok());
     let limit = q.limit.min(500);
     let entries = s.log_collector.entries(min_level, limit);
@@ -46,11 +43,9 @@ pub async fn stream_logs(
         match result {
             Ok(entry) => {
                 // Serialize to JSON; skip on error
-                serde_json::to_string(&entry).ok().map(|json| {
-                    Ok(Event::default()
-                        .event("log")
-                        .data(json))
-                })
+                serde_json::to_string(&entry)
+                    .ok()
+                    .map(|json| Ok(Event::default().event("log").data(json)))
             }
             // Lagged — receiver missed some messages; skip silently
             Err(_) => None,
