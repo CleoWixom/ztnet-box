@@ -10,6 +10,21 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-04-11
+
+### Features
+- feat(logs): `LogCollector` — in-process ring buffer (500 entries) + `broadcast::Sender` (256 cap)
+- feat(logs): `CollectorLayer` — custom `tracing::Layer` wired into `tracing_subscriber::registry()` in main.rs
+- feat(logs): `GET /api/logs` — buffered entries with `?level=` and `?limit=` query params
+- feat(logs): `GET /api/logs/stream` — SSE live stream via `BroadcastStream`
+- feat(logs): `GET/PUT /api/logs/level` — read/set minimum capture level at runtime
+- feat(logs): `DELETE /api/logs` — clear ring buffer
+- feat(logs): `LogPanel` frontend sidebar — toggle open/close, SSE start/stop, substring filter, level selector, colour-coded rows
+
+### Tests
+- test(logs): 7 unit tests in `log_collector.rs` (push, filter, clear, ring eviction, entry filter, parse, subscribe)
+- test(logs): 5 integration tests (GET array, GET/PUT level, PUT invalid 422, DELETE)
+
 ## [0.6.5] — 2026-04-11
 
 ### Features

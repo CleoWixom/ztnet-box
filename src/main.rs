@@ -5,17 +5,23 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use ztnet_box::{
     config,
     metrics::{cache::MetricsCache, collector::MetricsCollector},
-    server,
+    server::{
+        self,
+        log_collector::{CollectorLayer, LogCollector},
+    },
 };
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let log_collector = LogCollector::new();
+
     tracing_subscriber::registry()
         .with(fmt::layer())
         .with(
             EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| EnvFilter::new("ztnet_box=info,tower_http=info")),
         )
+        .with(CollectorLayer::new(log_collector.clone()))
         .init();
 
     let config_path = config::Config::find_config_file();
@@ -49,7 +55,12 @@ async fn main() -> anyhow::Result<()> {
         );
     }
 
-    let state = server::state::AppState::new_with_cache(cfg, config_path, metrics_cache)?;
+    let state = server::state::AppState::new_with_cache_and_collector(
+        cfg,
+        config_path,
+        metrics_cache,
+        log_collector,
+    )?;
     let router = server::router::build_router(state, &host, port);
     let bind = format!("{host}:{port}");
     let listener = tokio::net::TcpListener::bind(&bind).await?;

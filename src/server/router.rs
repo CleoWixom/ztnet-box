@@ -1,8 +1,9 @@
 use super::{
     handlers::{
         central as central_handler, config as cfg_handler, exitnode as exit_handler,
-        local as local_handler, local_config as lc_handler, metrics as metrics_handler,
-        physnet as physnet_handler, system as sys_handler, tokens as tok_handler,
+        local as local_handler, local_config as lc_handler, logs as logs_handler,
+        metrics as metrics_handler, physnet as physnet_handler, system as sys_handler,
+        tokens as tok_handler,
     },
     middleware::log_request,
     state::AppState,
@@ -12,7 +13,7 @@ use axum::{
     http::{HeaderName, HeaderValue, Method},
     middleware,
     response::{Html, IntoResponse},
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use serde_json::json;
@@ -137,6 +138,18 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .route("/enable", post(physnet_handler::enable))
         .route("/disable", post(physnet_handler::disable));
 
+    // /api/logs/*
+    let logs = Router::new()
+        .route(
+            "/",
+            get(logs_handler::get_logs).delete(logs_handler::clear_logs),
+        )
+        .route("/stream", get(logs_handler::stream_logs))
+        .route(
+            "/level",
+            get(logs_handler::get_level).put(logs_handler::set_level),
+        );
+
     let api = Router::new()
         .route("/health", get(health_handler))
         .route("/system/zt-status", get(sys_handler::zt_status))
@@ -152,7 +165,8 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .nest("/local", local)
         .nest("/central", central)
         .nest("/exitnode", exitnode)
-        .nest("/physnet", physnet);
+        .nest("/physnet", physnet)
+        .nest("/logs", logs);
 
     Router::new()
         .route("/", get(index_handler))

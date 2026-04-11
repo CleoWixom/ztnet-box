@@ -24,7 +24,7 @@
 | IPv6 ip6tables for Exit Node | 🟡 Medium | ⏳ В работе | — |
 | Physical Network Routing | 🟡 Medium | ✅ Реализовано | v0.6.4 |
 | IPv6 ip6tables for Exit Node | 🟡 Medium | ✅ Реализовано | v0.6.5 |
-| Log Panel (frontend + backend) | 🟡 Medium | ⏳ Следующая | — |
+| Log Panel (frontend + backend) | 🟡 Medium | ✅ Реализовано | v0.7.0 |
 | Layer 2 Bridge | 🟢 Low | ⏳ Следующая | — |
 | TCP Relay + SSH deploy | 🟢 Low | ⏳ Следующая | — |
 | NDP Proxy (ndppd) | 🟢 Low | ⏳ Следующая | — |
@@ -147,7 +147,21 @@ POST /api/physnet/disable
 
 ---
 
-## 6. Log Panel ⏳
+## 6. ✅ Log Panel (РЕАЛИЗОВАНО v0.7.0)
+
+### Реализовано
+- `src/server/log_collector.rs` — `LogCollector` (ring buffer 500 + broadcast 256), `CollectorLayer` (tracing::Layer), `LogLevel` с serde/FromStr/Display
+- `src/server/handlers/logs.rs`:
+  - `GET /api/logs?level=warn&limit=100` — буфер с фильтрацией
+  - `GET /api/logs/stream` — SSE live stream через `BroadcastStream`
+  - `GET/PUT /api/logs/level` — чтение/смена минимального уровня
+  - `DELETE /api/logs` — очистка буфера
+- `src/main.rs` — `CollectorLayer` встроен в `tracing_subscriber::registry()`; новый конструктор `AppState::new_with_cache_and_collector()`
+- `www/src/js/log-panel.js` — нижний sidebar: toggle раскрыть/скрыть, SSE stream ▶/⏹, фильтр по подстроке, выбор уровня, кнопка очистки, цветовая подсветка уровней
+- 7 новых unit-тестов в `log_collector.rs`
+- 5 новых integration-тестов: GET array, GET level, PUT level valid/invalid, DELETE
+
+---
 
 **Ветка:** `feat/log-panel`
 
@@ -296,7 +310,7 @@ Viewports: desktop (1440×900) + mobile (390×844 / iPhone 14)
 ```
 main (v0.6.5)
  ├── feat/exitnode-ipv6          ✅ IPv6 ip6tables + ip6_forward
- ├── feat/log-panel              ⏳ Log Panel sidebar
+ ├── feat/log-panel              ✅ Log Panel sidebar
  ├── feat/l2-bridge              ⏳ Layer 2 Bridge
  ├── feat/tcp-relay              ⏳ TCP Relay + SSH deploy
  ├── feat/package-workflows      ⏳ .deb/.rpm/.pkg/.msi

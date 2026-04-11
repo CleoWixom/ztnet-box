@@ -400,3 +400,88 @@ async fn oversized_body_returns_413() {
     // 413 Payload Too Large
     assert_eq!(resp.status(), StatusCode::PAYLOAD_TOO_LARGE);
 }
+
+// ── Log Panel ─────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn logs_get_returns_array() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .uri("/api/logs")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = json_body(resp).await;
+    assert!(body.is_array());
+}
+
+#[tokio::test]
+async fn logs_level_get_returns_level() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .uri("/api/logs/level")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = json_body(resp).await;
+    assert!(body["level"].is_string());
+}
+
+#[tokio::test]
+async fn logs_level_put_valid() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/logs/level")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"level":"warn"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = json_body(resp).await;
+    assert_eq!(body["level"], "warn");
+}
+
+#[tokio::test]
+async fn logs_level_put_invalid_returns_422() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/logs/level")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"level":"nonsense"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
+async fn logs_delete_clears() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/api/logs")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = json_body(resp).await;
+    assert_eq!(body["cleared"], true);
+}
