@@ -77,7 +77,13 @@ impl ExitNodeManager {
             .apply()
             .map_err(|e| ApiError::ExitNode(e.to_string()))?;
 
-        tracing::info!(zt = %zt_iface, wan = %wan_iface, ?backend, enable_ipv6, "exit node enabled");
+        tracing::info!(
+            zt = %zt_iface,
+            wan = %wan_iface,
+            ?backend,
+            enable_ipv6,
+            "exit node enabled"
+        );
 
         let new_state = ExitNodeState {
             enabled: true,
@@ -108,8 +114,8 @@ impl ExitNodeManager {
         if let (Some(zt), Some(wan), Some(backend)) =
             (st.zt_network_id, st.wan_interface, st.backend)
         {
-            let rules = ExitNodeRules::new(zt, wan, backend)
-                .with_ipv6(st.enable_ipv6, st.ipv6_prefix);
+            let rules =
+                ExitNodeRules::new(zt, wan, backend).with_ipv6(st.enable_ipv6, st.ipv6_prefix);
             rules
                 .remove()
                 .map_err(|e| ApiError::ExitNode(e.to_string()))?;

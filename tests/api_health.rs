@@ -312,8 +312,7 @@ async fn exitnode_enable_with_invalid_ipv6_prefix_returns_422() {
         .unwrap();
     // Invalid CIDR → 422 or 403 (not root on CI)
     assert!(
-        resp.status() == StatusCode::UNPROCESSABLE_ENTITY
-            || resp.status() == StatusCode::FORBIDDEN
+        resp.status() == StatusCode::UNPROCESSABLE_ENTITY || resp.status() == StatusCode::FORBIDDEN
     );
 }
 

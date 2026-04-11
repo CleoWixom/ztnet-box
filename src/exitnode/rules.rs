@@ -167,33 +167,45 @@ impl ExitNodeRules {
         // FORWARD: allow ZT → WAN (optionally scoped to prefix)
         if let Some(ref prefix) = self.ipv6_prefix {
             self.run_ip6tables(&[
-                "-A", "FORWARD",
-                "-i", &self.zt_iface,
-                "-s", prefix,
-                "-j", "ACCEPT",
+                "-A",
+                "FORWARD",
+                "-i",
+                &self.zt_iface,
+                "-s",
+                prefix,
+                "-j",
+                "ACCEPT",
             ])?;
         } else {
-            self.run_ip6tables(&[
-                "-A", "FORWARD",
-                "-i", &self.zt_iface,
-                "-j", "ACCEPT",
-            ])?;
+            self.run_ip6tables(&["-A", "FORWARD", "-i", &self.zt_iface, "-j", "ACCEPT"])?;
         }
         // FORWARD: allow established/related return traffic
         self.run_ip6tables(&[
-            "-A", "FORWARD",
-            "-m", "state",
-            "--state", "ESTABLISHED,RELATED",
-            "-j", "ACCEPT",
+            "-A",
+            "FORWARD",
+            "-m",
+            "state",
+            "--state",
+            "ESTABLISHED,RELATED",
+            "-j",
+            "ACCEPT",
         ])?;
         // NAT MASQUERADE on WAN (needed when prefix is from provider)
         self.run_ip6tables(&[
-            "-t", "nat",
-            "-A", "POSTROUTING",
-            "-o", &self.wan_iface,
-            "-j", "MASQUERADE",
+            "-t",
+            "nat",
+            "-A",
+            "POSTROUTING",
+            "-o",
+            &self.wan_iface,
+            "-j",
+            "MASQUERADE",
         ])?;
-        tracing::info!(zt = %self.zt_iface, wan = %self.wan_iface, "ip6tables exit node rules applied");
+        tracing::info!(
+            zt = %self.zt_iface,
+            wan = %self.wan_iface,
+            "ip6tables exit node rules applied"
+        );
         Ok(())
     }
 
@@ -201,29 +213,38 @@ impl ExitNodeRules {
     pub fn remove_ipv6_rules(&self) {
         if let Some(ref prefix) = self.ipv6_prefix {
             let _ = self.run_ip6tables(&[
-                "-D", "FORWARD",
-                "-i", &self.zt_iface,
-                "-s", prefix,
-                "-j", "ACCEPT",
+                "-D",
+                "FORWARD",
+                "-i",
+                &self.zt_iface,
+                "-s",
+                prefix,
+                "-j",
+                "ACCEPT",
             ]);
         } else {
-            let _ = self.run_ip6tables(&[
-                "-D", "FORWARD",
-                "-i", &self.zt_iface,
-                "-j", "ACCEPT",
-            ]);
+            let _ =
+                self.run_ip6tables(&["-D", "FORWARD", "-i", &self.zt_iface, "-j", "ACCEPT"]);
         }
         let _ = self.run_ip6tables(&[
-            "-D", "FORWARD",
-            "-m", "state",
-            "--state", "ESTABLISHED,RELATED",
-            "-j", "ACCEPT",
+            "-D",
+            "FORWARD",
+            "-m",
+            "state",
+            "--state",
+            "ESTABLISHED,RELATED",
+            "-j",
+            "ACCEPT",
         ]);
         let _ = self.run_ip6tables(&[
-            "-t", "nat",
-            "-D", "POSTROUTING",
-            "-o", &self.wan_iface,
-            "-j", "MASQUERADE",
+            "-t",
+            "nat",
+            "-D",
+            "POSTROUTING",
+            "-o",
+            &self.wan_iface,
+            "-j",
+            "MASQUERADE",
         ]);
         tracing::info!("ip6tables exit node rules removed");
     }
