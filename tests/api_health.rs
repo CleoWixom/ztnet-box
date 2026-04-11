@@ -485,3 +485,79 @@ async fn logs_delete_clears() {
     let body = json_body(resp).await;
     assert_eq!(body["cleared"], true);
 }
+
+// ── L2 Bridge ─────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn bridge_platform_returns_structure() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .uri("/api/bridge/platform")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = json_body(resp).await;
+    assert!(body["supported"].is_boolean());
+    assert!(body["os"].is_string());
+}
+
+#[tokio::test]
+async fn bridge_deps_returns_structure() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .uri("/api/bridge/deps")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = json_body(resp).await;
+    assert!(body["is_root"].is_boolean());
+    assert!(body["systemd_networkd"].is_boolean());
+    assert!(body["iproute2"].is_boolean());
+    assert!(body["missing"].is_array());
+}
+
+#[tokio::test]
+async fn bridge_status_returns_structure() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .uri("/api/bridge/status")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = json_body(resp).await;
+    assert!(body["enabled"].is_boolean());
+}
+
+#[tokio::test]
+async fn bridge_enable_invalid_network_id_returns_422() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/bridge/enable")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"zt_iface":"zt0","phy_iface":"eth0","network_id":"bad"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    // bad network_id → 422, or 403 if not root
+    assert!(
+        resp.status() == StatusCode::UNPROCESSABLE_ENTITY
+            || resp.status() == StatusCode::FORBIDDEN
+    );
+}

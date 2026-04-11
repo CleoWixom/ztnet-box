@@ -1,9 +1,9 @@
 use super::{
     handlers::{
-        central as central_handler, config as cfg_handler, exitnode as exit_handler,
-        local as local_handler, local_config as lc_handler, logs as logs_handler,
-        metrics as metrics_handler, physnet as physnet_handler, system as sys_handler,
-        tokens as tok_handler,
+        bridge as bridge_handler, central as central_handler, config as cfg_handler,
+        exitnode as exit_handler, local as local_handler, local_config as lc_handler,
+        logs as logs_handler, metrics as metrics_handler, physnet as physnet_handler,
+        system as sys_handler, tokens as tok_handler,
     },
     middleware::log_request,
     state::AppState,
@@ -138,6 +138,15 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .route("/enable", post(physnet_handler::enable))
         .route("/disable", post(physnet_handler::disable));
 
+    // /api/bridge/*
+    let bridge = Router::new()
+        .route("/platform", get(bridge_handler::get_platform))
+        .route("/deps", get(bridge_handler::get_deps))
+        .route("/deps/install", post(bridge_handler::install_deps))
+        .route("/status", get(bridge_handler::get_status))
+        .route("/enable", post(bridge_handler::enable))
+        .route("/disable", post(bridge_handler::disable));
+
     // /api/logs/*
     let logs = Router::new()
         .route(
@@ -166,6 +175,7 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .nest("/central", central)
         .nest("/exitnode", exitnode)
         .nest("/physnet", physnet)
+        .nest("/bridge", bridge)
         .nest("/logs", logs);
 
     Router::new()

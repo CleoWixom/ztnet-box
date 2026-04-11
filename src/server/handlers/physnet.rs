@@ -87,7 +87,8 @@ pub async fn enable(
 
     // Conflict check
     let exitnode_on = s.exitnode_manager.status().await.enabled;
-    let report = conflicts::check(&req.phy_subnet, None, exitnode_on, false);
+    let bridge_on = s.bridge_state.read().await.enabled;
+    let report = conflicts::check(&req.phy_subnet, None, exitnode_on, bridge_on);
     let has_error = report
         .conflicts
         .iter()

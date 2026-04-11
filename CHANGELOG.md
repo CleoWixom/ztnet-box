@@ -10,6 +10,21 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-04-12
+
+### Features
+- feat(bridge): `BridgeConfig` + `BridgeState` types in `src/bridge/`
+- feat(bridge): `deps::check()` — iproute2, systemd-networkd, dhcpcd/ifupdown conflict detection; `install()` removes conflicts and enables networkd
+- feat(bridge): `rules::apply()` — `ip link` bridge setup + systemd-networkd `.netdev`/`.network` unit files for persistence
+- feat(bridge): `rules::remove()` — detach members, delete bridge, remove unit files; all linux helpers gated under `#[cfg(target_os = "linux")]`
+- feat(bridge): 6 REST handlers: platform, deps, deps/install, status, enable, disable
+- feat(bridge): `bridge_state: Arc<RwLock<BridgeState>>` in AppState; physnet conflict check now uses real bridge state
+- feat(frontend): `bridge.js` — full UI with deps checklist, config form, status card, ZT Central instructions
+
+### Tests
+- test(bridge): 4 unit tests (config roundtrip, no-addr config, unsupported platform)
+- test(bridge): 4 integration tests (platform, deps, status structure, invalid network_id 422)
+
 ## [0.7.0] — 2026-04-11
 
 ### Features

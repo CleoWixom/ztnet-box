@@ -62,6 +62,10 @@
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1 8h14M8 1v14" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="8" cy="8" r="3" fill="currentColor"/></svg>
           Phys Routing
         </div>
+        <div class="nav-item" data-route="/bridge" onclick="Router.navigate('/bridge')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1 10h3V6H1M12 6v4h3M4 8h8M4 6v4M12 6v4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+          L2 Bridge
+        </div>
       </div>
 
       <div class="nav-section">
@@ -104,6 +108,7 @@ Router.on('/controllers/members/:id',        (p) => { CtrlMembersPage.init(p); }
 Router.on('/controllers/config/:id',         (p) => { CtrlConfigPage.init(p); });
 Router.on('/exitnode',                       () => { ExitnodePage.init(); });
 Router.on('/physnet',                        () => { PhysnetPage.init(); });
+Router.on('/bridge',                         () => { BridgePage.init(); });
 Router.on('/settings/global',               () => { SettingsGlobalPage.init(); });
 Router.on('/settings/roots',               () => { SettingsRootsPage.init(); });
 Router.on('/settings/tokens',              () => { SettingsTokensPage.init(); });
