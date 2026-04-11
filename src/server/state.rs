@@ -3,6 +3,7 @@ use crate::{
     exitnode::ExitNodeManager,
     metrics::cache::MetricsCache,
     physnet::PhysNetState,
+    server::log_collector::LogCollector,
     zerotier::central::token_store::TokenStore,
 };
 use std::{path::PathBuf, sync::Arc};
@@ -16,6 +17,7 @@ pub struct AppState {
     pub metrics_cache: Arc<MetricsCache>,
     pub exitnode_manager: Arc<ExitNodeManager>,
     pub physnet_state: Arc<RwLock<PhysNetState>>,
+    pub log_collector: LogCollector,
 }
 
 impl AppState {
@@ -27,6 +29,15 @@ impl AppState {
         config: Config,
         config_path: PathBuf,
         metrics_cache: Arc<MetricsCache>,
+    ) -> Result<Self, ConfigError> {
+        Self::new_with_cache_and_collector(config, config_path, metrics_cache, LogCollector::new())
+    }
+
+    pub fn new_with_cache_and_collector(
+        config: Config,
+        config_path: PathBuf,
+        metrics_cache: Arc<MetricsCache>,
+        log_collector: LogCollector,
     ) -> Result<Self, ConfigError> {
         let tokens = config.zerotier.central.tokens.clone();
         let active_token_id = config.zerotier.central.active_token_id.clone();
@@ -43,6 +54,7 @@ impl AppState {
             metrics_cache,
             exitnode_manager: Arc::new(ExitNodeManager::new(exitnode_cfg)),
             physnet_state: Arc::new(RwLock::new(PhysNetState::default())),
+            log_collector,
         })
     }
 }
