@@ -22,6 +22,11 @@ pub struct ExitNodeRules {
     pub zt_iface: String,
     pub wan_iface: String,
     pub backend: FirewallBackend,
+    /// Enable IPv6 forwarding and ip6tables rules.
+    pub enable_ipv6: bool,
+    /// IPv6 prefix for ZT clients, e.g. "2001:db8::/64".
+    /// When None and enable_ipv6=true, a wildcard rule is used.
+    pub ipv6_prefix: Option<String>,
 }
 
 impl ExitNodeRules {
@@ -30,20 +35,33 @@ impl ExitNodeRules {
             zt_iface,
             wan_iface,
             backend,
+            enable_ipv6: false,
+            ipv6_prefix: None,
         }
     }
 
+    pub fn with_ipv6(mut self, enable: bool, prefix: Option<String>) -> Self {
+        self.enable_ipv6 = enable;
+        self.ipv6_prefix = prefix;
+        self
+    }
+
     /// Применяет правила EXIT NODE:
-    /// 1. Включает ip_forward
-    /// 2. Устанавливает rp_filter=2 (требуется для клиентов с allowDefault=1)
+    /// 1. Включает ip_forward (и ip6_forward если enable_ipv6)
+    /// 2. Устанавливает rp_filter=2
     /// 3. Добавляет MASQUERADE/POSTROUTING через nft или iptables
-    /// 4. Сохраняет правила (iptables-persistent / nft list ruleset)
+    /// 4. Если enable_ipv6 — добавляет ip6tables stateful правила
+    /// 5. Сохраняет правила
     pub fn apply(&self) -> Result<(), RulesError> {
         self.enable_ip_forward()?;
         self.fix_rp_filter()?;
         match self.backend {
             FirewallBackend::Nftables => self.apply_nftables()?,
             FirewallBackend::Iptables => self.apply_iptables()?,
+        }
+        if self.enable_ipv6 {
+            self.enable_ipv6_forward()?;
+            self.apply_ipv6_forwarding()?;
         }
         // Best-effort persistence — log warning on failure, don't abort
         if let Err(e) = self.persist_rules() {
@@ -55,6 +73,9 @@ impl ExitNodeRules {
     /// Откатывает правила EXIT NODE.
     pub fn remove(&self) -> Result<(), RulesError> {
         // Do not disable ip_forward — other services may depend on it
+        if self.enable_ipv6 {
+            self.remove_ipv6_rules();
+        }
         match self.backend {
             FirewallBackend::Nftables => self.remove_nftables(),
             FirewallBackend::Iptables => self.remove_iptables(),
@@ -122,6 +143,104 @@ impl ExitNodeRules {
         std::fs::write("/proc/sys/net/ipv4/ip_forward", "1\n")?;
         tracing::info!("ip_forward enabled");
         Ok(())
+    }
+
+    /// Enables IPv6 forwarding at runtime and persists via sysctl.conf.
+    fn enable_ipv6_forward(&self) -> Result<(), RulesError> {
+        #[cfg(target_os = "linux")]
+        {
+            std::fs::write("/proc/sys/net/ipv6/conf/all/forwarding", "1\n")?;
+            tracing::info!("ipv6 forwarding enabled");
+            Self::append_sysctl("net.ipv6.conf.all.forwarding", "1")?;
+        }
+        Ok(())
+    }
+
+    // ── IPv6 rules ────────────────────────────────────────────────────────────
+
+    /// Applies ip6tables stateful forwarding rules for Exit Node.
+    /// Implements the pattern from https://docs.zerotier.com/exitnode/:
+    ///   -A FORWARD -i zt+ [-s $prefix] -j ACCEPT
+    ///   -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+    ///   -t nat -A POSTROUTING -o $WAN -j MASQUERADE
+    pub fn apply_ipv6_forwarding(&self) -> Result<(), RulesError> {
+        // FORWARD: allow ZT → WAN (optionally scoped to prefix)
+        if let Some(ref prefix) = self.ipv6_prefix {
+            self.run_ip6tables(&[
+                "-A", "FORWARD",
+                "-i", &self.zt_iface,
+                "-s", prefix,
+                "-j", "ACCEPT",
+            ])?;
+        } else {
+            self.run_ip6tables(&[
+                "-A", "FORWARD",
+                "-i", &self.zt_iface,
+                "-j", "ACCEPT",
+            ])?;
+        }
+        // FORWARD: allow established/related return traffic
+        self.run_ip6tables(&[
+            "-A", "FORWARD",
+            "-m", "state",
+            "--state", "ESTABLISHED,RELATED",
+            "-j", "ACCEPT",
+        ])?;
+        // NAT MASQUERADE on WAN (needed when prefix is from provider)
+        self.run_ip6tables(&[
+            "-t", "nat",
+            "-A", "POSTROUTING",
+            "-o", &self.wan_iface,
+            "-j", "MASQUERADE",
+        ])?;
+        tracing::info!(zt = %self.zt_iface, wan = %self.wan_iface, "ip6tables exit node rules applied");
+        Ok(())
+    }
+
+    /// Removes ip6tables rules added by apply_ipv6_forwarding. Errors ignored.
+    pub fn remove_ipv6_rules(&self) {
+        if let Some(ref prefix) = self.ipv6_prefix {
+            let _ = self.run_ip6tables(&[
+                "-D", "FORWARD",
+                "-i", &self.zt_iface,
+                "-s", prefix,
+                "-j", "ACCEPT",
+            ]);
+        } else {
+            let _ = self.run_ip6tables(&[
+                "-D", "FORWARD",
+                "-i", &self.zt_iface,
+                "-j", "ACCEPT",
+            ]);
+        }
+        let _ = self.run_ip6tables(&[
+            "-D", "FORWARD",
+            "-m", "state",
+            "--state", "ESTABLISHED,RELATED",
+            "-j", "ACCEPT",
+        ]);
+        let _ = self.run_ip6tables(&[
+            "-t", "nat",
+            "-D", "POSTROUTING",
+            "-o", &self.wan_iface,
+            "-j", "MASQUERADE",
+        ]);
+        tracing::info!("ip6tables exit node rules removed");
+    }
+
+    fn run_ip6tables(&self, args: &[&str]) -> Result<(), RulesError> {
+        let status = std::process::Command::new("ip6tables")
+            .args(args)
+            .status()
+            .map_err(|e| RulesError::Command(format!("ip6tables spawn: {e}")))?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err(RulesError::Command(format!(
+                "ip6tables {:?} exited with {status}",
+                args
+            )))
+        }
     }
 
     // ── persist rules ─────────────────────────────────────────────────────────
@@ -355,6 +474,24 @@ mod tests {
         let r = ExitNodeRules::new("zt3abc".into(), "eth0".into(), FirewallBackend::Nftables);
         assert_eq!(r.zt_iface, "zt3abc");
         assert_eq!(r.backend, FirewallBackend::Nftables);
+        assert!(!r.enable_ipv6);
+        assert!(r.ipv6_prefix.is_none());
+    }
+
+    #[test]
+    fn with_ipv6_builder() {
+        let r = ExitNodeRules::new("zt3abc".into(), "eth0".into(), FirewallBackend::Iptables)
+            .with_ipv6(true, Some("2001:db8::/64".into()));
+        assert!(r.enable_ipv6);
+        assert_eq!(r.ipv6_prefix.as_deref(), Some("2001:db8::/64"));
+    }
+
+    #[test]
+    fn with_ipv6_no_prefix() {
+        let r = ExitNodeRules::new("zt3abc".into(), "eth0".into(), FirewallBackend::Iptables)
+            .with_ipv6(true, None);
+        assert!(r.enable_ipv6);
+        assert!(r.ipv6_prefix.is_none());
     }
 
     #[test]
@@ -381,7 +518,12 @@ mod tests {
 
     #[test]
     fn check_rp_filter_does_not_panic() {
-        // On CI this reads /proc/sys or returns true on non-Linux
         let _ = ExitNodeRules::check_rp_filter();
+    }
+
+    #[test]
+    fn ipv6_forward_disabled_by_default() {
+        let r = ExitNodeRules::new("zt0".into(), "eth0".into(), FirewallBackend::Iptables);
+        assert!(!r.enable_ipv6);
     }
 }

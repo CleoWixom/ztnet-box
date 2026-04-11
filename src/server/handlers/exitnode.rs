@@ -59,6 +59,11 @@ pub struct EnableRequest {
     pub wan_interface: String,
     /// ZeroTier network_id — used to check allowDefault in <id>.local.conf
     pub network_id: Option<String>,
+    /// Enable IPv6 ip6tables rules on this exit node
+    #[serde(default)]
+    pub enable_ipv6: bool,
+    /// Optional IPv6 prefix to scope the FORWARD rules (e.g. "2001:db8::/64")
+    pub ipv6_prefix: Option<String>,
 }
 
 pub async fn enable(
@@ -71,10 +76,14 @@ pub async fn enable(
         ));
     }
 
-    // allowDefault conflict check
-    // If a network_id is provided, read its local.conf and warn if allowDefault is not set.
-    // Exit Node gateway itself doesn't need allowDefault=1 — clients do.
-    // We surface this as a non-blocking warning in the response.
+    // Validate optional IPv6 prefix
+    if let Some(ref pfx) = req.ipv6_prefix {
+        validate::cidr(pfx).map_err(|_| {
+            ApiError::InvalidInput(format!("ipv6_prefix is not a valid CIDR: {pfx}"))
+        })?;
+    }
+
+    // allowDefault / allowGlobal conflict check
     let mut warnings: Vec<String> = Vec::new();
     if let Some(ref net_id) = req.network_id {
         if validate::network_id(net_id).is_ok() {
@@ -95,7 +104,6 @@ pub async fn enable(
                     }
                 }
                 Err(_) => {
-                    // local.conf doesn't exist yet — that's fine, just warn
                     warnings.push(format!(
                         "No local.conf found for network {net_id}. \
                          Clients may need allowDefault=1 to use this exit node."
@@ -105,18 +113,41 @@ pub async fn enable(
         }
     }
 
+    // Extra IPv6 warnings
+    if req.enable_ipv6 {
+        if req.network_id.is_none() {
+            warnings.push(
+                "IPv6 enabled without a network_id — cannot verify allowGlobal/allowDefault. \
+                 Ensure ZeroTier clients have both flags set."
+                    .into(),
+            );
+        }
+        warnings.push(
+            "IPv6 NAT (ip6tables MASQUERADE) is enabled. \
+             For native IPv6 delegation without NAT, configure ndppd and assign a public prefix."
+                .into(),
+        );
+    }
+
     let state = s
         .exitnode_manager
-        .enable(req.zt_interface, req.wan_interface)
+        .enable(
+            req.zt_interface,
+            req.wan_interface,
+            req.enable_ipv6,
+            req.ipv6_prefix,
+        )
         .await?;
 
     Ok(Json(serde_json::json!({
-        "enabled": state.enabled,
+        "enabled":       state.enabled,
         "zt_network_id": state.zt_network_id,
         "wan_interface": state.wan_interface,
-        "backend": state.backend,
-        "applied_at": state.applied_at,
-        "warnings": warnings,
+        "backend":       state.backend,
+        "enable_ipv6":   state.enable_ipv6,
+        "ipv6_prefix":   state.ipv6_prefix,
+        "applied_at":    state.applied_at,
+        "warnings":      warnings,
     })))
 }
 

@@ -8,8 +8,10 @@ use super::rules::ExitNodeRules;
 pub struct DepsStatus {
     pub iptables: Option<PathBuf>,
     pub nftables: Option<PathBuf>,
+    pub ip6tables: Option<PathBuf>,
     pub is_root: bool,
     pub ip_forward_enabled: bool,
+    pub ipv6_forward_enabled: bool,
     /// rp_filter value (0 or 2) is required on the gateway so client traffic
     /// with allowDefault=1 passes the reverse-path filter.
     /// See: https://docs.zerotier.com/exitnode/#a-linux-gotcha-rp_filter
@@ -22,8 +24,10 @@ pub struct DepsStatus {
 pub fn check_deps() -> DepsStatus {
     let iptables = which("iptables").ok();
     let nftables = which("nft").ok();
+    let ip6tables = which("ip6tables").ok();
     let is_root = is_root();
     let ip_forward = read_ip_forward();
+    let ipv6_forward = read_ipv6_forward();
     let rp_filter_ok = ExitNodeRules::check_rp_filter();
     let persist_available = which("netfilter-persistent").is_ok()
         || which("iptables-save").is_ok()
@@ -44,8 +48,10 @@ pub fn check_deps() -> DepsStatus {
     DepsStatus {
         iptables,
         nftables,
+        ip6tables,
         is_root,
         ip_forward_enabled: ip_forward,
+        ipv6_forward_enabled: ipv6_forward,
         rp_filter_ok,
         persist_available,
         missing,
@@ -109,6 +115,12 @@ fn is_root() -> bool {
 
 fn read_ip_forward() -> bool {
     std::fs::read_to_string("/proc/sys/net/ipv4/ip_forward")
+        .map(|s| s.trim() == "1")
+        .unwrap_or(false)
+}
+
+fn read_ipv6_forward() -> bool {
+    std::fs::read_to_string("/proc/sys/net/ipv6/conf/all/forwarding")
         .map(|s| s.trim() == "1")
         .unwrap_or(false)
 }

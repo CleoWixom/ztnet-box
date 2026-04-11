@@ -22,7 +22,8 @@
 | Body limit 64KB | 🟡 Medium | ✅ Реализовано | v0.6.x |
 | Public bind warning | 🟡 Medium | ✅ Реализовано | v0.6.x |
 | IPv6 ip6tables for Exit Node | 🟡 Medium | ⏳ В работе | — |
-| Physical Network Routing | 🟡 Medium | ⏳ Следующая | — |
+| Physical Network Routing | 🟡 Medium | ✅ Реализовано | v0.6.4 |
+| IPv6 ip6tables for Exit Node | 🟡 Medium | ✅ Реализовано | v0.6.5 |
 | Log Panel (frontend + backend) | 🟡 Medium | ⏳ Следующая | — |
 | Layer 2 Bridge | 🟢 Low | ⏳ Следующая | — |
 | TCP Relay + SSH deploy | 🟢 Low | ⏳ Следующая | — |
@@ -79,26 +80,24 @@
 
 ---
 
-## 4. IPv6 для Exit Node ⏳
+## 4. ✅ IPv6 для Exit Node (РЕАЛИЗОВАНО v0.6.5)
 
-**Ветка:** `feat/exitnode-ipv6`
-
-```rust
-// Добавить в ExitNodeRules:
-pub enable_ipv6: bool,
-pub ipv6_prefix: Option<String>,  // e.g. "2001:db8::/64"
-
-fn apply_ipv6_forwarding(&self) -> Result<(), RulesError> {
-    // ip6tables stateful (рекомендованный вариант из документации):
-    // -A FORWARD -i zt+ -s $prefix -j ACCEPT
-    // -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
-    // Writes 1 to /proc/sys/net/ipv6/conf/all/forwarding
-}
-
-fn remove_ipv6_rules(&self) -> Result<(), RulesError>
-```
-
-REST: добавить `enable_ipv6` и `ipv6_prefix` в `EnableRequest`
+### Реализовано
+- `enable_ipv6: bool` + `ipv6_prefix: Option<String>` в `ExitNodeRules`
+- Builder `.with_ipv6(enable, prefix)` — backward-compatible
+- `enable_ipv6_forward()` — пишет `1` в `/proc/sys/net/ipv6/conf/all/forwarding`, sysctl.conf persist
+- `apply_ipv6_forwarding()` — ip6tables stateful rules:
+  - `FORWARD -i zt+ [-s $prefix] -j ACCEPT`
+  - `FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT`
+  - `nat POSTROUTING -o $WAN -j MASQUERADE`
+- `remove_ipv6_rules()` — откат всех ip6tables правил (errors ignored)
+- `ip6tables: Option<PathBuf>` + `ipv6_forward_enabled: bool` в `DepsStatus`
+- `enable_ipv6` + `ipv6_prefix` в `EnableRequest` (handler с валидацией CIDR)
+- `enable_ipv6` + `ipv6_prefix` в `ExitNodeState`
+- Предупреждения: missing `network_id` с IPv6, IPv6 NAT notice
+- Frontend: ip6tables в deps checklist, checkbox Enable IPv6, поле IPv6 Prefix, статус в Status card
+- 3 новых integration теста: deps IPv6 fields, invalid prefix 422, status IPv6 fields
+- 3 новых unit теста в rules.rs: `with_ipv6_builder`, `with_ipv6_no_prefix`, `ipv6_forward_disabled_by_default`
 
 ---
 
@@ -295,9 +294,8 @@ Viewports: desktop (1440×900) + mobile (390×844 / iPhone 14)
 ## Ветки реализации
 
 ```
-main (v0.6.3)
- ├── feat/exitnode-ipv6          ⏳ IPv6 ip6tables + ndppd
- ├── feat/physnet-routing        ⏳ Physical Network Routing
+main (v0.6.5)
+ ├── feat/exitnode-ipv6          ✅ IPv6 ip6tables + ip6_forward
  ├── feat/log-panel              ⏳ Log Panel sidebar
  ├── feat/l2-bridge              ⏳ Layer 2 Bridge
  ├── feat/tcp-relay              ⏳ TCP Relay + SSH deploy

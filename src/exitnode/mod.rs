@@ -20,6 +20,8 @@ pub struct ExitNodeState {
     pub zt_network_id: Option<String>,
     pub wan_interface: Option<String>,
     pub backend: Option<FirewallBackend>,
+    pub enable_ipv6: bool,
+    pub ipv6_prefix: Option<String>,
     pub applied_at: Option<DateTime<Utc>>,
 }
 
@@ -47,6 +49,8 @@ impl ExitNodeManager {
         &self,
         zt_iface: String,
         wan_iface: String,
+        enable_ipv6: bool,
+        ipv6_prefix: Option<String>,
     ) -> Result<ExitNodeState, ApiError> {
         // Root check
         #[cfg(unix)]
@@ -67,18 +71,21 @@ impl ExitNodeManager {
         // Select backend
         let backend = select_backend(self.config.nftables_preferred);
 
-        let rules = ExitNodeRules::new(zt_iface.clone(), wan_iface.clone(), backend);
+        let rules = ExitNodeRules::new(zt_iface.clone(), wan_iface.clone(), backend)
+            .with_ipv6(enable_ipv6, ipv6_prefix.clone());
         rules
             .apply()
             .map_err(|e| ApiError::ExitNode(e.to_string()))?;
 
-        tracing::info!(zt = %zt_iface, wan = %wan_iface, ?backend, "exit node enabled");
+        tracing::info!(zt = %zt_iface, wan = %wan_iface, ?backend, enable_ipv6, "exit node enabled");
 
         let new_state = ExitNodeState {
             enabled: true,
             zt_network_id: Some(zt_iface),
             wan_interface: Some(wan_iface),
             backend: Some(backend),
+            enable_ipv6,
+            ipv6_prefix,
             applied_at: Some(Utc::now()),
         };
         *self.state.write().await = new_state.clone();
@@ -101,7 +108,8 @@ impl ExitNodeManager {
         if let (Some(zt), Some(wan), Some(backend)) =
             (st.zt_network_id, st.wan_interface, st.backend)
         {
-            let rules = ExitNodeRules::new(zt, wan, backend);
+            let rules = ExitNodeRules::new(zt, wan, backend)
+                .with_ipv6(st.enable_ipv6, st.ipv6_prefix);
             rules
                 .remove()
                 .map_err(|e| ApiError::ExitNode(e.to_string()))?;
