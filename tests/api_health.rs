@@ -560,3 +560,70 @@ async fn bridge_enable_invalid_network_id_returns_422() {
         resp.status() == StatusCode::UNPROCESSABLE_ENTITY || resp.status() == StatusCode::FORBIDDEN
     );
 }
+
+// ── TCP Relay ─────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn relay_status_returns_structure() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .uri("/api/relay/status")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = json_body(resp).await;
+    assert!(body["local"].is_object());
+    assert!(body["local"]["force_tcp_relay"].is_boolean());
+}
+
+#[tokio::test]
+async fn relay_local_invalid_endpoint_returns_422() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/relay/local")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"tcp_fallback_relay":"not-valid"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
+async fn relay_deploy_missing_host_returns_422() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/relay/deploy")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"host":"","password":"x"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
+async fn relay_verify_no_relay_returns_not_reachable() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .uri("/api/relay/verify")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = json_body(resp).await;
+    assert_eq!(body["reachable"], false);
+}
