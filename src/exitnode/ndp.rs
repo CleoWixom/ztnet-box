@@ -97,9 +97,7 @@ pub enum NdpError {
 
 pub fn install() -> Result<NdpStatus, NdpError> {
     #[cfg(not(target_os = "linux"))]
-    return Err(NdpError::UnsupportedPlatform(
-        "ndppd requires Linux".into(),
-    ));
+    return Err(NdpError::UnsupportedPlatform("ndppd requires Linux".into()));
 
     #[cfg(target_os = "linux")]
     {
@@ -127,9 +125,7 @@ pub fn install() -> Result<NdpStatus, NdpError> {
 /// Write /etc/ndppd.conf and enable+start ndppd via systemd.
 pub fn enable(cfg: &NdpConfig) -> Result<NdpStatus, NdpError> {
     #[cfg(not(target_os = "linux"))]
-    return Err(NdpError::UnsupportedPlatform(
-        "ndppd requires Linux".into(),
-    ));
+    return Err(NdpError::UnsupportedPlatform("ndppd requires Linux".into()));
 
     #[cfg(target_os = "linux")]
     {
@@ -147,9 +143,7 @@ pub fn enable(cfg: &NdpConfig) -> Result<NdpStatus, NdpError> {
 /// Stop and disable ndppd; optionally remove /etc/ndppd.conf.
 pub fn disable(remove_config: bool) -> Result<NdpStatus, NdpError> {
     #[cfg(not(target_os = "linux"))]
-    return Err(NdpError::UnsupportedPlatform(
-        "ndppd requires Linux".into(),
-    ));
+    return Err(NdpError::UnsupportedPlatform("ndppd requires Linux".into()));
 
     #[cfg(target_os = "linux")]
     {

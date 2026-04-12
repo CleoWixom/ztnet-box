@@ -700,7 +700,6 @@ async fn ndp_enable_invalid_cidr_returns_422() {
         .await
         .unwrap();
     assert!(
-        resp.status() == StatusCode::UNPROCESSABLE_ENTITY
-            || resp.status() == StatusCode::FORBIDDEN
+        resp.status() == StatusCode::UNPROCESSABLE_ENTITY || resp.status() == StatusCode::FORBIDDEN
     );
 }
