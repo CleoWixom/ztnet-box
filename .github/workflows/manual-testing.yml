@@ -1,0 +1,206 @@
+name: Manual WebUI Testing
+
+# Поднимает ztnet-box на runner-е и пробрасывает его наружу через туннель.
+# После запуска публичная ссылка на WebUI появляется в логах шага "Tunnel URL".
+# Runner держится живым до таймаута (по умолчанию 60 мин) или ручной отмены.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tunnel:
+        description: "Tunnel provider"
+        required: true
+        default: "localtunnel"
+        type: choice
+        options:
+          - localtunnel
+          - cloudflared
+      port:
+        description: "Port for ztnet-box (default: 7979)"
+        required: false
+        default: "7979"
+      timeout_minutes:
+        description: "How long to keep the session alive (minutes, max 350)"
+        required: false
+        default: "60"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_HOME: /home/runner/.cargo
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  manual-testing:
+    name: Manual WebUI Testing (${{ inputs.tunnel }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # ── Build ztnet-box ──────────────────────────────────────────────────
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: manual-testing-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: manual-testing-
+
+      - name: Build release binary
+        run: cargo build --release
+
+      # ── Config & start ──────────────────────────────────────────────────
+
+      - name: Write config
+        run: |
+          PORT="${{ inputs.port }}"
+          cat > /tmp/ztnet-box-manual.yml << EOF
+          server:
+            host: "127.0.0.1"
+            port: ${PORT}
+          zerotier:
+            local:
+              api_url: "http://127.0.0.1:9993"
+              token_file: "/var/lib/zerotier-one/authtoken.secret"
+            central:
+              base_url: "https://my.zerotier.com"
+          metrics:
+            enabled: false
+          EOF
+
+      - name: Start ztnet-box
+        run: |
+          PORT="${{ inputs.port }}"
+          ./target/release/ztnet-box --config /tmp/ztnet-box-manual.yml \
+            > /tmp/ztnet-box.log 2>&1 &
+          echo "ZTNET_PID=$!" >> "$GITHUB_ENV"
+
+          for i in $(seq 1 30); do
+            if curl -sf "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
+              echo "ztnet-box ready after ${i}s"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "ERROR: ztnet-box did not start in 30s"
+              cat /tmp/ztnet-box.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+      # ── Tunnel ──────────────────────────────────────────────────────────
+
+      - name: Install Node.js
+        if: inputs.tunnel == 'localtunnel'
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Install localtunnel
+        if: inputs.tunnel == 'localtunnel'
+        run: npm install -g localtunnel
+
+      - name: Install cloudflared
+        if: inputs.tunnel == 'cloudflared'
+        run: |
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb \
+            -o /tmp/cloudflared.deb
+          sudo dpkg -i /tmp/cloudflared.deb
+
+      - name: Start tunnel & print URL
+        id: tunnel
+        run: |
+          PORT="${{ inputs.port }}"
+          TUNNEL="${{ inputs.tunnel }}"
+          TIMEOUT_MIN="${{ inputs.timeout_minutes }}"
+          TIMEOUT_SEC=$(( TIMEOUT_MIN * 60 ))
+
+          if [ "$TUNNEL" = "localtunnel" ]; then
+            # Запускаем lt, ждём строки с URL
+            lt --port "$PORT" > /tmp/tunnel.log 2>&1 &
+            TUNNEL_PID=$!
+            echo "TUNNEL_PID=$TUNNEL_PID" >> "$GITHUB_ENV"
+
+            for i in $(seq 1 20); do
+              URL=$(grep -oP 'https://[a-z0-9\-]+\.loca\.lt' /tmp/tunnel.log | head -1)
+              if [ -n "$URL" ]; then break; fi
+              sleep 1
+            done
+
+          elif [ "$TUNNEL" = "cloudflared" ]; then
+            cloudflared tunnel --url "http://127.0.0.1:$PORT" \
+              --no-autoupdate > /tmp/tunnel.log 2>&1 &
+            TUNNEL_PID=$!
+            echo "TUNNEL_PID=$TUNNEL_PID" >> "$GITHUB_ENV"
+
+            for i in $(seq 1 30); do
+              URL=$(grep -oP 'https://[a-zA-Z0-9\-]+\.trycloudflare\.com' /tmp/tunnel.log | head -1)
+              if [ -n "$URL" ]; then break; fi
+              sleep 1
+            done
+          fi
+
+          if [ -z "$URL" ]; then
+            echo "ERROR: could not get tunnel URL. Tunnel log:"
+            cat /tmp/tunnel.log
+            exit 1
+          fi
+
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+          echo ""
+          echo "════════════════════════════════════════════════════"
+          echo "  ztnet-box WebUI is live:"
+          echo ""
+          echo "  $URL"
+          echo ""
+          echo "  Session timeout: ${TIMEOUT_MIN} min"
+          echo "  Cancel this workflow run to stop early."
+          echo "════════════════════════════════════════════════════"
+          echo ""
+
+          # Держим runner живым до таймаута
+          ELAPSED=0
+          INTERVAL=30
+          while [ "$ELAPSED" -lt "$TIMEOUT_SEC" ]; do
+            sleep "$INTERVAL"
+            ELAPSED=$(( ELAPSED + INTERVAL ))
+            REMAINING=$(( (TIMEOUT_SEC - ELAPSED) / 60 ))
+            echo "[$(date -u '+%H:%M:%S')] Session alive — ${REMAINING} min remaining | URL: $URL"
+
+            # Проверяем что ztnet-box ещё жив
+            if ! kill -0 "$ZTNET_PID" 2>/dev/null; then
+              echo "ERROR: ztnet-box process died. Log:"
+              cat /tmp/ztnet-box.log
+              exit 1
+            fi
+          done
+
+          echo "Session timeout reached (${TIMEOUT_MIN} min). Shutting down."
+
+      # ── Cleanup ─────────────────────────────────────────────────────────
+
+      - name: Stop tunnel & ztnet-box
+        if: always()
+        run: |
+          kill "$TUNNEL_PID" 2>/dev/null || true
+          kill "$ZTNET_PID"  2>/dev/null || true
+
+      - name: Dump ztnet-box log
+        if: always()
+        run: cat /tmp/ztnet-box.log || true
+
+      - name: Dump tunnel log
+        if: always()
+        run: cat /tmp/tunnel.log || true
