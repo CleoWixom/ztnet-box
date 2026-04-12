@@ -1,5 +1,6 @@
 pub mod deps;
 pub mod interfaces;
+pub mod ndp;
 pub mod platform;
 pub mod rules;
 

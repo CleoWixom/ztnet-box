@@ -2,8 +2,9 @@ use super::{
     handlers::{
         bridge as bridge_handler, central as central_handler, config as cfg_handler,
         exitnode as exit_handler, local as local_handler, local_config as lc_handler,
-        logs as logs_handler, metrics as metrics_handler, physnet as physnet_handler,
-        relay as relay_handler, system as sys_handler, tokens as tok_handler,
+        logs as logs_handler, metrics as metrics_handler, ndp as ndp_handler,
+        physnet as physnet_handler, relay as relay_handler, system as sys_handler,
+        tokens as tok_handler,
     },
     middleware::log_request,
     state::AppState,
@@ -128,7 +129,12 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .route("/interfaces", get(exit_handler::get_interfaces))
         .route("/status", get(exit_handler::get_status))
         .route("/enable", post(exit_handler::enable))
-        .route("/disable", post(exit_handler::disable));
+        .route("/disable", post(exit_handler::disable))
+        // NDP Proxy sub-routes
+        .route("/ndp/status", get(ndp_handler::get_status))
+        .route("/ndp/install", post(ndp_handler::install))
+        .route("/ndp/enable", post(ndp_handler::enable))
+        .route("/ndp/disable", post(ndp_handler::disable));
 
     // /api/physnet/*
     let physnet = Router::new()

@@ -27,7 +27,7 @@
 | local.conf UI (Settings > ZeroTier Node) | 🟡 Medium | ✅ Реализовано | v0.7.3 |
 | Layer 2 Bridge | 🟢 Low | ✅ Реализовано | v0.7.1 |
 | TCP Relay + SSH deploy | 🟢 Low | ✅ Реализовано | v0.7.2 |
-| NDP Proxy (ndppd) | 🟢 Low | ⏳ Следующая | — |
+| NDP Proxy (ndppd) | 🟢 Low | ✅ Реализовано | v0.7.6 |
 | Package workflows (deb/rpm/pkg/msi) | 🟢 Low | ✅ Реализовано | v0.7.4 |
 | Screenshots workflow | 🟢 Low | ✅ Реализовано | v0.7.5 |
 
@@ -125,15 +125,15 @@
 
 ---
 
-## 9. ⏳ NDP Proxy (ndppd)
+## 9. ✅ NDP Proxy (ndppd) (РЕАЛИЗОВАНО v0.7.6)
 
-Нужен для native IPv6 Exit Node без NAT.
-
-- Detect `ndppd` / `ndp-proxy` binary
-- Install via apt/dnf/pacman
-- Generate `/etc/ndppd.conf` для zt+ интерфейса
-- `systemctl enable --now ndppd`
-- REST: `GET /api/exitnode/ndp/status`, `POST /api/exitnode/ndp/install`, `POST /api/exitnode/ndp/enable`, `POST /api/exitnode/ndp/disable`
+- `src/exitnode/ndp.rs` — `check_status()`, `install()`, `enable(cfg)`, `disable(remove_config)`
+- Генерирует `/etc/ndppd.conf` с proxy rule для zt+ интерфейса
+- `systemctl enable --now ndppd` при включении
+- Поддерживает apt/dnf/pacman для установки
+- Все linux-only функции под `#[cfg(target_os = "linux")]`
+- `GET /api/exitnode/ndp/status`, `POST /api/exitnode/ndp/install`, `POST /api/exitnode/ndp/enable`, `POST /api/exitnode/ndp/disable`
+- Frontend: NDP Proxy секция в Exit Node странице — статус, Install/Enable/Disable кнопки, WAN iface + IPv6 prefix форма
 
 ---
 
@@ -166,7 +166,7 @@
 ## Ветки реализации
 
 ```
-main (v0.7.5) — все задачи из плана выполнены
+main (v0.7.6) — все задачи из плана выполнены ✅
  ├── feat/exitnode-ipv6          ✅ IPv6 ip6tables + ip6_forward
  ├── feat/physnet-routing        ✅ Physical Network Routing
  ├── feat/log-panel              ✅ Log Panel sidebar
@@ -174,5 +174,6 @@ main (v0.7.5) — все задачи из плана выполнены
  ├── feat/tcp-relay              ✅ TCP Relay + SSH deploy
  ├── feat/localconf-ui           ✅ Settings > ZeroTier Node UI
  ├── feat/package-workflows      ✅ .deb/.rpm/.pkg/.msi
- └── feat/screenshot-workflow    ✅ WebUI screenshots
+ ├── feat/screenshot-workflow    ✅ WebUI screenshots
+ └── feat/ndp-proxy              ✅ NDP Proxy (ndppd)
 ```

@@ -10,6 +10,19 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.7.6] — 2026-04-12
+
+### Features
+- feat(ndp): `src/exitnode/ndp.rs` — `check_status()`, `install()`, `enable(cfg)`, `disable(remove_config)`
+- feat(ndp): generates `/etc/ndppd.conf` with proxy rule for zt+ interface; `systemctl enable --now ndppd`
+- feat(ndp): apt/dnf/pacman package manager detection for install; all linux-only fns under `#[cfg(linux)]`
+- feat(ndp): 4 REST endpoints: GET status, POST install, POST enable, POST disable
+- feat(frontend): NDP Proxy section in Exit Node page — status card, install/enable/disable, WAN+prefix form
+
+### Tests
+- test(ndp): check_status_does_not_panic, ndp_config_fields, unsupported platform (non-linux)
+- test(ndp): ndp_status_returns_structure, ndp_enable_invalid_cidr_returns_422
+
 ## [0.7.5] — 2026-04-12
 
 ### Features

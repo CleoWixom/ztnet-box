@@ -6,6 +6,7 @@ pub mod local;
 pub mod local_config;
 pub mod logs;
 pub mod metrics;
+pub mod ndp;
 pub mod physnet;
 pub mod relay;
 pub mod system;

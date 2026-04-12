@@ -663,3 +663,44 @@ async fn local_config_put_returns_ok() {
     // 200 OK or 502 if ZT home not writable on CI
     assert!(resp.status() == StatusCode::OK || resp.status() == StatusCode::BAD_GATEWAY);
 }
+
+// ── NDP Proxy ─────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn ndp_status_returns_structure() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .uri("/api/exitnode/ndp/status")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = json_body(resp).await;
+    assert!(body["available"].is_boolean());
+    assert!(body["running"].is_boolean());
+    assert!(body["config_exists"].is_boolean());
+}
+
+#[tokio::test]
+async fn ndp_enable_invalid_cidr_returns_422() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/exitnode/ndp/enable")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"wan_iface":"eth0","ipv6_prefix":"not-a-cidr"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert!(
+        resp.status() == StatusCode::UNPROCESSABLE_ENTITY
+            || resp.status() == StatusCode::FORBIDDEN
+    );
+}
