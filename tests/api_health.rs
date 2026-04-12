@@ -627,3 +627,41 @@ async fn relay_verify_no_relay_returns_not_reachable() {
     let body = json_body(resp).await;
     assert_eq!(body["reachable"], false);
 }
+
+// ── Settings: ZeroTier Node (local.conf UI) ───────────────────────────────────
+
+#[tokio::test]
+async fn local_config_get_returns_structure() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .uri("/api/local/config")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = json_body(resp).await;
+    // Returns LocalConf — may have null settings if file absent
+    assert!(body.is_object());
+}
+
+#[tokio::test]
+async fn local_config_put_returns_ok() {
+    let resp = app()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/local/config")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"settings":{"forceTcpRelay":false}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    // 200 OK or 502 if ZT home not writable on CI
+    assert!(
+        resp.status() == StatusCode::OK || resp.status() == StatusCode::BAD_GATEWAY
+    );
+}

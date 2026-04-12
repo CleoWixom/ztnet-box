@@ -21,10 +21,10 @@
 | Security headers (CSP img-src data:, Referrer-Policy) | 🟡 Medium | ✅ Реализовано | v0.6.x |
 | Body limit 64KB | 🟡 Medium | ✅ Реализовано | v0.6.x |
 | Public bind warning | 🟡 Medium | ✅ Реализовано | v0.6.x |
-| IPv6 ip6tables for Exit Node | 🟡 Medium | ⏳ В работе | — |
-| Physical Network Routing | 🟡 Medium | ✅ Реализовано | v0.6.4 |
 | IPv6 ip6tables for Exit Node | 🟡 Medium | ✅ Реализовано | v0.6.5 |
+| Physical Network Routing | 🟡 Medium | ✅ Реализовано | v0.6.4 |
 | Log Panel (frontend + backend) | 🟡 Medium | ✅ Реализовано | v0.7.0 |
+| local.conf UI (Settings > ZeroTier Node) | 🟡 Medium | ✅ Реализовано | v0.7.3 |
 | Layer 2 Bridge | 🟢 Low | ✅ Реализовано | v0.7.1 |
 | TCP Relay + SSH deploy | 🟢 Low | ✅ Реализовано | v0.7.2 |
 | NDP Proxy (ndppd) | 🟢 Low | ⏳ Следующая | — |
@@ -33,280 +33,115 @@
 
 ---
 
-## 1. ✅ Exit Node — доработки (РЕАЛИЗОВАНО v0.6.3)
+## 1. ✅ Exit Node — доработки (РЕАЛИЗОВАНО v0.6.3 + v0.6.5)
 
-### Реализовано
 - `rp_filter=2` — `ExitNodeRules::check_rp_filter()`, `fix_rp_filter()`, запись в `/proc/sys/net/ipv4/conf/all/rp_filter` + append в `/etc/sysctl.conf`
 - `persist_rules()` — iptables: netfilter-persistent / iptables-save → `/etc/iptables/rules.v4`; nftables: `/etc/nftables.conf` + systemctl enable
 - `rp_filter_ok` и `persist_available` в `DepsStatus`
-- FORWARD chain добавлен в nftables ruleset (был пропущен)
+- FORWARD chain добавлен в nftables ruleset
 - `allowDefault=true + allowManaged=false` → warning в ответе API
+- IPv6: `enable_ipv6: bool` + `ipv6_prefix: Option<String>` в `ExitNodeRules`, ip6tables stateful rules, ip6_forward sysctl persist (см. §4)
+- FreeBSD и прочие ОС → `UnsupportedPlatform` через `#[cfg(not(any(linux, macos, windows)))]`
 
-### Ещё нужно (IPv6)
-- [ ] IPv6 ip6tables stateful firewall rules для Exit Node gateway
-- [ ] `enable_ipv6: bool` + `ipv6_prefix: Option<String>` в `ExitNodeRules`
-- [ ] NDP Proxy (ndppd) detection/install/configure
-- [ ] allowGlobal + allowDefault обязательны для IPv6 — предупреждение в UI
-- [ ] FreeBSD → `UnsupportedPlatform` в platform.rs
+### Остаётся
+- [ ] NDP Proxy (ndppd) detection/install/configure (см. §11)
 
 ---
 
-## 2. ✅ ZeroTier local.conf R/W API (РЕАЛИЗОВАНО v0.6.3)
+## 2. ✅ ZeroTier local.conf R/W API (РЕАЛИЗОВАНО v0.6.3 + v0.7.3)
 
-### Реализовано
 - `src/zerotier/local_config/mod.rs` — `LocalConf`, `LocalSettings`, `NetworkLocalConf`
-- `read()` / `write()` / `read_network()` / `write_network()`
+- `read(path)` / `write(path, conf)` / `read_network(id)` / `write_network(id, conf)`
 - `local_conf_path()` — определяет путь по платформе (Linux/macOS/Windows)
-- `validate_settings()` — возвращает `Vec<ValidationWarning>`:
-  - `forceTcpRelay + portMappingEnabled` → предупреждение
-  - `primaryPort == secondaryPort` → предупреждение
-  - `interfacePrefixBlacklist` содержит `zt` → предупреждение
-  - `allowManagementFrom` с публичным IP → предупреждение
+- `validate_settings()` — возвращает `Vec<ValidationWarning>`
 - `GET/PUT /api/local/config`
 - `GET/PUT /api/local/networks/:id/localconf`
-
-### UI (ещё не реализовано)
-- [ ] Страница Settings > ZeroTier Node в frontend
-- [ ] Форма: ports, portMapping, forceTcpRelay, bind, interfaceBlacklist, allowManagementFrom
-- [ ] Отображение предупреждений из validate_settings
+- **UI**: `www/src/js/pages/settings-ztnode.js` — Settings > ZeroTier Node:
+  - ports (primary, secondary), portMapping toggle
+  - forceTcpRelay, allowTcpFallbackRelay, tcpFallbackRelay endpoint
+  - bind addresses (textarea)
+  - interfacePrefixBlacklist (textarea)
+  - allowManagementFrom (textarea)
+  - предупреждения из `validate_settings` отображаются после сохранения
 
 ---
 
 ## 3. ✅ Input Validation (РЕАЛИЗОВАНО v0.6.x)
 
 - `src/server/validate.rs` — `network_id()`, `node_id()`, `world_id()`, `ip_addr()`, `cidr()`
-- Применено в `local_config` handler
+- Применено во всех handlers
 - 12 unit-тестов
 
 ---
 
 ## 4. ✅ IPv6 для Exit Node (РЕАЛИЗОВАНО v0.6.5)
 
-### Реализовано
-- `enable_ipv6: bool` + `ipv6_prefix: Option<String>` в `ExitNodeRules`
-- Builder `.with_ipv6(enable, prefix)` — backward-compatible
-- `enable_ipv6_forward()` — пишет `1` в `/proc/sys/net/ipv6/conf/all/forwarding`, sysctl.conf persist
-- `apply_ipv6_forwarding()` — ip6tables stateful rules:
-  - `FORWARD -i zt+ [-s $prefix] -j ACCEPT`
-  - `FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT`
-  - `nat POSTROUTING -o $WAN -j MASQUERADE`
-- `remove_ipv6_rules()` — откат всех ip6tables правил (errors ignored)
+- `enable_ipv6: bool` + `ipv6_prefix: Option<String>` в `ExitNodeRules` + `.with_ipv6()` builder
+- `enable_ipv6_forward()` — `/proc/sys/net/ipv6/conf/all/forwarding` + sysctl.conf persist
+- `apply_ipv6_forwarding()` — ip6tables stateful: FORWARD + nat POSTROUTING MASQUERADE
+- `remove_ipv6_rules()` — откат ip6tables правил
 - `ip6tables: Option<PathBuf>` + `ipv6_forward_enabled: bool` в `DepsStatus`
-- `enable_ipv6` + `ipv6_prefix` в `EnableRequest` (handler с валидацией CIDR)
-- `enable_ipv6` + `ipv6_prefix` в `ExitNodeState`
-- Предупреждения: missing `network_id` с IPv6, IPv6 NAT notice
-- Frontend: ip6tables в deps checklist, checkbox Enable IPv6, поле IPv6 Prefix, статус в Status card
-- 3 новых integration теста: deps IPv6 fields, invalid prefix 422, status IPv6 fields
-- 3 новых unit теста в rules.rs: `with_ipv6_builder`, `with_ipv6_no_prefix`, `ipv6_forward_disabled_by_default`
+- `enable_ipv6` + `ipv6_prefix` в `EnableRequest` и `ExitNodeState`
+- Frontend: ip6tables в deps checklist, checkbox Enable IPv6, поле IPv6 Prefix
 
 ---
 
-## 5. Physical Network Routing ⏳
+## 5. ✅ Physical Network Routing (РЕАЛИЗОВАНО v0.6.4)
 
-**Ветка:** `feat/physnet-routing`  
-**Источник:** https://docs.zerotier.com/route-between-phys-and-virt/
-
-### Backend: `src/physnet/`
-
-```rust
-pub struct PhysNetConfig {
-    pub zt_iface:   String,     // zt...
-    pub phy_iface:  String,     // eth0
-    pub phy_subnet: String,     // 192.168.100.0/24
-    pub zt_addr:    String,     // ZT IP этой ноды
-    pub network_id: String,
-}
-
-pub struct PhysNetState {
-    pub enabled:   bool,
-    pub config:    Option<PhysNetConfig>,
-    pub applied_at: Option<DateTime<Utc>>,
-}
-```
-
-Правила (из документации):
-```
-iptables -t nat -A POSTROUTING -o $PHY_IFACE -j MASQUERADE
-iptables -A FORWARD -i $PHY_IFACE -o $ZT_IFACE -m state --state RELATED,ESTABLISHED -j ACCEPT
-iptables -A FORWARD -i $ZT_IFACE -o $PHY_IFACE -j ACCEPT
-```
-
-Проверки конфликтов:
-- Exit Node активен → WARN
-- L2 Bridge активен → ERROR
-- `phy_subnet` пересекается с ZT подсетью → WARN
-
-REST API:
-```
-GET  /api/physnet/platform
-GET  /api/physnet/deps
-GET  /api/physnet/status
-POST /api/physnet/enable   body: PhysNetConfig
-POST /api/physnet/disable
-```
+- `src/physnet/` — `PhysNetConfig`, `PhysNetState`, `conflicts`, `deps`, `rules`
+- iptables NAT MASQUERADE + FORWARD правила per ZT docs
+- Conflict check: exitnode WARNING, bridge ERROR, subnet overlap WARNING
+- `GET/POST /api/physnet/{platform,deps,status,enable,disable}`
+- Frontend: `www/src/js/pages/physnet.js` — deps checklist, interface selects, managed route hint, ZT Central instructions
 
 ---
 
 ## 6. ✅ Log Panel (РЕАЛИЗОВАНО v0.7.0)
 
-### Реализовано
-- `src/server/log_collector.rs` — `LogCollector` (ring buffer 500 + broadcast 256), `CollectorLayer` (tracing::Layer), `LogLevel` с serde/FromStr/Display
-- `src/server/handlers/logs.rs`:
-  - `GET /api/logs?level=warn&limit=100` — буфер с фильтрацией
-  - `GET /api/logs/stream` — SSE live stream через `BroadcastStream`
-  - `GET/PUT /api/logs/level` — чтение/смена минимального уровня
-  - `DELETE /api/logs` — очистка буфера
-- `src/main.rs` — `CollectorLayer` встроен в `tracing_subscriber::registry()`; новый конструктор `AppState::new_with_cache_and_collector()`
-- `www/src/js/log-panel.js` — нижний sidebar: toggle раскрыть/скрыть, SSE stream ▶/⏹, фильтр по подстроке, выбор уровня, кнопка очистки, цветовая подсветка уровней
-- 7 новых unit-тестов в `log_collector.rs`
-- 5 новых integration-тестов: GET array, GET level, PUT level valid/invalid, DELETE
-
----
-
-**Ветка:** `feat/log-panel`
-
-### Backend: `src/server/log_collector.rs`
-
-```rust
-pub struct LogEntry {
-    pub timestamp: DateTime<Utc>,
-    pub level:     LogLevel,
-    pub message:   String,
-    pub target:    String,
-}
-
-pub enum LogLevel { Debug, Info, Warn, Error }
-
-pub struct LogCollector {
-    buffer:    Arc<RwLock<VecDeque<LogEntry>>>,
-    tx:        broadcast::Sender<LogEntry>,
-    min_level: Arc<RwLock<LogLevel>>,
-}
-```
-
-Реализовать как кастомный `tracing::Layer`.
-
-REST API:
-```
-GET  /api/logs              ?level=warn&limit=100
-GET  /api/logs/stream       SSE — live поток
-PUT  /api/logs/level        body: { level: "debug"|"info"|"warn"|"error"|"all" }
-DELETE /api/logs            очистить буфер
-```
-
-### Frontend: нижний sidebar
-
-```javascript
-const LogPanel = (() => {
-    // Bottom bar: [▲ Logs · N entries · LEVEL] [buttons]
-    // Auto-collapse by default
-    // SSE streaming with EventSource
-    // Level selector, Clear, Stop/Start
-})();
-```
+- `src/server/log_collector.rs` — `LogCollector` ring buffer (500) + broadcast (256), `CollectorLayer` (tracing::Layer)
+- `GET /api/logs`, `GET /api/logs/stream` (SSE), `GET/PUT /api/logs/level`, `DELETE /api/logs`
+- `CollectorLayer` встроен в `tracing_subscriber::registry()` в `main.rs`
+- Frontend: `www/src/js/log-panel.js` — нижний sidebar, SSE stream, фильтр, уровни, цветовая подсветка
 
 ---
 
 ## 7. ✅ Layer 2 Bridge (РЕАЛИЗОВАНО v0.7.1)
 
-### Реализовано
-- `src/bridge/mod.rs` — `BridgeConfig`, `BridgeState`
-- `src/bridge/platform.rs` — Linux-only guard
-- `src/bridge/deps.rs` — проверка iproute2, systemd-networkd, конфликты dhcpcd/ifupdown; `install()` удаляет конфликты и включает networkd
-- `src/bridge/rules.rs` — `apply()`: `ip link add br0`, enslaved zt+phy, опциональный addr/route, systemd-networkd `.netdev`+`.network` файлы; `remove()`: detach, `ip link del`, удаление unit-файлов; все helpers под `#[cfg(target_os = "linux")]`
-- `src/server/handlers/bridge.rs` — 6 handlers: platform, deps, deps/install, status, enable (с валидацией + physnet conflict check), disable
-- `src/server/state.rs` — `bridge_state: Arc<RwLock<BridgeState>>`
-- `src/server/router.rs` — `/api/bridge/*`
-- `src/server/handlers/physnet.rs` — передаёт реальный `bridge_on` в `conflicts::check()`
-- `www/src/js/pages/bridge.js` — полный UI: deps checklist, форма (zt/phy/br iface, network, addr, gw), статус-карточка, инструкция по ZT Central
-- `www/src/html/shell.html` — nav «L2 Bridge» + `Router.on('/bridge', ...)`
-- 4 unit-теста в `bridge/rules.rs` и `bridge/deps.rs`
-- 4 integration теста
-
----
-
-### Backend: `src/bridge/`
-
-```rust
-pub struct BridgeConfig {
-    pub zt_iface:     String,
-    pub phy_iface:    String,
-    pub bridge_iface: String,       // br0
-    pub bridge_addr:  Option<String>,
-    pub gateway:      Option<String>,
-    pub network_id:   String,
-}
-
-pub struct BridgeDeps {
-    pub systemd_networkd: bool,
-    pub systemd_resolved: bool,
-    pub is_root:          bool,
-    pub dhcpcd_conflict:  bool,
-    pub ifupdown_conflict: bool,
-    pub missing:          Vec<String>,
-}
-```
-
-Применение: запись systemd-networkd файлов + restart  
-Удаление конфликтов: apt remove dhcpcd5 ifupdown isc-dhcp-client
-
-REST API:
-```
-GET  /api/bridge/platform
-GET  /api/bridge/deps
-POST /api/bridge/deps/install
-GET  /api/bridge/status
-POST /api/bridge/enable
-POST /api/bridge/disable
-```
+- `src/bridge/` — `BridgeConfig`, `BridgeState`, `deps`, `platform`, `rules`
+- `rules::apply()`: `ip link` bridge + enslave zt+phy + systemd-networkd `.netdev`/`.network`
+- `rules::remove()`: detach + `ip link del` + удаление unit-файлов
+- Conflict check: physnet → ERROR
+- `GET/POST /api/bridge/{platform,deps,deps/install,status,enable,disable}`
+- Frontend: `www/src/js/pages/bridge.js` — deps checklist, config form, ZT Central instructions
 
 ---
 
 ## 8. ✅ TCP Relay (РЕАЛИЗОВАНО v0.7.2)
 
-### Реализовано
-- `src/relay/mod.rs` — `RelayStatus`, `LocalRelayConfig`, `RemoteRelayInfo`, `RelayDeployConfig`
-- `src/relay/ssh.rs` — `SshClient`: запуск команд через системный `ssh`/`sshpass`
-- `src/relay/deploy.rs` — `deploy()`: SSH → install Docker → stop UFW → run pylon; `remove()`; `verify()` (TCP connect)
-- `src/server/handlers/relay.rs` — 5 handlers: status, PUT local (validate ip/port format), POST deploy (spawn_blocking), GET verify, DELETE remote; auto-update local.conf после deploy
-- `src/server/state.rs` — `relay_remote: Arc<RwLock<Option<RemoteRelayInfo>>>`
-- `src/server/router.rs` — `/api/relay/*`
-- `www/src/js/pages/relay.js` — Local config форма (force/endpoint), Deploy форма (SSH params), remote status card с Verify/Remove
-- `www/src/html/shell.html` — nav «TCP Relay» + `Router.on('/relay', ...)`
-- 3 unit-теста (ssh fields, verify unreachable, deploy config defaults)
-- 4 integration теста
+- `src/relay/` — `SshClient` (системный ssh/sshpass), `deploy()`, `remove()`, `verify()`
+- `GET /api/relay/status`, `PUT /api/relay/local`, `POST /api/relay/deploy`, `GET /api/relay/verify`, `DELETE /api/relay/remote`
+- Auto-update `local.conf` tcp_fallback_relay после deploy/remove
+- Frontend: `www/src/js/pages/relay.js` — local config form, SSH deploy form, remote status card
 
 ---
 
-### Функциональность
+## 9. ⏳ NDP Proxy (ndppd)
 
-Local config через `local.conf`:
-- `tcpFallbackRelay: "ip/port"` 
-- `forceTcpRelay: bool`
+Нужен для native IPv6 Exit Node без NAT.
 
-SSH remote deploy (pylon docker container):
-- Авторизация: root/password | key
-- Установка Docker если нет
-- Остановка UFW (конфликтует с Docker)
-- `docker run zerotier/pylon:latest reflect`
-
-REST API:
-```
-GET  /api/relay/status
-PUT  /api/relay/local         обновить local.conf
-POST /api/relay/deploy        body: RelayDeployConfig (SSH)
-GET  /api/relay/verify        проверить доступность
-DELETE /api/relay/remote      остановить remote relay
-```
+- Detect `ndppd` / `ndp-proxy` binary
+- Install via apt/dnf/pacman
+- Generate `/etc/ndppd.conf` для zt+ интерфейса
+- `systemctl enable --now ndppd`
+- REST: `GET /api/exitnode/ndp/status`, `POST /api/exitnode/ndp/install`, `POST /api/exitnode/ndp/enable`, `POST /api/exitnode/ndp/disable`
 
 ---
 
-## 9. Package Workflows ⏳
+## 10. ⏳ Package Workflows
 
-**Файл:** `.github/workflows/packages.yml`  
+**Файл:** `.github/workflows/packages.yml`
 **Триггер:** push тега `v*.*.*`
 
-Форматы:
 - `.deb` (amd64, arm64) — cargo-deb + postinst systemd unit
 - `.rpm` (x86_64, aarch64) — fpm
 - `.pkg.tar.zst` (Arch) — fpm / makepkg
@@ -317,14 +152,14 @@ DELETE /api/relay/remote      остановить remote relay
 
 ---
 
-## 10. Screenshots Workflow ⏳
+## 11. ⏳ Screenshots Workflow
 
-**Файл:** `.github/workflows/screenshots.yml`  
+**Файл:** `.github/workflows/screenshots.yml`
 **Триггер:** `workflow_dispatch`
 
-Инструмент: Playwright (chromium)  
-Viewports: desktop (1440×900) + mobile (390×844 / iPhone 14)  
-Страницы: dashboard, networks, controllers, exitnode, settings/tokens  
+Инструмент: Playwright (chromium)
+Viewports: desktop (1440×900) + mobile (390×844 / iPhone 14)
+Страницы: dashboard, networks, exitnode, bridge, relay, settings/ztnode
 Результат: PR с обновлёнными `docs/screenshots/*.png`
 
 ---
@@ -332,11 +167,13 @@ Viewports: desktop (1440×900) + mobile (390×844 / iPhone 14)
 ## Ветки реализации
 
 ```
-main (v0.6.5)
+main (v0.7.3)
  ├── feat/exitnode-ipv6          ✅ IPv6 ip6tables + ip6_forward
+ ├── feat/physnet-routing        ✅ Physical Network Routing
  ├── feat/log-panel              ✅ Log Panel sidebar
  ├── feat/l2-bridge              ✅ Layer 2 Bridge
- ├── feat/tcp-relay              ⏳ TCP Relay + SSH deploy
+ ├── feat/tcp-relay              ✅ TCP Relay + SSH deploy
+ ├── feat/localconf-ui           ✅ Settings > ZeroTier Node UI
  ├── feat/package-workflows      ⏳ .deb/.rpm/.pkg/.msi
  └── feat/screenshot-workflow    ⏳ WebUI screenshots
 ```
