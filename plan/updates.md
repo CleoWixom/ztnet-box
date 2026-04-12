@@ -28,7 +28,7 @@
 | Layer 2 Bridge | 🟢 Low | ✅ Реализовано | v0.7.1 |
 | TCP Relay + SSH deploy | 🟢 Low | ✅ Реализовано | v0.7.2 |
 | NDP Proxy (ndppd) | 🟢 Low | ⏳ Следующая | — |
-| Package workflows (deb/rpm/pkg/msi) | 🟢 Low | ⏳ Следующая | — |
+| Package workflows (deb/rpm/pkg/msi) | 🟢 Low | ✅ Реализовано | v0.7.4 |
 | Screenshots workflow | 🟢 Low | ⏳ Следующая | — |
 
 ---
@@ -137,18 +137,17 @@
 
 ---
 
-## 10. ⏳ Package Workflows
+## 10. ✅ Package Workflows (РЕАЛИЗОВАНО v0.7.4)
 
-**Файл:** `.github/workflows/packages.yml`
-**Триггер:** push тега `v*.*.*`
-
-- `.deb` (amd64, arm64) — cargo-deb + postinst systemd unit
-- `.rpm` (x86_64, aarch64) — fpm
-- `.pkg.tar.zst` (Arch) — fpm / makepkg
-- `.msi` (Windows) — WiX Toolset
-- Homebrew formula `ztnet-box.rb`
-
-Зависимости пакетов: `zerotier-one >= 1.10, iptables | nftables`
+- `.github/workflows/packages.yml` — триггер: push тега `v*.*.*` или `workflow_dispatch`
+- **`.deb`** (amd64, arm64) — `cargo-deb` + `pkg/debian/postinst` (systemctl daemon-reload/restart) + `pkg/debian/prerm` (systemctl stop)
+- **`.rpm`** (x86_64, aarch64) — `cargo-generate-rpm` + post-install script
+- **`.pkg.tar.zst`** (Arch x86_64) — fakeroot + zstd + `.PKGINFO` + `.INSTALL`
+- **`.msi`** (Windows x64) — `cargo-wix` + WiX init
+- **Homebrew formula** — `pkg/homebrew/ztnet-box.rb` (sha256 обновляется при релизе)
+- **`pkg/lib/systemd/system/ztnet-box.service`** — systemd unit с hardening (`NoNewPrivileges`, `ProtectHome`, `ProtectSystem`)
+- **`Cargo.toml`** — `[package.metadata.deb]` и `[package.metadata.generate-rpm]` с assets, depends, conf-files
+- Все пакеты аттачатся к GitHub Release через job `attach`
 
 ---
 
@@ -174,6 +173,6 @@ main (v0.7.3)
  ├── feat/l2-bridge              ✅ Layer 2 Bridge
  ├── feat/tcp-relay              ✅ TCP Relay + SSH deploy
  ├── feat/localconf-ui           ✅ Settings > ZeroTier Node UI
- ├── feat/package-workflows      ⏳ .deb/.rpm/.pkg/.msi
+ ├── feat/package-workflows      ✅ .deb/.rpm/.pkg/.msi
  └── feat/screenshot-workflow    ⏳ WebUI screenshots
 ```
