@@ -21,7 +21,7 @@ pub enum BridgeError {
     UnsupportedPlatform(String),
 }
 
-pub fn apply(cfg: &BridgeConfig) -> Result<(), BridgeError> {
+pub fn apply(_cfg: &BridgeConfig) -> Result<(), BridgeError> {
     #[cfg(not(target_os = "linux"))]
     return Err(BridgeError::UnsupportedPlatform(
         "Layer 2 Bridge requires Linux".into(),
@@ -29,36 +29,36 @@ pub fn apply(cfg: &BridgeConfig) -> Result<(), BridgeError> {
 
     #[cfg(target_os = "linux")]
     {
-        let br = &cfg.bridge_iface;
+        let br = &_cfg.bridge_iface;
 
         // 1. Create bridge (ignore error if already exists)
         let _ = ip(&["link", "add", br, "type", "bridge"]);
 
         // 2. Attach physical interface
-        ip(&["link", "set", &cfg.phy_iface, "master", br])?;
+        ip(&["link", "set", &_cfg.phy_iface, "master", br])?;
 
         // 3. Attach ZeroTier interface
-        ip(&["link", "set", &cfg.zt_iface, "master", br])?;
+        ip(&["link", "set", &_cfg.zt_iface, "master", br])?;
 
         // 4. Bring bridge up
         ip(&["link", "set", br, "up"])?;
 
         // 5. Assign static address if requested
-        if let Some(ref addr) = cfg.bridge_addr {
+        if let Some(ref addr) = _cfg.bridge_addr {
             // Flush existing addresses first to avoid duplicates
             let _ = ip(&["addr", "flush", "dev", br]);
             ip(&["addr", "add", addr, "dev", br])?;
         }
 
         // 6. Add default gateway if requested
-        if let Some(ref gw) = cfg.gateway {
+        if let Some(ref gw) = _cfg.gateway {
             let _ = ip(&["route", "del", "default"]);
             ip(&["route", "add", "default", "via", gw])?;
         }
 
         // 7. Write systemd-networkd unit files for persistence
-        write_netdev(cfg)?;
-        write_network(cfg)?;
+        write_netdev(_cfg)?;
+        write_network(_cfg)?;
 
         // 8. Reload systemd-networkd
         let _ = std::process::Command::new("networkctl")
@@ -66,16 +66,16 @@ pub fn apply(cfg: &BridgeConfig) -> Result<(), BridgeError> {
             .status();
 
         tracing::info!(
-            zt = %cfg.zt_iface,
-            phy = %cfg.phy_iface,
-            br = %cfg.bridge_iface,
+            zt = %_cfg.zt_iface,
+            phy = %_cfg.phy_iface,
+            br = %_cfg.bridge_iface,
             "Layer 2 Bridge enabled"
         );
         Ok(())
     }
 }
 
-pub fn remove(cfg: &BridgeConfig) -> Result<(), BridgeError> {
+pub fn remove(_cfg: &BridgeConfig) -> Result<(), BridgeError> {
     #[cfg(not(target_os = "linux"))]
     return Err(BridgeError::UnsupportedPlatform(
         "Layer 2 Bridge requires Linux".into(),
@@ -83,25 +83,25 @@ pub fn remove(cfg: &BridgeConfig) -> Result<(), BridgeError> {
 
     #[cfg(target_os = "linux")]
     {
-        let br = &cfg.bridge_iface;
+        let br = &_cfg.bridge_iface;
 
         // Detach members and bring bridge down
-        let _ = ip(&["link", "set", &cfg.zt_iface, "nomaster"]);
-        let _ = ip(&["link", "set", &cfg.phy_iface, "nomaster"]);
+        let _ = ip(&["link", "set", &_cfg.zt_iface, "nomaster"]);
+        let _ = ip(&["link", "set", &_cfg.phy_iface, "nomaster"]);
         let _ = ip(&["link", "set", br, "down"]);
         let _ = ip(&["link", "del", br]);
 
         // Remove systemd-networkd unit files
-        remove_netdev_files(cfg);
+        remove_netdev_files(_cfg);
 
         let _ = std::process::Command::new("networkctl")
             .arg("reload")
             .status();
 
         tracing::info!(
-            zt = %cfg.zt_iface,
-            phy = %cfg.phy_iface,
-            br = %cfg.bridge_iface,
+            zt = %_cfg.zt_iface,
+            phy = %_cfg.phy_iface,
+            br = %_cfg.bridge_iface,
             "Layer 2 Bridge disabled"
         );
         Ok(())

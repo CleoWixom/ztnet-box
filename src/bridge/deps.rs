@@ -52,13 +52,13 @@ pub fn check() -> BridgeDeps {
     }
 }
 
-pub fn install(prefer_remove_conflicts: bool) -> Result<BridgeDeps, String> {
+pub fn install(_prefer_remove_conflicts: bool) -> Result<BridgeDeps, String> {
     #[cfg(not(target_os = "linux"))]
     return Err("Bridge deps install requires Linux".into());
 
     #[cfg(target_os = "linux")]
     {
-        if prefer_remove_conflicts {
+        if _prefer_remove_conflicts {
             // Remove conflicting packages
             for pkg in &["dhcpcd5", "ifupdown", "isc-dhcp-client"] {
                 let _ = std::process::Command::new("apt-get")
