@@ -29,7 +29,7 @@
 | TCP Relay + SSH deploy | 🟢 Low | ✅ Реализовано | v0.7.2 |
 | NDP Proxy (ndppd) | 🟢 Low | ⏳ Следующая | — |
 | Package workflows (deb/rpm/pkg/msi) | 🟢 Low | ✅ Реализовано | v0.7.4 |
-| Screenshots workflow | 🟢 Low | ⏳ Следующая | — |
+| Screenshots workflow | 🟢 Low | ✅ Реализовано | v0.7.5 |
 
 ---
 
@@ -151,22 +151,22 @@
 
 ---
 
-## 11. ⏳ Screenshots Workflow
+## 11. ✅ Screenshots Workflow (РЕАЛИЗОВАНО v0.7.5)
 
-**Файл:** `.github/workflows/screenshots.yml`
-**Триггер:** `workflow_dispatch`
-
-Инструмент: Playwright (chromium)
-Viewports: desktop (1440×900) + mobile (390×844 / iPhone 14)
-Страницы: dashboard, networks, exitnode, bridge, relay, settings/ztnode
-Результат: PR с обновлёнными `docs/screenshots/*.png`
+- `.github/workflows/screenshots.yml` — триггеры: `workflow_dispatch` + push в `main` (изменения `www/src/**`)
+- Сборка release-бинаря, запуск `ztnet-box` на `127.0.0.1:7979` с minimal config
+- Playwright (chromium) захватывает 10 страниц × 2 viewport = 20 скриншотов:
+  - Страницы: dashboard, networks, exitnode, physnet, bridge, relay, controllers, settings-global, settings-ztnode, settings-tokens
+  - Viewports: desktop 1440×900, mobile 390×844
+- Если скриншоты изменились — создаёт ветку `chore/screenshots-YYYYMMDD-HHMMSS` и открывает PR с таблицей превью
+- `docs/screenshots/README.md` — таблица со всеми скриншотами
 
 ---
 
 ## Ветки реализации
 
 ```
-main (v0.7.3)
+main (v0.7.5) — все задачи из плана выполнены
  ├── feat/exitnode-ipv6          ✅ IPv6 ip6tables + ip6_forward
  ├── feat/physnet-routing        ✅ Physical Network Routing
  ├── feat/log-panel              ✅ Log Panel sidebar
@@ -174,5 +174,5 @@ main (v0.7.3)
  ├── feat/tcp-relay              ✅ TCP Relay + SSH deploy
  ├── feat/localconf-ui           ✅ Settings > ZeroTier Node UI
  ├── feat/package-workflows      ✅ .deb/.rpm/.pkg/.msi
- └── feat/screenshot-workflow    ⏳ WebUI screenshots
+ └── feat/screenshot-workflow    ✅ WebUI screenshots
 ```

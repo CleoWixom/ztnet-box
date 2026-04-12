@@ -10,6 +10,12 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.7.5] — 2026-04-12
+
+### Features
+- feat(screenshots): `.github/workflows/screenshots.yml` — Playwright captures 10 pages × 2 viewports; opens PR on changes
+- feat(screenshots): `docs/screenshots/README.md` — screenshot index table
+
 ## [0.7.4] — 2026-04-12
 
 ### Features
