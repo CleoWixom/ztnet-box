@@ -43,6 +43,29 @@ impl Config {
         Ok(())
     }
 
+    /// Возвращает путь к конфигу с учётом CLI-аргументов.
+    /// Поддерживает: `--config <path>` и `-c <path>`.
+    /// При отсутствии флага — fallback на `find_config_file()`.
+    pub fn resolve_config_path(args: Vec<String>) -> PathBuf {
+        let mut iter = args.into_iter().peekable();
+        while let Some(arg) = iter.next() {
+            match arg.as_str() {
+                "--config" | "-c" => {
+                    if let Some(val) = iter.next() {
+                        return PathBuf::from(val);
+                    }
+                }
+                _ => {
+                    // --config=<path>
+                    if let Some(val) = arg.strip_prefix("--config=") {
+                        return PathBuf::from(val);
+                    }
+                }
+            }
+        }
+        Self::find_config_file()
+    }
+
     pub fn find_config_file() -> PathBuf {
         let candidates = [
             PathBuf::from("config.yml"),

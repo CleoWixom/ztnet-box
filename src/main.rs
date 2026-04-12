@@ -24,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
         .with(CollectorLayer::new(log_collector.clone()))
         .init();
 
-    let config_path = config::Config::find_config_file();
+    let config_path = config::Config::resolve_config_path(std::env::args().collect());
     info!(path = %config_path.display(), "loading config");
 
     let cfg = config::Config::load(&config_path)?;
