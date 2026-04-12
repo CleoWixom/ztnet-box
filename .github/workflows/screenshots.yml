@@ -11,11 +11,6 @@ on:
         description: "ztnet-box URL to screenshot (default: starts a local instance)"
         required: false
         default: ""
-  push:
-    branches: ["main"]
-    paths:
-      - "www/src/**"
-      - "src/server/router.rs"
 
 permissions:
   contents: write
