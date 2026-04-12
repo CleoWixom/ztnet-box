@@ -3,7 +3,7 @@ use super::{
         bridge as bridge_handler, central as central_handler, config as cfg_handler,
         exitnode as exit_handler, local as local_handler, local_config as lc_handler,
         logs as logs_handler, metrics as metrics_handler, physnet as physnet_handler,
-        system as sys_handler, tokens as tok_handler,
+        relay as relay_handler, system as sys_handler, tokens as tok_handler,
     },
     middleware::log_request,
     state::AppState,
@@ -138,6 +138,14 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .route("/enable", post(physnet_handler::enable))
         .route("/disable", post(physnet_handler::disable));
 
+    // /api/relay/*
+    let relay = Router::new()
+        .route("/status", get(relay_handler::get_status))
+        .route("/local", put(relay_handler::update_local))
+        .route("/deploy", post(relay_handler::deploy_relay))
+        .route("/verify", get(relay_handler::verify_relay))
+        .route("/remote", post(relay_handler::remove_relay));
+
     // /api/bridge/*
     let bridge = Router::new()
         .route("/platform", get(bridge_handler::get_platform))
@@ -176,6 +184,7 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .nest("/exitnode", exitnode)
         .nest("/physnet", physnet)
         .nest("/bridge", bridge)
+        .nest("/relay", relay)
         .nest("/logs", logs);
 
     Router::new()

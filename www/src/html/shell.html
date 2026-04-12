@@ -66,6 +66,10 @@
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1 10h3V6H1M12 6v4h3M4 8h8M4 6v4M12 6v4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
           L2 Bridge
         </div>
+        <div class="nav-item" data-route="/relay" onclick="Router.navigate('/relay')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2v12M2 8h12M5 5l6 6M11 5l-6 6" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+          TCP Relay
+        </div>
       </div>
 
       <div class="nav-section">
@@ -109,6 +113,7 @@ Router.on('/controllers/config/:id',         (p) => { CtrlConfigPage.init(p); })
 Router.on('/exitnode',                       () => { ExitnodePage.init(); });
 Router.on('/physnet',                        () => { PhysnetPage.init(); });
 Router.on('/bridge',                         () => { BridgePage.init(); });
+Router.on('/relay',                          () => { RelayPage.init(); });
 Router.on('/settings/global',               () => { SettingsGlobalPage.init(); });
 Router.on('/settings/roots',               () => { SettingsRootsPage.init(); });
 Router.on('/settings/tokens',              () => { SettingsTokensPage.init(); });

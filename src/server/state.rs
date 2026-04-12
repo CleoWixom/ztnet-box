@@ -4,6 +4,7 @@ use crate::{
     exitnode::ExitNodeManager,
     metrics::cache::MetricsCache,
     physnet::PhysNetState,
+    relay::RemoteRelayInfo,
     server::log_collector::LogCollector,
     zerotier::central::token_store::TokenStore,
 };
@@ -19,6 +20,7 @@ pub struct AppState {
     pub exitnode_manager: Arc<ExitNodeManager>,
     pub physnet_state: Arc<RwLock<PhysNetState>>,
     pub bridge_state: Arc<RwLock<BridgeState>>,
+    pub relay_remote: Arc<RwLock<Option<RemoteRelayInfo>>>,
     pub log_collector: LogCollector,
 }
 
@@ -57,6 +59,7 @@ impl AppState {
             exitnode_manager: Arc::new(ExitNodeManager::new(exitnode_cfg)),
             physnet_state: Arc::new(RwLock::new(PhysNetState::default())),
             bridge_state: Arc::new(RwLock::new(BridgeState::default())),
+            relay_remote: Arc::new(RwLock::new(None)),
             log_collector,
         })
     }

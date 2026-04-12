@@ -10,6 +10,24 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.7.2] — 2026-04-12
+
+### Features
+- feat(relay): `RelayStatus`, `LocalRelayConfig`, `RemoteRelayInfo`, `RelayDeployConfig` types
+- feat(relay): `SshClient` — thin wrapper around system `ssh`/`sshpass` binary
+- feat(relay): `deploy::deploy()` — SSH → install Docker → stop UFW → run pylon reflect container
+- feat(relay): `deploy::remove()` — stop/rm pylon container via SSH
+- feat(relay): `deploy::verify()` — TCP connect reachability check
+- feat(relay): 5 REST handlers: GET status, PUT local (ip/port validation), POST deploy (spawn_blocking), GET verify, DELETE remote
+- feat(relay): auto-update `local.conf` tcp_fallback_relay after deploy/remove
+- feat(relay): `relay_remote: Arc<RwLock<Option<RemoteRelayInfo>>>` in AppState
+- feat(frontend): `relay.js` — local config form, SSH deploy form, remote status card with Verify/Remove
+
+### Tests
+- test(relay): ssh_client_fields, verify_unreachable_host, relay_deploy_config_defaults
+- test(relay): relay_status_returns_structure, relay_local_invalid_endpoint_returns_422, relay_deploy_missing_host_returns_422, relay_verify_no_relay_returns_not_reachable
+
+
 ## [0.7.1] — 2026-04-12
 
 ### Features

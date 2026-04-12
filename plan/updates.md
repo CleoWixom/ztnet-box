@@ -26,7 +26,7 @@
 | IPv6 ip6tables for Exit Node | 🟡 Medium | ✅ Реализовано | v0.6.5 |
 | Log Panel (frontend + backend) | 🟡 Medium | ✅ Реализовано | v0.7.0 |
 | Layer 2 Bridge | 🟢 Low | ✅ Реализовано | v0.7.1 |
-| TCP Relay + SSH deploy | 🟢 Low | ⏳ Следующая | — |
+| TCP Relay + SSH deploy | 🟢 Low | ✅ Реализовано | v0.7.2 |
 | NDP Proxy (ndppd) | 🟢 Low | ⏳ Следующая | — |
 | Package workflows (deb/rpm/pkg/msi) | 🟢 Low | ⏳ Следующая | — |
 | Screenshots workflow | 🟢 Low | ⏳ Следующая | — |
@@ -262,10 +262,21 @@ POST /api/bridge/disable
 
 ---
 
-## 8. TCP Relay ⏳
+## 8. ✅ TCP Relay (РЕАЛИЗОВАНО v0.7.2)
 
-**Ветка:** `feat/tcp-relay`  
-**Источник:** https://docs.zerotier.com/relay/
+### Реализовано
+- `src/relay/mod.rs` — `RelayStatus`, `LocalRelayConfig`, `RemoteRelayInfo`, `RelayDeployConfig`
+- `src/relay/ssh.rs` — `SshClient`: запуск команд через системный `ssh`/`sshpass`
+- `src/relay/deploy.rs` — `deploy()`: SSH → install Docker → stop UFW → run pylon; `remove()`; `verify()` (TCP connect)
+- `src/server/handlers/relay.rs` — 5 handlers: status, PUT local (validate ip/port format), POST deploy (spawn_blocking), GET verify, DELETE remote; auto-update local.conf после deploy
+- `src/server/state.rs` — `relay_remote: Arc<RwLock<Option<RemoteRelayInfo>>>`
+- `src/server/router.rs` — `/api/relay/*`
+- `www/src/js/pages/relay.js` — Local config форма (force/endpoint), Deploy форма (SSH params), remote status card с Verify/Remove
+- `www/src/html/shell.html` — nav «TCP Relay» + `Router.on('/relay', ...)`
+- 3 unit-теста (ssh fields, verify unreachable, deploy config defaults)
+- 4 integration теста
+
+---
 
 ### Функциональность
 

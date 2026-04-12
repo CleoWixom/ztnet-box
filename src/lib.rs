@@ -4,5 +4,6 @@ pub mod config;
 pub mod exitnode;
 pub mod metrics;
 pub mod physnet;
+pub mod relay;
 pub mod server;
 pub mod zerotier;

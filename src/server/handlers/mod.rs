@@ -7,5 +7,6 @@ pub mod local_config;
 pub mod logs;
 pub mod metrics;
 pub mod physnet;
+pub mod relay;
 pub mod system;
 pub mod tokens;
