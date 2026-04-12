@@ -35,12 +35,12 @@ pub fn deploy(cfg: &RelayDeployConfig) -> Result<RemoteRelayInfo, DeployError> {
     let has_docker = client.run("command -v docker").is_ok();
     if !has_docker {
         tracing::info!(host = %cfg.host, "Docker not found, installing...");
-        client.run("curl -fsSL https://get.docker.com | sh").map_err(|e| {
-            DeployError::Step(format!("Docker install failed: {e}"))
-        })?;
-        client.run("systemctl enable --now docker").map_err(|e| {
-            DeployError::Step(format!("Docker enable failed: {e}"))
-        })?;
+        client
+            .run("curl -fsSL https://get.docker.com | sh")
+            .map_err(|e| DeployError::Step(format!("Docker install failed: {e}")))?;
+        client
+            .run("systemctl enable --now docker")
+            .map_err(|e| DeployError::Step(format!("Docker enable failed: {e}")))?;
     }
 
     // 3. Stop UFW (conflicts with Docker iptables management)
@@ -59,9 +59,9 @@ pub fn deploy(cfg: &RelayDeployConfig) -> Result<RemoteRelayInfo, DeployError> {
          zerotier/pylon:latest reflect",
         port = cfg.pylon_port,
     );
-    client.run(&docker_cmd).map_err(|e| {
-        DeployError::Step(format!("pylon container start failed: {e}"))
-    })?;
+    client
+        .run(&docker_cmd)
+        .map_err(|e| DeployError::Step(format!("pylon container start failed: {e}")))?;
 
     tracing::info!(
         host = %cfg.host,
@@ -96,7 +96,9 @@ pub fn verify(host: &str, port: u16) -> bool {
     use std::net::TcpStream;
     use std::time::Duration;
     TcpStream::connect_timeout(
-        &format!("{host}:{port}").parse().unwrap_or("0.0.0.0:443".parse().unwrap()),
+        &format!("{host}:{port}")
+            .parse()
+            .unwrap_or("0.0.0.0:443".parse().unwrap()),
         Duration::from_secs(5),
     )
     .is_ok()

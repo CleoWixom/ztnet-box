@@ -28,8 +28,7 @@ pub struct SshClient {
 impl SshClient {
     /// Run a single command on the remote host; return stdout.
     pub fn run(&self, cmd: &str) -> Result<String, SshError> {
-        let ssh = which::which("ssh")
-            .map_err(|e| SshError::NotFound(e.to_string()))?;
+        let ssh = which::which("ssh").map_err(|e| SshError::NotFound(e.to_string()))?;
 
         let mut args: Vec<String> = vec![
             "-p".into(),
@@ -55,8 +54,8 @@ impl SshClient {
 
         // Inject password via sshpass if provided
         let output = if let Some(ref pass) = self.password {
-            let sshpass = which::which("sshpass")
-                .map_err(|e| SshError::NotFound(format!("sshpass: {e}")))?;
+            let sshpass =
+                which::which("sshpass").map_err(|e| SshError::NotFound(format!("sshpass: {e}")))?;
             std::process::Command::new(sshpass)
                 .arg("-p")
                 .arg(pass)

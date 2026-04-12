@@ -165,9 +165,9 @@ fn validate_relay_endpoint(ep: &str) -> Result<(), ApiError> {
             "relay endpoint must be 'ip/port', got '{ep}'"
         )));
     }
-    let port: u16 = parts[1].parse().map_err(|_| {
-        ApiError::InvalidInput(format!("invalid port in relay endpoint '{ep}'"))
-    })?;
+    let port: u16 = parts[1]
+        .parse()
+        .map_err(|_| ApiError::InvalidInput(format!("invalid port in relay endpoint '{ep}'")))?;
     if port == 0 {
         return Err(ApiError::InvalidInput("port must be > 0".into()));
     }
