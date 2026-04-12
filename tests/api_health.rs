@@ -661,7 +661,5 @@ async fn local_config_put_returns_ok() {
         .await
         .unwrap();
     // 200 OK or 502 if ZT home not writable on CI
-    assert!(
-        resp.status() == StatusCode::OK || resp.status() == StatusCode::BAD_GATEWAY
-    );
+    assert!(resp.status() == StatusCode::OK || resp.status() == StatusCode::BAD_GATEWAY);
 }
