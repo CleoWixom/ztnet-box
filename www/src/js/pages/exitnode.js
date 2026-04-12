@@ -2,23 +2,25 @@ const ExitnodePage = (() => {
   let _data = {};
 
   async function load() {
-    const [platform, deps, ifaces, status] = await Promise.allSettled([
+    const [platform, deps, ifaces, status, ndp] = await Promise.allSettled([
       api.get('/exitnode/platform'),
       api.get('/exitnode/deps'),
       api.get('/exitnode/interfaces'),
       api.get('/exitnode/status'),
+      api.get('/exitnode/ndp/status'),
     ]);
     _data = {
       platform: platform.value,
       deps:     deps.value,
-      ifaces:   ifaces.value||[],
+      ifaces:   ifaces.value || [],
       status:   status.value,
+      ndp:      ndp.value || null,
     };
     render();
   }
 
   function render() {
-    const { platform, deps, ifaces, status } = _data;
+    const { platform, deps, ifaces, status, ndp } = _data;
     const el = document.getElementById('content');
 
     if (!platform?.supported) {
@@ -51,7 +53,7 @@ const ExitnodePage = (() => {
         </div>
       </div>` : '<div class="loading-row"><div class="spinner"></div> Checking dependencies...</div>';
 
-    const nets = State.get('networks')||[];
+    const nets = State.get('networks') || [];
     const netOpts = nets.filter(n=>n.status==='OK'||n._src).map(n=>`<option value="${n.id}">${n.id} ${n.name?('('+n.name+')'):''}  </option>`).join('');
 
     const wanIfaces = (ifaces||[]).filter(i=>!i.is_zerotier&&i.name!=='lo');
@@ -68,7 +70,7 @@ const ExitnodePage = (() => {
       <div id="ipv6-prefix-row" class="field" style="display:${status?.enable_ipv6?'block':'none'}">
         <label class="field-label">IPv6 Prefix <span class="text-dim">(optional)</span></label>
         <input class="input" id="en-ipv6-prefix" placeholder="e.g. 2001:db8::/64" value="${status?.ipv6_prefix||''}">
-        <div class="text-dim text-sm">Scope FORWARD rules to this prefix. Leave empty for wildcard (all ZT IPv6 traffic).</div>
+        <div class="text-dim text-sm">Scope FORWARD rules to this prefix. Leave empty for wildcard.</div>
       </div>`;
 
     const statusBlock = status ? `
@@ -85,6 +87,41 @@ const ExitnodePage = (() => {
             <span class="k">Since</span><span class="v">${status.applied_at?new Date(status.applied_at).toLocaleString():'—'}</span>
           </div>`:'<div class="text-dim text-sm">Exit Node is not active.</div>'}
       </div>` : '';
+
+    // NDP Proxy section
+    const ndpSt = ndp || {};
+    const ndpWanOpts = wanIfaces.map(i=>`<option value="${i.name}">${i.name}</option>`).join('');
+    const ndpBadge = ndpSt.running
+      ? '<span class="badge badge-success">Running</span>'
+      : '<span class="badge badge-muted">Stopped</span>';
+    const ndpSection = `
+      <div class="section"><div class="section-title">NDP Proxy (ndppd) <small class="text-dim">— native IPv6 without NAT</small></div>
+        <div class="card">
+          <div class="text-dim text-sm mb-sm">
+            Answers IPv6 Neighbor Discovery requests on WAN for ZeroTier client addresses,
+            enabling real IPv6 routing without MASQUERADE.
+          </div>
+          <div class="detail-kv mb-sm">
+            <span class="k">ndppd</span>
+            <span class="v">${ndpSt.available?`✓ ${ndpSt.binary_path||''}`:'✗ Not installed'}</span>
+            <span class="k">Status</span><span class="v">${ndpBadge}</span>
+            <span class="k">Config</span>
+            <span class="v">${ndpSt.config_exists?'/etc/ndppd.conf ✓':'Not configured'}</span>
+          </div>
+          ${!ndpSt.available?`
+            <button class="btn btn-secondary btn-sm" onclick="ExitnodePage._ndpInstall()">Install ndppd</button>`:''}
+          ${ndpSt.available&&!ndpSt.running?`
+            <div class="field mt-sm"><label class="field-label">WAN Interface</label>
+              <select class="select" id="ndp-wan" style="max-width:200px">
+                ${ndpWanOpts||'<option value="">No interfaces</option>'}
+              </select></div>
+            <div class="field"><label class="field-label">IPv6 Prefix <span class="text-dim">(CIDR)</span></label>
+              <input class="input" id="ndp-prefix" placeholder="2001:db8::/64"></div>
+            <button class="btn btn-primary mt-sm" onclick="ExitnodePage._ndpEnable()">Enable NDP Proxy</button>`:''}
+          ${ndpSt.running?`
+            <button class="btn btn-danger btn-sm mt-sm" onclick="ExitnodePage._ndpDisable()">Disable NDP Proxy</button>`:''}
+        </div>
+      </div>`;
 
     el.innerHTML = `<div class="page">
       <div class="page-header"><h1 class="page-title">Exit Node</h1></div>
@@ -104,6 +141,7 @@ const ExitnodePage = (() => {
         </div>
       </div>
       ${statusBlock}
+      ${ndpSection}
     </div>`;
   }
 
@@ -133,11 +171,8 @@ const ExitnodePage = (() => {
       if (!await Modal.confirm(`Enable Exit Node?<br><small>All traffic on <b>${zt}</b> will route through <b>${wan}</b>.</small>${ipv6note}`)) return;
       try {
         const res = await api.post('/exitnode/enable', {
-          zt_interface: zt,
-          wan_interface: wan,
-          network_id: zt,
-          enable_ipv6: ipv6,
-          ipv6_prefix,
+          zt_interface: zt, wan_interface: wan, network_id: zt,
+          enable_ipv6: ipv6, ipv6_prefix,
         });
         if (res.warnings?.length) res.warnings.forEach(w => Toast.warn(w));
         Toast.success('Exit Node enabled');
@@ -148,6 +183,29 @@ const ExitnodePage = (() => {
       if (!await Modal.confirm('Disable Exit Node?', {danger:true})) return;
       try { await api.post('/exitnode/disable'); Toast.success('Exit Node disabled'); load(); }
       catch(e) { Toast.error(e.message); }
+    },
+    async _ndpInstall() {
+      try { await api.post('/exitnode/ndp/install'); Toast.success('ndppd installed'); load(); }
+      catch(e) { Toast.error(e.message); }
+    },
+    async _ndpEnable() {
+      const wan = document.getElementById('ndp-wan')?.value;
+      const prefix = document.getElementById('ndp-prefix')?.value.trim();
+      if (!wan) return Toast.error('Select a WAN interface');
+      if (!prefix) return Toast.error('Enter an IPv6 prefix (CIDR)');
+      try {
+        await api.post('/exitnode/ndp/enable', { wan_iface: wan, ipv6_prefix: prefix });
+        Toast.success('NDP Proxy enabled');
+        load();
+      } catch(e) { Toast.error(e.message); }
+    },
+    async _ndpDisable() {
+      if (!await Modal.confirm('Disable NDP Proxy?', {danger:true})) return;
+      try {
+        await api.post('/exitnode/ndp/disable', { remove_config: false });
+        Toast.success('NDP Proxy disabled');
+        load();
+      } catch(e) { Toast.error(e.message); }
     },
   };
 })();
