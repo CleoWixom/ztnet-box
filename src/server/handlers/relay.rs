@@ -1,7 +1,7 @@
 use crate::{
     relay::{deploy, LocalRelayConfig, RelayDeployConfig, RelayStatus, RemoteRelayInfo},
     server::{error::ApiError, state::AppState},
-    zerotier::local_config,
+    zerotier::local_config::{self, LocalSettings},
 };
 use axum::{extract::State, response::IntoResponse, Json};
 use serde::Deserialize;
@@ -10,7 +10,6 @@ use tokio::sync::RwLock;
 // ── GET /api/relay/status ─────────────────────────────────────────────────────
 
 pub async fn get_status(State(s): State<AppState>) -> impl IntoResponse {
-    // Read current local.conf relay settings (best-effort)
     let local = read_local_relay();
     let remote = s.relay_remote.read().await.clone();
     Json(RelayStatus { local, remote })
@@ -29,19 +28,22 @@ pub async fn update_local(
     State(_s): State<AppState>,
     Json(req): Json<UpdateLocalRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    // Validate relay endpoint format if provided
     if let Some(ref ep) = req.tcp_fallback_relay {
         validate_relay_endpoint(ep)?;
     }
 
-    let mut conf = local_config::read().unwrap_or_default();
-    if let Some(v) = req.force_tcp_relay {
-        conf.settings.force_tcp_relay = Some(v);
-    }
-    conf.settings.tcp_fallback_relay = req.tcp_fallback_relay.clone();
+    let path = local_config::local_conf_path();
+    let mut conf = local_config::read(&path).unwrap_or_default();
 
-    let warnings = local_config::validate_settings(&conf.settings);
-    local_config::write(&conf).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
+    // Ensure settings exists
+    let settings = conf.settings.get_or_insert_with(LocalSettings::default);
+    if let Some(v) = req.force_tcp_relay {
+        settings.force_tcp_relay = Some(v);
+    }
+    settings.tcp_fallback_relay = req.tcp_fallback_relay.clone();
+
+    let warnings = local_config::validate_settings(settings);
+    local_config::write(&path, &conf).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
 
     tracing::info!(
         force = ?req.force_tcp_relay,
@@ -49,10 +51,16 @@ pub async fn update_local(
         "relay local config updated"
     );
 
+    let (force, fallback) = conf
+        .settings
+        .as_ref()
+        .map(|s| (s.force_tcp_relay, s.tcp_fallback_relay.clone()))
+        .unwrap_or((None, None));
+
     Ok(Json(serde_json::json!({
         "applied": {
-            "force_tcp_relay": conf.settings.force_tcp_relay,
-            "tcp_fallback_relay": conf.settings.tcp_fallback_relay,
+            "force_tcp_relay": force,
+            "tcp_fallback_relay": fallback,
         },
         "warnings": warnings.iter().map(|w| &w.message).collect::<Vec<_>>(),
     })))
@@ -73,20 +81,21 @@ pub async fn deploy_relay(
         ));
     }
 
-    // Run blocking SSH in a spawn_blocking task
     let info = tokio::task::spawn_blocking(move || deploy::deploy(&cfg))
         .await
         .map_err(|e| ApiError::ZtLocal(format!("task join: {e}")))?
         .map_err(|e| ApiError::ZtLocal(e.to_string()))?;
 
-    // Persist remote info in state
     *s.relay_remote.write().await = Some(info.clone());
 
     // Auto-configure local.conf to point at the newly deployed relay
     let relay_endpoint = format!("{}/{}", info.host, info.port);
-    if let Ok(mut conf) = local_config::read() {
-        conf.settings.tcp_fallback_relay = Some(relay_endpoint);
-        let _ = local_config::write(&conf);
+    let path = local_config::local_conf_path();
+    if let Ok(mut conf) = local_config::read(&path) {
+        conf.settings
+            .get_or_insert_with(LocalSettings::default)
+            .tcp_fallback_relay = Some(relay_endpoint);
+        let _ = local_config::write(&path, &conf);
     }
 
     Ok(Json(serde_json::json!({
@@ -138,9 +147,12 @@ pub async fn remove_relay(
     *s.relay_remote.write().await = None;
 
     // Clear local.conf relay endpoint
-    if let Ok(mut conf) = local_config::read() {
-        conf.settings.tcp_fallback_relay = None;
-        let _ = local_config::write(&conf);
+    let path = local_config::local_conf_path();
+    if let Ok(mut conf) = local_config::read(&path) {
+        if let Some(ref mut s) = conf.settings {
+            s.tcp_fallback_relay = None;
+        }
+        let _ = local_config::write(&path, &conf);
     }
 
     Ok(Json(serde_json::json!({ "status": "removed" })))
@@ -149,10 +161,14 @@ pub async fn remove_relay(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn read_local_relay() -> LocalRelayConfig {
-    local_config::read()
-        .map(|c| LocalRelayConfig {
-            force_tcp_relay: c.settings.force_tcp_relay.unwrap_or(false),
-            tcp_fallback_relay: c.settings.tcp_fallback_relay,
+    let path = local_config::local_conf_path();
+    local_config::read(&path)
+        .map(|c| {
+            let s = c.settings.unwrap_or_default();
+            LocalRelayConfig {
+                force_tcp_relay: s.force_tcp_relay.unwrap_or(false),
+                tcp_fallback_relay: s.tcp_fallback_relay,
+            }
         })
         .unwrap_or_default()
 }
