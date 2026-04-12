@@ -68,29 +68,32 @@ fn main() {
         }
     }
 
-    // ── JS (ordered: components → pages → core) ────────────────────────────
+    // ── JS (ordered: core → components → pages) ────────────────────────────
+    // Core must come first: api/state/router are referenced by components and
+    // pages. Shell HTML calls Router.on() / Router.start() at the very end,
+    // so Router must already be defined when those calls execute.
     let js_dir = src.join("js");
     let comp_dir = js_dir.join("components");
     let page_dir = js_dir.join("pages");
     let mut js = String::new();
 
-    // Component scripts
-    for f in collect_files(&comp_dir, "js") {
-        js.push_str(&read(&f));
-        js.push('\n');
-    }
-    // Page scripts
-    for f in collect_files(&page_dir, "js") {
-        js.push_str(&read(&f));
-        js.push('\n');
-    }
-    // Core scripts (api, state, router — last so they can reference pages)
+    // 1. Core scripts first (api → state → router)
     for name in ["api", "state", "router"] {
         let p = js_dir.join(format!("{name}.js"));
         if p.exists() {
             js.push_str(&read(&p));
             js.push('\n');
         }
+    }
+    // 2. Component scripts
+    for f in collect_files(&comp_dir, "js") {
+        js.push_str(&read(&f));
+        js.push('\n');
+    }
+    // 3. Page scripts
+    for f in collect_files(&page_dir, "js") {
+        js.push_str(&read(&f));
+        js.push('\n');
     }
 
     // ── Shell HTML ─────────────────────────────────────────────────────────
