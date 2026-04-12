@@ -1,0 +1,387 @@
+name: Packages
+
+# Build OS-native packages on every versioned tag.
+# Produces: .deb (amd64, arm64), .rpm (x86_64, aarch64),
+#           .pkg.tar.zst (Arch, x86_64), .msi (Windows x64)
+# All artifacts are attached to the GitHub Release created by release.yml.
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build packages for (e.g. v0.7.3)"
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  BINARY_NAME: ztnet-box
+  PACKAGE_NAME: ztnet-box
+
+# ── .deb ─────────────────────────────────────────────────────────────────────
+
+jobs:
+  deb:
+    name: .deb (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            target: x86_64-unknown-linux-gnu
+            use_cross: false
+          - arch: arm64
+            target: aarch64-unknown-linux-gnu
+            use_cross: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: pkg-deb-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: pkg-deb-${{ matrix.target }}-
+
+      - name: Install cross
+        if: matrix.use_cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb
+
+      - name: Build (cross)
+        if: matrix.use_cross
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Build (native)
+        if: "!matrix.use_cross"
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Write postinst script
+        run: |
+          mkdir -p pkg/debian
+          cat > pkg/debian/postinst << 'EOF'
+          #!/bin/sh
+          set -e
+          systemctl daemon-reload || true
+          if systemctl is-enabled ztnet-box.service >/dev/null 2>&1; then
+              systemctl restart ztnet-box.service || true
+          fi
+          EOF
+          chmod 755 pkg/debian/postinst
+
+      - name: Write systemd unit
+        run: |
+          mkdir -p pkg/lib/systemd/system
+          cat > pkg/lib/systemd/system/ztnet-box.service << 'EOF'
+          [Unit]
+          Description=ztnet-box — ZeroTier local web UI
+          After=zerotier-one.service
+          Wants=zerotier-one.service
+
+          [Service]
+          ExecStart=/usr/bin/ztnet-box
+          Restart=on-failure
+          RestartSec=5
+          DynamicUser=no
+          User=root
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+
+      - name: Build .deb
+        run: |
+          VERSION="${GITHUB_REF_NAME:-$(git describe --tags --abbrev=0)}"
+          VERSION="${VERSION#v}"
+          cargo deb \
+            --no-build \
+            --target ${{ matrix.target }} \
+            --deb-version "${VERSION}" \
+            --output "dist/${PACKAGE_NAME}_${VERSION}_${{ matrix.arch }}.deb"
+        env:
+          CARGO_DEB_ASSETS: |
+            target/${{ matrix.target }}/release/ztnet-box usr/bin/ 755
+            config.yml.example etc/ztnet-box/config.yml.example 644
+            pkg/lib/systemd/system/ztnet-box.service lib/systemd/system/ 644
+          CARGO_DEB_CONF_FILES: /etc/ztnet-box/config.yml.example
+          CARGO_DEB_MAINTAINER: ztnet-box contributors
+          CARGO_DEB_DEPENDS: zerotier-one (>= 1.10)
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.arch }}
+          path: dist/*.deb
+          retention-days: 3
+
+# ── .rpm ─────────────────────────────────────────────────────────────────────
+
+  rpm:
+    name: .rpm (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            target: x86_64-unknown-linux-gnu
+            use_cross: false
+          - arch: aarch64
+            target: aarch64-unknown-linux-gnu
+            use_cross: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: pkg-rpm-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: pkg-rpm-${{ matrix.target }}-
+
+      - name: Install cross
+        if: matrix.use_cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Install cargo-generate-rpm
+        run: cargo install cargo-generate-rpm
+
+      - name: Build (cross)
+        if: matrix.use_cross
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Build (native)
+        if: "!matrix.use_cross"
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Write systemd unit
+        run: |
+          mkdir -p pkg/lib/systemd/system
+          cat > pkg/lib/systemd/system/ztnet-box.service << 'EOF'
+          [Unit]
+          Description=ztnet-box — ZeroTier local web UI
+          After=zerotier-one.service
+          Wants=zerotier-one.service
+
+          [Service]
+          ExecStart=/usr/bin/ztnet-box
+          Restart=on-failure
+          RestartSec=5
+          User=root
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+
+      - name: Build .rpm
+        run: |
+          VERSION="${GITHUB_REF_NAME:-$(git describe --tags --abbrev=0)}"
+          VERSION="${VERSION#v}"
+          cargo generate-rpm \
+            --target ${{ matrix.target }} \
+            --payload-compress gzip \
+            --output "dist/${PACKAGE_NAME}-${VERSION}-1.${{ matrix.arch }}.rpm"
+        env:
+          CARGO_GENERATE_RPM_REQUIRES: "zerotier-one >= 1.10"
+
+      - name: Upload .rpm
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-${{ matrix.arch }}
+          path: dist/*.rpm
+          retention-days: 3
+
+# ── .pkg.tar.zst (Arch) ──────────────────────────────────────────────────────
+
+  arch-pkg:
+    name: .pkg.tar.zst (Arch x86_64)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: pkg-arch-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: pkg-arch-
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Install fakeroot + zstd
+        run: sudo apt-get install -y fakeroot zstd
+
+      - name: Build Arch package
+        run: |
+          VERSION="${GITHUB_REF_NAME:-$(git describe --tags --abbrev=0)}"
+          VERSION="${VERSION#v}"
+          PKGDIR="pkg/arch/${PACKAGE_NAME}-${VERSION}"
+          mkdir -p "${PKGDIR}/usr/bin"
+          mkdir -p "${PKGDIR}/usr/lib/systemd/system"
+          mkdir -p "${PKGDIR}/etc/ztnet-box"
+
+          cp target/release/ztnet-box "${PKGDIR}/usr/bin/"
+          cp config.yml.example "${PKGDIR}/etc/ztnet-box/config.yml.example"
+
+          cat > "${PKGDIR}/usr/lib/systemd/system/ztnet-box.service" << 'UNIT'
+          [Unit]
+          Description=ztnet-box — ZeroTier local web UI
+          After=zerotier-one.service
+          Wants=zerotier-one.service
+
+          [Service]
+          ExecStart=/usr/bin/ztnet-box
+          Restart=on-failure
+          User=root
+
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+
+          # Write .PKGINFO
+          INSTALLED_SIZE=$(du -sk "${PKGDIR}" | cut -f1)
+          cat > "${PKGDIR}/.PKGINFO" << EOF
+          pkgname = ${PACKAGE_NAME}
+          pkgver = ${VERSION}-1
+          pkgdesc = Local web UI for ZeroTier management
+          url = https://github.com/CleoWixom/ztnet-box
+          builddate = $(date +%s)
+          packager = ztnet-box CI
+          size = $((INSTALLED_SIZE * 1024))
+          arch = x86_64
+          license = MIT
+          depend = zerotier-one
+          EOF
+
+          # Write .INSTALL script
+          cat > "${PKGDIR}/.INSTALL" << 'INSTALL'
+          post_install() {
+            systemctl daemon-reload
+          }
+          post_upgrade() {
+            systemctl daemon-reload
+            systemctl try-restart ztnet-box.service
+          }
+          INSTALL
+
+          # Create package archive
+          mkdir -p dist
+          PKG_FILENAME="${PACKAGE_NAME}-${VERSION}-1-x86_64.pkg.tar.zst"
+          (cd "${PKGDIR}" && fakeroot tar -c --zstd -f "../../../../dist/${PKG_FILENAME}" .)
+          echo "Built: dist/${PKG_FILENAME}"
+
+      - name: Upload .pkg.tar.zst
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-pkg
+          path: dist/*.pkg.tar.zst
+          retention-days: 3
+
+# ── .msi (Windows) ───────────────────────────────────────────────────────────
+
+  msi:
+    name: .msi (Windows x64)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: pkg-msi-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: pkg-msi-
+
+      - name: Install cargo-wix
+        run: cargo install cargo-wix
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Initialise WiX (first run)
+        run: cargo wix init --force
+
+      - name: Build .msi
+        run: |
+          $VERSION = $env:GITHUB_REF_NAME -replace '^v', ''
+          if (-not $VERSION) { $VERSION = "0.0.0" }
+          cargo wix --no-build --nocapture `
+            --output "dist\${{ env.PACKAGE_NAME }}-${VERSION}-x86_64.msi"
+        shell: pwsh
+
+      - name: Upload .msi
+        uses: actions/upload-artifact@v4
+        with:
+          name: msi-x64
+          path: dist/*.msi
+          retention-days: 3
+
+# ── Attach to GitHub Release ─────────────────────────────────────────────────
+
+  attach:
+    name: Attach packages to release
+    runs-on: ubuntu-latest
+    needs: [deb, rpm, arch-pkg, msi]
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Download all package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: packages/
+          merge-multiple: true
+
+      - name: List packages
+        run: find packages/ -type f | sort
+
+      - name: Upload packages to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: packages/*
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -10,6 +10,15 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.7.4] — 2026-04-12
+
+### Features
+- feat(pkg): `.github/workflows/packages.yml` — builds .deb/.rpm/.pkg.tar.zst/.msi on version tags
+- feat(pkg): `pkg/debian/postinst` + `prerm` — systemd service lifecycle scripts
+- feat(pkg): `pkg/lib/systemd/system/ztnet-box.service` — hardened systemd unit
+- feat(pkg): `pkg/homebrew/ztnet-box.rb` — Homebrew formula for macOS/Linux
+- feat(pkg): `Cargo.toml` `[package.metadata.deb]` and `[package.metadata.generate-rpm]` metadata
+
 ## [0.7.2] — 2026-04-12
 
 ### Features

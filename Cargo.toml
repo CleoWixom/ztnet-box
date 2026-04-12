@@ -15,6 +15,47 @@ path = "src/main.rs"
 name = "ztnet_box"
 path = "src/lib.rs"
 
+# ── cargo-deb metadata ────────────────────────────────────────────────────────
+[package.metadata.deb]
+name            = "ztnet-box"
+maintainer      = "ztnet-box contributors"
+copyright       = "2024 ztnet-box contributors"
+license-file    = ["LICENSE", "0"]
+extended-description = """\
+ztnet-box is a local web UI for managing ZeroTier networks,
+exit nodes, physical routing, L2 bridging, and TCP relays."""
+depends         = "zerotier-one (>= 1.10)"
+section         = "net"
+priority        = "optional"
+assets = [
+  ["target/release/ztnet-box",               "usr/bin/",                              "755"],
+  ["config.yml.example",                     "etc/ztnet-box/config.yml.example",      "644"],
+  ["pkg/lib/systemd/system/ztnet-box.service", "lib/systemd/system/ztnet-box.service","644"],
+  ["README.md",                              "usr/share/doc/ztnet-box/README.md",     "644"],
+]
+conf-files      = ["/etc/ztnet-box/config.yml.example"]
+maintainer-scripts = "pkg/debian"
+
+# ── cargo-generate-rpm metadata ───────────────────────────────────────────────
+[package.metadata.generate-rpm]
+name        = "ztnet-box"
+license     = "MIT"
+summary     = "Local web UI for ZeroTier management"
+group       = "System Environment/Daemons"
+requires    = { zerotier-one = ">= 1.10" }
+assets = [
+  { source = "target/release/ztnet-box",               dest = "/usr/bin/ztnet-box",                        mode = "755" },
+  { source = "config.yml.example",                     dest = "/etc/ztnet-box/config.yml.example",         mode = "644" },
+  { source = "pkg/lib/systemd/system/ztnet-box.service", dest = "/usr/lib/systemd/system/ztnet-box.service", mode = "644" },
+  { source = "README.md",                              dest = "/usr/share/doc/ztnet-box/README.md",        mode = "644" },
+]
+
+[package.metadata.generate-rpm.post-install-script]
+# Reload systemd and optionally start the service
+script = """
+systemctl daemon-reload
+"""
+
 [dependencies]
 axum               = { version = "0.7", features = ["macros", "tokio"] }
 tokio              = { version = "1",   features = ["full"] }

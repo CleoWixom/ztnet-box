@@ -1,0 +1,23 @@
+[Unit]
+Description=ztnet-box — ZeroTier local web UI
+Documentation=https://github.com/CleoWixom/ztnet-box
+After=network.target zerotier-one.service
+Wants=zerotier-one.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ztnet-box
+Restart=on-failure
+RestartSec=5
+# Run as root — required for iptables/nftables operations
+User=root
+# Config file location (can be overridden via environment)
+Environment=ZTNET_BOX_CONFIG=/etc/ztnet-box/config.yml
+# Harden somewhat while keeping root for firewall ops
+NoNewPrivileges=yes
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/etc/ztnet-box /etc/iptables /etc/nftables.conf /etc/sysctl.conf /proc/sys
+
+[Install]
+WantedBy=multi-user.target
