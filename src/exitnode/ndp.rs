@@ -95,66 +95,69 @@ pub enum NdpError {
     Io(#[from] std::io::Error),
 }
 
+#[cfg(target_os = "linux")]
 pub fn install() -> Result<NdpStatus, NdpError> {
-    #[cfg(not(target_os = "linux"))]
-    return Err(NdpError::UnsupportedPlatform("ndppd requires Linux".into()));
+    let pm = detect_pm().ok_or_else(|| {
+        NdpError::Command("No supported package manager (apt/dnf/pacman) found".into())
+    })?;
 
-    #[cfg(target_os = "linux")]
-    {
-        let pm = detect_pm().ok_or_else(|| {
-            NdpError::Command("No supported package manager (apt/dnf/pacman) found".into())
-        })?;
+    let ok = match pm {
+        Pm::Apt => run(&["apt-get", "install", "-y", "ndppd"]),
+        Pm::Dnf => run(&["dnf", "install", "-y", "ndppd"]),
+        Pm::Pacman => run(&["pacman", "-S", "--noconfirm", "ndppd"]),
+    };
 
-        let ok = match pm {
-            Pm::Apt => run(&["apt-get", "install", "-y", "ndppd"]),
-            Pm::Dnf => run(&["dnf", "install", "-y", "ndppd"]),
-            Pm::Pacman => run(&["pacman", "-S", "--noconfirm", "ndppd"]),
-        };
-
-        if !ok {
-            return Err(NdpError::Command("Failed to install ndppd".into()));
-        }
-
-        tracing::info!("ndppd installed");
-        Ok(check_status())
+    if !ok {
+        return Err(NdpError::Command("Failed to install ndppd".into()));
     }
+
+    tracing::info!("ndppd installed");
+    Ok(check_status())
+}
+
+/// Stub: ndppd is Linux-only.
+#[cfg(not(target_os = "linux"))]
+pub fn install() -> Result<NdpStatus, NdpError> {
+    Err(NdpError::UnsupportedPlatform("ndppd requires Linux".into()))
 }
 
 // ── Configure + Enable ────────────────────────────────────────────────────────
 
 /// Write /etc/ndppd.conf and enable+start ndppd via systemd.
+#[cfg(target_os = "linux")]
 pub fn enable(cfg: &NdpConfig) -> Result<NdpStatus, NdpError> {
-    #[cfg(not(target_os = "linux"))]
-    return Err(NdpError::UnsupportedPlatform("ndppd requires Linux".into()));
+    write_config(cfg)?;
+    reload_and_start()?;
+    tracing::info!(
+        wan = %cfg.wan_iface,
+        prefix = %cfg.ipv6_prefix,
+        "ndppd enabled"
+    );
+    Ok(check_status())
+}
 
-    #[cfg(target_os = "linux")]
-    {
-        write_config(cfg)?;
-        reload_and_start()?;
-        tracing::info!(
-            wan = %cfg.wan_iface,
-            prefix = %cfg.ipv6_prefix,
-            "ndppd enabled"
-        );
-        Ok(check_status())
-    }
+/// Stub: ndppd is Linux-only.
+#[cfg(not(target_os = "linux"))]
+pub fn enable(_cfg: &NdpConfig) -> Result<NdpStatus, NdpError> {
+    Err(NdpError::UnsupportedPlatform("ndppd requires Linux".into()))
 }
 
 /// Stop and disable ndppd; optionally remove /etc/ndppd.conf.
+#[cfg(target_os = "linux")]
 pub fn disable(remove_config: bool) -> Result<NdpStatus, NdpError> {
-    #[cfg(not(target_os = "linux"))]
-    return Err(NdpError::UnsupportedPlatform("ndppd requires Linux".into()));
-
-    #[cfg(target_os = "linux")]
-    {
-        let _ = run_cmd("systemctl", &["stop", "ndppd"]);
-        let _ = run_cmd("systemctl", &["disable", "ndppd"]);
-        if remove_config {
-            let _ = std::fs::remove_file("/etc/ndppd.conf");
-        }
-        tracing::info!("ndppd disabled");
-        Ok(check_status())
+    let _ = run_cmd("systemctl", &["stop", "ndppd"]);
+    let _ = run_cmd("systemctl", &["disable", "ndppd"]);
+    if remove_config {
+        let _ = std::fs::remove_file("/etc/ndppd.conf");
     }
+    tracing::info!("ndppd disabled");
+    Ok(check_status())
+}
+
+/// Stub: ndppd is Linux-only.
+#[cfg(not(target_os = "linux"))]
+pub fn disable(_remove_config: bool) -> Result<NdpStatus, NdpError> {
+    Err(NdpError::UnsupportedPlatform("ndppd requires Linux".into()))
 }
 
 // ── Config writer ─────────────────────────────────────────────────────────────
