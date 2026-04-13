@@ -38,7 +38,16 @@ impl RateLimiter {
     }
 
     async fn acquire(&self) {
-        let _ = self.semaphore.acquire().await;
+        // Consume the permit via forget() so the token is permanently removed
+        // from the semaphore. The refill task tops up permits once per second,
+        // giving true "max req/s" semantics. Without forget() the permit is
+        // returned immediately on drop and the semaphore never drains —
+        // allowing unlimited throughput.
+        Arc::clone(&self.semaphore)
+            .acquire_owned()
+            .await
+            .expect("rate-limiter semaphore closed")
+            .forget();
     }
 }
 
@@ -283,6 +292,23 @@ mod tests {
         tokio::time::timeout(std::time::Duration::from_millis(100), rl.acquire())
             .await
             .expect("acquire should not block when permits available");
+    }
+
+    #[tokio::test]
+    async fn rate_limiter_blocks_when_exhausted() {
+        // Create a limiter with only 2 permits so exhaustion is fast
+        let semaphore = Arc::new(Semaphore::new(2));
+        let rl = RateLimiter { semaphore };
+        // Drain all permits
+        rl.acquire().await;
+        rl.acquire().await;
+        // Third acquire must block — timeout proves it
+        let blocked =
+            tokio::time::timeout(std::time::Duration::from_millis(50), rl.acquire()).await;
+        assert!(
+            blocked.is_err(),
+            "acquire must block when no permits remain"
+        );
     }
 
     #[test]

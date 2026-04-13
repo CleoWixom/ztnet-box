@@ -187,7 +187,7 @@ const CtrlConfigPage = (() => {
       };
 
       try {
-        if (_src==='local') await api.post(`/local/controller/networks/${_id}`, body);
+        if (_src==='local') await api.put(`/local/controller/networks/${_id}`, body);
         else await api.put(`/central/networks/${_id}`, body);
         Toast.success('Saved');
       } catch(e) { Toast.error(e.message); }
