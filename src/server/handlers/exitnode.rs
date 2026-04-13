@@ -136,12 +136,14 @@ pub async fn enable(
             req.wan_interface,
             req.enable_ipv6,
             req.ipv6_prefix,
+            req.network_id,
         )
         .await?;
 
     Ok(Json(serde_json::json!({
         "enabled":       state.enabled,
         "zt_interface":  state.zt_interface,
+        "zt_network_id": state.zt_network_id,
         "wan_interface": state.wan_interface,
         "backend":       state.backend,
         "enable_ipv6":   state.enable_ipv6,

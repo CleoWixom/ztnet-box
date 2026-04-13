@@ -20,6 +20,8 @@ pub struct ExitNodeState {
     pub enabled: bool,
     /// ZeroTier interface name (e.g. "ztabcd1234e") — not the 16-char network ID.
     pub zt_interface: Option<String>,
+    /// ZeroTier 16-char network ID (e.g. "8056c2e21c000001"), if provided by caller.
+    pub zt_network_id: Option<String>,
     pub wan_interface: Option<String>,
     pub backend: Option<FirewallBackend>,
     pub enable_ipv6: bool,
@@ -53,6 +55,7 @@ impl ExitNodeManager {
         wan_iface: String,
         enable_ipv6: bool,
         ipv6_prefix: Option<String>,
+        network_id: Option<String>,
     ) -> Result<ExitNodeState, ApiError> {
         // Root check
         #[cfg(unix)]
@@ -90,6 +93,7 @@ impl ExitNodeManager {
         let new_state = ExitNodeState {
             enabled: true,
             zt_interface: Some(zt_iface),
+            zt_network_id: network_id,
             wan_interface: Some(wan_iface),
             backend: Some(backend),
             enable_ipv6,

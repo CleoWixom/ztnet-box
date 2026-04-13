@@ -123,25 +123,6 @@ Router.on('/settings/ztnode',               () => { SettingsZtNodePage.init(); }
 Router.on('/settings/roots',               () => { SettingsRootsPage.init(); });
 Router.on('/settings/tokens',              () => { SettingsTokensPage.init(); });
 
-// Simple peers page (reuse dashboard data)
-const PeersPage = {
-  init() {
-    const peers = State.get('peers')||[];
-    const rows = peers.map(p => `<tr>
-      <td class="mono">${p.address}</td>
-      <td><span class="badge ${p.role==='PLANET'?'badge-info':p.role==='MOON'?'badge-warn':'badge-muted'}">${p.role}</span></td>
-      <td>${p.latency>=0?p.latency+'ms':'—'}</td>
-      <td>${p.version||'—'}</td>
-      <td>${(p.paths||[]).filter(p=>p.active).length}</td>
-    </tr>`).join('');
-    document.getElementById('content').innerHTML = `<div class="page">
-      <div class="page-header"><h1 class="page-title">Peers</h1></div>
-      ${!peers.length?`<div class="empty-state"><div class="empty-state-icon">🤝</div><h3>No peers</h3></div>`
-      :`<div class="table-wrap"><table><thead><tr><th>Address</th><th>Role</th><th>Latency</th><th>Version</th><th>Active Paths</th></tr></thead>
-        <tbody>${rows}</tbody></table></div>`}
-    </div>`;
-  }
-};
 
 Router.start();
 LogPanel.init();

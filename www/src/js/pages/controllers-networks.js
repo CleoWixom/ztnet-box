@@ -30,10 +30,14 @@ const CtrlNetworksPage = (() => {
     _nets = [];
     try { _nets = (await api.get('/local/controller/networks')||[]).map(id=>({id, _src:'local', name:''})); }
     catch(e){}
-    // Enrich local networks with details
-    for (let i = 0; i < _nets.length; i++) {
-      try { const d = await api.get(`/local/controller/networks/${_nets[i].id}`); _nets[i] = {..._nets[i],...d,_src:'local'}; }
-      catch(e){}
+    // Enrich local networks with details — all in parallel, not sequentially
+    if (_nets.length) {
+      const results = await Promise.allSettled(
+        _nets.map(n => api.get(`/local/controller/networks/${n.id}`))
+      );
+      _nets = _nets.map((n, i) =>
+        results[i].status === 'fulfilled' ? {...n, ...results[i].value, _src:'local'} : n
+      );
     }
     try {
       const c = (await api.get('/central/networks'))||[];
