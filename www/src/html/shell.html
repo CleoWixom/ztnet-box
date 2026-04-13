@@ -98,6 +98,18 @@
     </div>
   </nav>
 
+  <!-- Mobile top bar (hidden on desktop via CSS) -->
+  <div id="mobile-bar">
+    <button id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle navigation">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="2" y1="5" x2="18" y2="5"/><line x1="2" y1="10" x2="18" y2="10"/><line x1="2" y1="15" x2="18" y2="15"/>
+      </svg>
+    </button>
+    <span class="mobile-bar-title">ZeroBox</span>
+  </div>
+  <!-- Overlay to close sidebar on mobile -->
+  <div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
   <main id="content">
     <div class="page"><div class="loading-row"><div class="spinner"></div> Loading...</div></div>
   </main>
@@ -106,6 +118,22 @@
 <div id="modal-overlay"></div>
 
 <script>
+// ── Sidebar toggle (mobile) ───────────────────────────────────────────────────
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  const open = sb.classList.toggle('open');
+  ov.classList.toggle('visible', open);
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('visible');
+}
+// Close sidebar on route change (mobile UX)
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => { if (window.innerWidth <= 768) closeSidebar(); });
+});
+
 // Register all routes
 Router.on('/dashboard',                      () => { DashboardPage.init(); return DashboardPage; });
 Router.on('/peers',                          () => { PeersPage.init(); });

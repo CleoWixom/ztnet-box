@@ -14,8 +14,14 @@ pub struct ZtLocalClient {
 
 impl ZtLocalClient {
     pub fn new(api_url: &str, token: &str) -> Self {
+        // ZeroTier One uses a self-signed TLS cert on localhost — safe to skip
+        // verification only when the URL resolves to a loopback address.
+        // For remote api_url (rare but possible) we enforce cert validation.
+        let is_loopback = api_url.contains("127.0.0.1")
+            || api_url.contains("localhost")
+            || api_url.contains("[::1]");
         let http = Client::builder()
-            .danger_accept_invalid_certs(true) // ZT One uses self-signed cert
+            .danger_accept_invalid_certs(is_loopback)
             .build()
             .expect("reqwest client");
         Self {

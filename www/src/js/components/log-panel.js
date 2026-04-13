@@ -146,42 +146,42 @@ const LogPanel = (() => {
     s.id = 'log-panel-style';
     s.textContent = `
       #log-panel { position:fixed; bottom:0; left:0; right:0; z-index:900;
-        background:var(--bg-secondary,#1a1a2e); border-top:1px solid var(--border,#2a2a4a);
-        font-family:var(--font-mono,'Fira Mono',monospace); font-size:12px; }
+        background:var(--c-surface,#1a1d27); border-top:1px solid var(--c-border,#2e3147);
+        font-family:var(--font-mono,'JetBrains Mono',monospace); font-size:var(--fs-sm,12px); }
       #log-bar { display:flex; align-items:center; gap:0.5rem; padding:0.3rem 0.75rem;
-        cursor:pointer; user-select:none; color:var(--text-dim,#888);
-        background:var(--bg-tertiary,#111122); }
-      #log-bar:hover { background:var(--bg-hover,#1e1e3a); }
-      .log-badge { background:var(--accent,#6366f1); color:#fff; border-radius:999px;
+        cursor:pointer; user-select:none; color:var(--c-text-dim,#8a8fa8);
+        background:var(--c-surface2,#222536); }
+      #log-bar:hover { background:var(--c-border,#2e3147); }
+      .log-badge { background:var(--c-primary,#4f7cff); color:#fff; border-radius:999px;
         padding:0 0.4rem; font-size:10px; min-width:1.4em; text-align:center; }
-      .log-level-badge { color:var(--text-dim,#888); font-size:10px;
-        border:1px solid var(--border,#2a2a4a); padding:0 0.35rem; border-radius:3px; }
+      .log-level-badge { color:var(--c-text-dim,#8a8fa8); font-size:10px;
+        border:1px solid var(--c-border,#2e3147); padding:0 0.35rem; border-radius:3px; }
       .log-bar-spacer { flex:1; }
-      .log-btn { background:none; border:1px solid var(--border,#2a2a4a); color:var(--text-dim,#888);
+      .log-btn { background:none; border:1px solid var(--c-border,#2e3147); color:var(--c-text-dim,#8a8fa8);
         cursor:pointer; padding:0.1rem 0.4rem; border-radius:3px; font-size:11px; }
-      .log-btn:hover { background:var(--bg-hover,#1e1e3a); color:var(--text,#eee); }
+      .log-btn:hover { background:var(--c-border,#2e3147); color:var(--c-text,#e2e4ef); }
       #log-body { display:flex; flex-direction:column; height:220px; }
-      #log-toolbar { padding:0.35rem 0.75rem; border-bottom:1px solid var(--border,#2a2a4a);
-        display:flex; align-items:center; gap:0; color:var(--text-dim,#888); }
-      .log-input { background:var(--bg,#0d0d1a); border:1px solid var(--border,#2a2a4a);
-        color:var(--text,#eee); padding:0.1rem 0.35rem; border-radius:3px; font-size:11px;
+      #log-toolbar { padding:0.35rem 0.75rem; border-bottom:1px solid var(--c-border,#2e3147);
+        display:flex; align-items:center; gap:0; color:var(--c-text-dim,#8a8fa8); }
+      .log-input { background:var(--c-bg,#0f1117); border:1px solid var(--c-border,#2e3147);
+        color:var(--c-text,#e2e4ef); padding:0.1rem 0.35rem; border-radius:3px; font-size:11px;
         margin-left:0.3rem; width:160px; }
-      #log-level-sel { background:var(--bg,#0d0d1a); border:1px solid var(--border,#2a2a4a);
-        color:var(--text,#eee); padding:0.1rem 0.2rem; border-radius:3px; font-size:11px;
+      #log-level-sel { background:var(--c-bg,#0f1117); border:1px solid var(--c-border,#2e3147);
+        color:var(--c-text,#e2e4ef); padding:0.1rem 0.2rem; border-radius:3px; font-size:11px;
         margin-left:0.3rem; }
       #log-entries { flex:1; overflow-y:auto; padding:0.2rem 0; }
       .log-row { padding:0.1rem 0.75rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-      .log-row:hover { background:var(--bg-hover,#1e1e3a); }
-      .log-ts { color:var(--text-dim,#666); margin-right:0.4rem; }
-      .log-lvl { display:inline-block; width:4.5em; font-weight:600; }
-      .log-tgt { color:var(--text-dim,#777); margin-right:0.5rem; font-size:11px; }
-      .log-msg { color:var(--text,#ddd); }
-      .log-error .log-lvl { color:#f87171; }
-      .log-warn  .log-lvl { color:#fbbf24; }
-      .log-info  .log-lvl { color:#60a5fa; }
-      .log-debug .log-lvl { color:#a78bfa; }
-      .log-trace .log-lvl { color:#6b7280; }
-      .log-empty { color:var(--text-dim,#555); padding:0.5rem 0.75rem; font-style:italic; }
+      .log-row:hover { background:var(--c-surface2,#222536); }
+      .log-ts { color:var(--c-text-mute,#555872); margin-right:0.4rem; }
+      .log-lvl { display:inline-block; width:4.5em; font-weight:var(--fw-bold,600); }
+      .log-tgt { color:var(--c-text-dim,#8a8fa8); margin-right:0.5rem; font-size:11px; }
+      .log-msg { color:var(--c-text,#e2e4ef); }
+      .log-error .log-lvl { color:var(--c-danger,#ff5c5c); }
+      .log-warn  .log-lvl { color:var(--c-warn,#f5a623); }
+      .log-info  .log-lvl { color:var(--c-info,#60d0f0); }
+      .log-debug .log-lvl { color:var(--c-primary,#4f7cff); }
+      .log-trace .log-lvl { color:var(--c-text-mute,#555872); }
+      .log-empty { color:var(--c-text-mute,#555872); padding:0.5rem 0.75rem; font-style:italic; }
     `;
     document.head.appendChild(s);
   }

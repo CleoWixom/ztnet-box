@@ -116,3 +116,67 @@
   color: var(--c-text-dim); text-transform: uppercase; letter-spacing: .06em;
   margin-bottom: var(--gap-sm);
 }
+
+/* ── Sidebar toggle button ─────────────────────────────────────────────────── */
+#sidebar-toggle {
+  display: none; /* shown only on mobile via @media */
+  background: none; border: none; cursor: pointer;
+  color: var(--c-text-dim); padding: 6px;
+  border-radius: var(--radius-sm);
+  line-height: 0;
+}
+#sidebar-toggle:hover { background: var(--c-surface2); color: var(--c-text); }
+
+/* Overlay behind sidebar on mobile */
+#sidebar-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 99;
+  background: rgba(0,0,0,.5);
+}
+#sidebar-overlay.visible { display: block; }
+
+/* ── Mobile top bar ────────────────────────────────────────────────────────── */
+#mobile-bar {
+  display: none;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 101;
+  height: var(--header-h);
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+  align-items: center; gap: var(--gap-sm);
+  padding: 0 var(--gap);
+}
+#mobile-bar .mobile-bar-title {
+  font-size: var(--fs-base); font-weight: var(--fw-bold); flex: 1;
+}
+
+/* ── Responsive breakpoint ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Show mobile bar and toggle */
+  #mobile-bar   { display: flex; }
+  #sidebar-toggle { display: flex; align-items: center; justify-content: center; }
+
+  /* Push content down to clear mobile bar */
+  #content { margin-left: 0; padding-top: var(--header-h); }
+
+  /* Sidebar becomes an off-canvas drawer */
+  #sidebar {
+    transform: translateX(-100%);
+    transition: transform var(--t-base);
+    z-index: 200;
+  }
+  #sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Full-width page padding on small screens */
+  .page { padding: var(--gap); }
+
+  /* Tables scroll horizontally instead of overflowing */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Cards grid: single column */
+  .cards-grid { grid-template-columns: 1fr; }
+
+  /* Page header wraps on small screens */
+  .page-header { flex-wrap: wrap; }
+}
