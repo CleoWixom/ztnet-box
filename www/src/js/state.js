@@ -27,3 +27,19 @@ const State = (() => {
     },
   };
 })();
+
+// ── Utils ──────────────────────────────────────────────────────────────────────
+// Shared utilities available to all components and pages.
+
+const Utils = (() => {
+  /** Escape a value for safe HTML insertion (escapes &, <, >, "). */
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  return { esc };
+})();

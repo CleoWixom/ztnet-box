@@ -154,7 +154,11 @@ impl ZtLocalClient {
         cfg: &ControllerNetworkCreate,
     ) -> Result<ControllerNetwork, ApiError> {
         // Network ID = node_address (10 hex chars) + 6 random hex chars
-        let suffix: String = (0..6).map(|_| format!("{:02x}", rand_byte())).collect();
+        let mut buf = [0u8; 6];
+        getrandom::getrandom(&mut buf).map_err(|e| {
+            ApiError::ZtLocal(format!("Failed to generate random network suffix: {e}"))
+        })?;
+        let suffix: String = buf.iter().map(|b| format!("{b:02x}")).collect();
         let net_id = format!("{node_address}{suffix}");
         self.request(
             Method::POST,
@@ -257,13 +261,4 @@ impl ZtLocalClient {
         self.request_empty(Method::DELETE, &format!("/moon/{world_id}"))
             .await
     }
-}
-
-fn rand_byte() -> u8 {
-    // Simple: read from /dev/urandom
-    use std::io::Read;
-    let mut buf = [0u8; 1];
-    std::fs::File::open("/dev/urandom")
-        .and_then(|mut f| f.read_exact(&mut buf).map(|_| buf[0]))
-        .unwrap_or(0xab)
 }

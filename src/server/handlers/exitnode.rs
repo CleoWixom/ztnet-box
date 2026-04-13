@@ -141,7 +141,7 @@ pub async fn enable(
 
     Ok(Json(serde_json::json!({
         "enabled":       state.enabled,
-        "zt_network_id": state.zt_network_id,
+        "zt_interface":  state.zt_interface,
         "wan_interface": state.wan_interface,
         "backend":       state.backend,
         "enable_ipv6":   state.enable_ipv6,

@@ -70,6 +70,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tower-http         = { version = "0.5", features = ["cors", "compression-gzip", "set-header"] }
 which              = "6"
 uuid               = { version = "1", features = ["v4"] }
+getrandom          = "0.2"
 chrono             = { version = "0.4", features = ["serde"] }
 nix                = { version = "0.28", features = ["user", "process", "net"] }
 anyhow             = "1"

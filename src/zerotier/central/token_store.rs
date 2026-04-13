@@ -101,4 +101,21 @@ impl TokenStore {
             .find(|t| t.id == id)
             .cloned()
     }
+
+    /// Update name/token/rate_limit in-place, preserving the original UUID.
+    /// Returns the updated token, or `None` if `id` was not found.
+    pub async fn update(
+        &self,
+        id: &str,
+        name: String,
+        token: String,
+        rate_limit: RateLimit,
+    ) -> Option<CentralToken> {
+        let mut inner = self.inner.write().await;
+        let t = inner.tokens.iter_mut().find(|t| t.id == id)?;
+        t.name = name;
+        t.token = token;
+        t.rate_limit = rate_limit;
+        Some(t.clone())
+    }
 }

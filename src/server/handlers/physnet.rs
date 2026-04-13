@@ -7,12 +7,6 @@ use crate::{
 };
 use axum::{extract::State, response::IntoResponse, Json};
 use serde::Deserialize;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-
-// ── Shared state accessor ─────────────────────────────────────────────────────
-
-pub type PhysNetStateArc = Arc<RwLock<PhysNetState>>;
 
 // ── GET /api/physnet/platform ─────────────────────────────────────────────────
 

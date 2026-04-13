@@ -80,7 +80,7 @@ const ExitnodePage = (() => {
         </div>
         ${status.enabled?`
           <div class="detail-kv">
-            <span class="k">ZT Network</span><span class="v mono">${status.zt_network_id||'—'}</span>
+            <span class="k">ZT Interface</span><span class="v mono">${status.zt_interface||'—'}</span>
             <span class="k">WAN Interface</span><span class="v mono">${status.wan_interface||'—'}</span>
             <span class="k">Backend</span><span class="v">${status.backend||'—'}</span>
             <span class="k">IPv6</span><span class="v">${status.enable_ipv6?('✓ '+(status.ipv6_prefix||'(all prefixes)')):'Disabled'}</span>

@@ -102,7 +102,7 @@ pub async fn update_token(
     let new_name = req.name.unwrap_or(existing.name);
     let new_token = req.token.unwrap_or_else(|| existing.token.clone());
 
-    // If token changed — re-validate
+    // Re-validate only if the token value actually changed
     let rate_limit = if new_token != existing.token {
         let cfg = s.config.read().await;
         let base_url = cfg.zerotier.central.base_url.clone();
@@ -112,24 +112,12 @@ pub async fn update_token(
         existing.rate_limit.clone()
     };
 
-    // Remove old, add updated
-    s.token_store.remove(&id).await;
-    let was_active = existing.id
-        == s.token_store
-            .active_token()
-            .await
-            .map(|t| t.id)
-            .unwrap_or_default();
-
-    let updated = CentralToken::new(new_name, new_token, rate_limit);
-    // Re-insert with same id not possible via current API; emit new entry, accept new id
+    // Update in-place — preserves the original UUID and position in the list
     let t = s
         .token_store
-        .add(updated.name, updated.token, updated.rate_limit)
-        .await;
-    if was_active {
-        s.token_store.set_active(&t.id).await;
-    }
+        .update(&id, new_name, new_token, rate_limit)
+        .await
+        .ok_or(ApiError::NotFound)?;
 
     persist_tokens(&s).await?;
 

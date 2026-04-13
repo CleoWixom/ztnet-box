@@ -22,7 +22,7 @@ const SettingsZtNodePage = (() => {
     const s = _conf?.settings || {};
     const warningBanners = _warnings.length
       ? _warnings
-          .map(w => `<div class="banner banner-warn mt-sm">⚠️ ${_esc(w)}</div>`)
+          .map(w => `<div class="banner banner-warn mt-sm">⚠️ ${Utils.esc(w)}</div>`)
           .join('')
       : '';
 
@@ -176,12 +176,6 @@ const SettingsZtNodePage = (() => {
       .split('\n')
       .map(l => l.trim())
       .filter(Boolean);
-  }
-
-  function _esc(s) {
-    return String(s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
   }
 
   return { init, _save };

@@ -103,8 +103,8 @@ const LogPanel = (() => {
         const ts = new Date(e.timestamp).toISOString().replace('T', ' ').slice(0, 23);
         const cls = LEVEL_CLASS[e.level] || '';
         const lvl = (e.level || '').padEnd(5);
-        const tgt = _esc(e.target.length > 30 ? '…' + e.target.slice(-28) : e.target);
-        const msg = _esc(e.message);
+        const tgt = Utils.esc(e.target.length > 30 ? '…' + e.target.slice(-28) : e.target);
+        const msg = Utils.esc(e.message);
         return `<div class="log-row ${cls}"><span class="log-ts">${ts}</span> <span class="log-lvl">${lvl}</span> <span class="log-tgt">${tgt}</span> <span class="log-msg">${msg}</span></div>`;
       })
       .join('');
@@ -118,11 +118,6 @@ const LogPanel = (() => {
     if (el) el.textContent = _entries.length;
   }
 
-  function _esc(s) {
-    return String(s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
 
   // ── Actions ─────────────────────────────────────────────────────────────────
 

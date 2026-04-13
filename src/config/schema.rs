@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct Config {
     pub server: ServerConfig,
@@ -19,7 +19,7 @@ pub struct ServerConfig {
     pub port: u16,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct ZeroTierConfig {
     pub local: LocalConfig,
@@ -82,33 +82,11 @@ pub struct ExitNodeConfig {
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
-#[allow(clippy::derivable_impls)]
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            server: ServerConfig::default(),
-            zerotier: ZeroTierConfig::default(),
-            metrics: MetricsConfig::default(),
-            exitnode: ExitNodeConfig::default(),
-        }
-    }
-}
-
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
             host: "127.0.0.1".into(),
             port: 3000,
-        }
-    }
-}
-
-#[allow(clippy::derivable_impls)]
-impl Default for ZeroTierConfig {
-    fn default() -> Self {
-        Self {
-            local: LocalConfig::default(),
-            central: CentralConfig::default(),
         }
     }
 }

@@ -18,7 +18,8 @@ use rules::{ExitNodeRules, FirewallBackend};
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct ExitNodeState {
     pub enabled: bool,
-    pub zt_network_id: Option<String>,
+    /// ZeroTier interface name (e.g. "ztabcd1234e") — not the 16-char network ID.
+    pub zt_interface: Option<String>,
     pub wan_interface: Option<String>,
     pub backend: Option<FirewallBackend>,
     pub enable_ipv6: bool,
@@ -88,7 +89,7 @@ impl ExitNodeManager {
 
         let new_state = ExitNodeState {
             enabled: true,
-            zt_network_id: Some(zt_iface),
+            zt_interface: Some(zt_iface),
             wan_interface: Some(wan_iface),
             backend: Some(backend),
             enable_ipv6,
@@ -113,7 +114,7 @@ impl ExitNodeManager {
         }
 
         if let (Some(zt), Some(wan), Some(backend)) =
-            (st.zt_network_id, st.wan_interface, st.backend)
+            (st.zt_interface, st.wan_interface, st.backend)
         {
             let rules =
                 ExitNodeRules::new(zt, wan, backend).with_ipv6(st.enable_ipv6, st.ipv6_prefix);
