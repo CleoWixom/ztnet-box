@@ -46,6 +46,9 @@ const SettingsGlobalPage = (() => {
               <input class="input" id="s-metrics-url" value="${cfg.metrics?.prometheus_url||'http://127.0.0.1:9993/metrics'}"></div>
             <div class="field"><label class="field-label">Poll Interval (seconds)</label>
               <input class="input" id="s-metrics-interval" type="number" min="1" max="60" value="${cfg.metrics?.poll_interval_seconds||5}" style="max-width:100px"></div>
+            <div class="field"><label class="field-label">Metrics Token File</label>
+              <input class="input" id="s-metrics-token" value="${cfg.metrics?.metricstoken_file||'/var/lib/zerotier-one/metricstoken.secret'}">
+              <div class="text-dim text-sm">Path to <code>metricstoken.secret</code> used for ZeroTier metrics endpoint auth.</div></div>
           </div>
         </div>
 
@@ -76,6 +79,7 @@ const SettingsGlobalPage = (() => {
           enabled:               document.getElementById('s-metrics-en')?.checked,
           prometheus_url:        document.getElementById('s-metrics-url')?.value?.trim(),
           poll_interval_seconds: parseInt(document.getElementById('s-metrics-interval')?.value)||5,
+          metricstoken_file:     document.getElementById('s-metrics-token')?.value?.trim() || null,
         },
         exitnode: { nftables_preferred: document.getElementById('s-nft')?.checked },
       };

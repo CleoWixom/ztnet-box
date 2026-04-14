@@ -33,10 +33,13 @@ impl SshClient {
         let mut args: Vec<String> = vec![
             "-p".into(),
             self.port.to_string(),
-            // Disable host key checking for automated deploys.
-            // In production the user should pre-approve the host key.
+            // accept-new: auto-accept the host key on first connect only.
+            // Unlike StrictHostKeyChecking=no, it WILL reject changed keys on
+            // subsequent connects — protecting against MITM after first use.
+            // For the highest security, users should manually ssh to the host
+            // first to populate known_hosts, then use key-based auth only.
             "-o".into(),
-            "StrictHostKeyChecking=no".into(),
+            "StrictHostKeyChecking=accept-new".into(),
             "-o".into(),
             "BatchMode=yes".into(),
         ];

@@ -66,7 +66,13 @@ const RelayPage = (() => {
             <input class="input" id="dep-user" value="root" style="width:120px"></div>
           <div class="field">
             <label class="field-label">Password <span class="text-dim">(or use key)</span></label>
-            <input class="input" id="dep-pass" type="password" placeholder="SSH password"></div>
+            <input class="input" id="dep-pass" type="password" placeholder="SSH password"
+                   oninput="RelayPage._onPassInput(this.value)">
+            <div id="dep-pass-warn" class="banner banner-warn text-sm mt-sm" style="display:none">
+              ⚠️ Password auth is only safe when ztnet-box is accessed over HTTPS or a localhost tunnel.
+              Key-based auth (<code>id_ed25519</code>) is strongly recommended.
+            </div>
+          </div>
           <div class="field">
             <label class="field-label">Private Key Path <span class="text-dim">(local path, optional)</span></label>
             <input class="input" id="dep-key" placeholder="/home/user/.ssh/id_ed25519"></div>
@@ -155,6 +161,10 @@ const RelayPage = (() => {
         Toast.success('Remote relay removed');
         load();
       } catch (e) { Toast.error(e.message); }
+    },
+    _onPassInput(val) {
+      const warn = document.getElementById('dep-pass-warn');
+      if (warn) warn.style.display = val ? 'block' : 'none';
     },
   };
 })();

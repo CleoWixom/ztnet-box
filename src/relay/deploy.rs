@@ -34,9 +34,22 @@ pub fn deploy(cfg: &RelayDeployConfig) -> Result<RemoteRelayInfo, DeployError> {
     // 2. Install Docker if not present
     let has_docker = client.run("command -v docker").is_ok();
     if !has_docker {
-        tracing::info!(host = %cfg.host, "Docker not found, installing...");
+        tracing::info!(host = %cfg.host, "Docker not found, installing via package manager...");
+        // Detect package manager and install docker.io / docker-ce via official
+        // repository packages. Avoids the security risk of piping a remote
+        // shell script directly into sh (AUDIT #5).
+        let install_cmd = "\
+            if command -v apt-get >/dev/null 2>&1; then \
+                apt-get update -qq && apt-get install -y docker.io; \
+            elif command -v dnf >/dev/null 2>&1; then \
+                dnf install -y docker; \
+            elif command -v pacman >/dev/null 2>&1; then \
+                pacman -S --noconfirm docker; \
+            else \
+                echo 'No supported package manager found' >&2; exit 1; \
+            fi";
         client
-            .run("curl -fsSL https://get.docker.com | sh")
+            .run(install_cmd)
             .map_err(|e| DeployError::Step(format!("Docker install failed: {e}")))?;
         client
             .run("systemctl enable --now docker")
