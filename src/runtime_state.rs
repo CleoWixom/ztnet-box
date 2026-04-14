@@ -49,10 +49,7 @@ pub fn state_path() -> PathBuf {
 }
 
 fn dirs_home() -> Option<PathBuf> {
-    std::env::var("HOME").ok().map(PathBuf::from).or_else(|| {
-        // Fallback: parse /etc/passwd for current UID
-        None
-    })
+    std::env::var("HOME").ok().map(PathBuf::from)
 }
 
 // ── Load ─────────────────────────────────────────────────────────────────────
