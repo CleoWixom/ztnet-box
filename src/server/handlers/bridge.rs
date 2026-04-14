@@ -105,6 +105,7 @@ pub async fn enable(
         applied_at: Some(chrono::Utc::now()),
     };
     *s.bridge_state.write().await = state.clone();
+    s.persist_runtime_state().await;
 
     Ok(Json(serde_json::json!({
         "status": "enabled",
@@ -130,5 +131,6 @@ pub async fn disable(State(s): State<AppState>) -> Result<impl IntoResponse, Api
         rules::remove(&cfg).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
     }
     *s.bridge_state.write().await = BridgeState::default();
+    s.persist_runtime_state().await;
     Ok(Json(serde_json::json!({ "status": "disabled" })))
 }

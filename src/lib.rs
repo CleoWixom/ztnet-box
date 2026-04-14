@@ -5,5 +5,6 @@ pub mod exitnode;
 pub mod metrics;
 pub mod physnet;
 pub mod relay;
+pub mod runtime_state;
 pub mod server;
 pub mod zerotier;

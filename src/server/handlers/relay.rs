@@ -87,6 +87,7 @@ pub async fn deploy_relay(
         .map_err(|e| ApiError::ZtLocal(e.to_string()))?;
 
     *s.relay_remote.write().await = Some(info.clone());
+    s.persist_runtime_state().await;
 
     // Auto-configure local.conf to point at the newly deployed relay
     let relay_endpoint = format!("{}/{}", info.host, info.port);
@@ -121,6 +122,7 @@ pub async fn verify_relay(State(s): State<AppState>) -> impl IntoResponse {
 
             info.reachable = Some(ok);
             *s.relay_remote.write().await = Some(info.clone());
+            s.persist_runtime_state().await;
             Json(serde_json::json!({
                 "reachable": ok,
                 "host": info.host,
@@ -145,6 +147,7 @@ pub async fn remove_relay(
             .map_err(|e| ApiError::ZtLocal(e.to_string()))?;
     }
     *s.relay_remote.write().await = None;
+    s.persist_runtime_state().await;
 
     // Clear local.conf relay endpoint
     let path = local_config::local_conf_path();

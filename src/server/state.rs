@@ -5,6 +5,7 @@ use crate::{
     metrics::cache::MetricsCache,
     physnet::PhysNetState,
     relay::RemoteRelayInfo,
+    runtime_state,
     server::log_collector::LogCollector,
     zerotier::central::token_store::TokenStore,
 };
@@ -22,6 +23,8 @@ pub struct AppState {
     pub bridge_state: Arc<RwLock<BridgeState>>,
     pub relay_remote: Arc<RwLock<Option<RemoteRelayInfo>>>,
     pub log_collector: LogCollector,
+    /// Path where bridge/physnet/relay state is persisted across restarts.
+    pub runtime_state_path: PathBuf,
 }
 
 impl AppState {
@@ -51,16 +54,37 @@ impl AppState {
         let token_store =
             Arc::new(TokenStore::new(tokens, active_token_id).with_base_url(base_url));
 
+        // Load persisted bridge/physnet/relay state from the last run
+        let runtime_state_path = runtime_state::state_path();
+        let saved = runtime_state::load(&runtime_state_path);
+        tracing::debug!(path = %runtime_state_path.display(), "loaded runtime state");
+
         Ok(Self {
             config: Arc::new(RwLock::new(config)),
             config_path,
             token_store,
             metrics_cache,
             exitnode_manager: Arc::new(ExitNodeManager::new(exitnode_cfg)),
-            physnet_state: Arc::new(RwLock::new(PhysNetState::default())),
-            bridge_state: Arc::new(RwLock::new(BridgeState::default())),
-            relay_remote: Arc::new(RwLock::new(None)),
+            physnet_state: Arc::new(RwLock::new(saved.physnet)),
+            bridge_state: Arc::new(RwLock::new(saved.bridge)),
+            relay_remote: Arc::new(RwLock::new(saved.relay_remote)),
             log_collector,
+            runtime_state_path,
         })
+    }
+}
+
+// ── Runtime state persistence helper ─────────────────────────────────────────
+
+impl AppState {
+    /// Snapshot current bridge/physnet/relay state and persist it to disk.
+    /// Call after every mutation so the state survives restarts.
+    pub async fn persist_runtime_state(&self) {
+        let snap = crate::runtime_state::RuntimeState {
+            physnet: self.physnet_state.read().await.clone(),
+            bridge: self.bridge_state.read().await.clone(),
+            relay_remote: self.relay_remote.read().await.clone(),
+        };
+        crate::runtime_state::save(&self.runtime_state_path, &snap);
     }
 }
