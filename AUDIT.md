@@ -1,6 +1,6 @@
 # AUDIT.md — ztnet-box
 
-**Дата последнего аудита:** 2026-04-13  
+**Дата последнего аудита:** 2026-04-14  
 **Репозиторий:** `CleoWixom/ztnet-box`  
 **Стек:** Rust (Axum, Tokio) + Vanilla JS/HTML/CSS (SPA, сборка через `build.rs`)  
 **Текущая версия:** 0.7.6 (Cargo.toml: 0.6.3 — версия обновляется workflow)
@@ -953,31 +953,31 @@ pub async fn enable(
 
 | # | Приоритет | Компонент | Проблема | Статус |
 |---|-----------|-----------|----------|--------|
-| 1 | 🔴 Critical | Build | `log-panel.js` не включается в бандл → `LogPanel is not defined` | ❌ Открыт |
-| 2 | 🔴 High | Rust | Rate limiter не работает (permit сразу дропается) | ❌ Открыт |
-| 3 | 🔴 High | JS ↔ API | POST вместо PUT для update controller network → 405 | ❌ Открыт |
+| 1 | ✅ Resolved | Build | `log-panel.js` не включался в бандл → перемещён в `components/` | ✅ `d53a1c2` |
+| 2 | ✅ Resolved | Rust | Rate limiter не работал (permit сразу дропался) — исправлен `.forget()` | ✅ `d53a1c2` |
+| 3 | ✅ Resolved | JS ↔ API | POST вместо PUT для update controller network → исправлено | ✅ `d53a1c2` |
 | 4 | 🔴 High | Security | SSH: `StrictHostKeyChecking=no` | ❌ Открыт |
 | 5 | 🔴 High | Security | Docker install via `curl \| sh` | ❌ Открыт |
 | 6 | 🔴 High | Security | SSH-пароль в plain JSON по HTTP | ❌ Открыт |
-| 7 | 🔴 High | Frontend | Нет мобильной адаптации (`@media` queries) | ❌ Открыт |
-| 8 | 🔴 High | Rust | `rand_byte()` читает `/dev/urandom` по 1 байту; fallback — константа | ❌ Открыт |
-| 9 | 🟡 Medium | Rust | `update_token` уничтожает оригинальный UUID | ❌ Открыт |
-| 10 | 🟡 Medium | JS | N+1 последовательных запросов в controllers-networks | ❌ Открыт |
-| 11 | 🟡 Medium | CSS/JS | Хардкод CSS-значений в `log-panel.js` (несовместимые переменные) | ❌ Открыт |
-| 12 | 🟡 Medium | Rust | Неиспользуемый тип-алиас `PhysNetStateArc` | ❌ Открыт |
-| 13 | 🟡 Medium | Frontend | `PeersPage` inline в `shell.html`, не загружает данные при прямом переходе | ❌ Открыт |
-| 14 | 🟡 Medium | Rust | Поле `zt_network_id` содержит имя интерфейса, а не ID сети | ❌ Открыт |
-| 15 | 🟡 Medium | Frontend | Нет кнопки toggle sidebar (мобильная и десктоп UX) | ❌ Открыт |
+| 7 | ✅ Resolved | Frontend | Нет мобильной адаптации (`@media` queries) | ✅ `85bc5a2` |
+| 8 | ✅ Resolved | Rust | `rand_byte()` → `getrandom::getrandom()` — 6 байт, без fallback | ✅ `c474bb1` |
+| 9 | ✅ Resolved | Rust | `update_token` уничтожал UUID — исправлено через `TokenStore::update()` | ✅ `c474bb1` |
+| 10 | ✅ Resolved | JS | N+1 последовательных запросов в controllers-networks | ✅ `502a8aa` |
+| 11 | ✅ Resolved | CSS/JS | Хардкод CSS-значений в `log-panel.js` (несовместимые переменные) | ✅ `85bc5a2` |
+| 12 | ✅ Resolved | Rust | Неиспользуемый тип-алиас `PhysNetStateArc` | ✅ `c474bb1` |
+| 13 | ✅ Resolved | Frontend | `PeersPage` inline в `shell.html`, не загружает данные при прямом переходе | ✅ `502a8aa` |
+| 14 | ✅ Resolved | Rust | Поле `zt_network_id` содержало имя интерфейса — переименовано в `zt_interface` | ✅ `c474bb1` |
+| 15 | ✅ Resolved | Frontend | Нет кнопки toggle sidebar (мобильная и десктоп UX) | ✅ `85bc5a2` |
 | 16 | 🟡 Medium | Frontend | `metricstoken_file` не настраивается через UI | ❌ Открыт |
 | 17 | ✅ Resolved | Frontend | `Modal.prompt?.()` — тихий fail при отсутствии метода | ✅ Решён (2026-04) |
 | 18 | 🟡 Medium | Rust | bridge/physnet/relay state in-memory, теряется при перезапуске | ❌ Открыт |
 | 19 | 🟡 Medium | Rust | Внешние зависимости от `ssh`/`sshpass` CLI-утилит | ❌ Открыт |
 | 20 | 🟢 Low | Security | CSP: `unsafe-inline` + `connect-src *` | ❌ Открыт |
-| 21 | 🟢 Low | Security | `danger_accept_invalid_certs(true)` безусловно — не зависит от is_loopback | ❌ Открыт |
-| 22 | 🟢 Low | Frontend | Дублирование функции `_esc()` | ❌ Открыт |
+| 21 | ✅ Resolved | Security | `danger_accept_invalid_certs(true)` безусловно — исправлено is_loopback | ✅ `85bc5a2` |
+| 22 | ✅ Resolved | Frontend | Дублирование функции `_esc()` — вынесена в `Utils.esc()` | ✅ `c474bb1` |
 | 23 | 🟢 Low | Frontend | 8 backend-эндпоинтов без UI-покрытия (8 из 16 покрыто после feat(ndp)+feat(settings)) | ❌ Частично |
-| 24 | 🟢 Low | Rust | `#[allow(clippy::derivable_impls)]` вместо `#[derive(Default)]` | ❌ Открыт |
-| 25 | 🟢 Low | Rust | `network_id` не передаётся в `ExitNodeManager::enable()` | ❌ Открыт |
+| 24 | ✅ Resolved | Rust | `#[allow(clippy::derivable_impls)]` → `#[derive(Default)]` | ✅ `c474bb1` |
+| 25 | ✅ Resolved | Rust | `network_id` теперь передаётся в `ExitNodeManager::enable()` | ✅ `502a8aa` |
 | 26 | 🔴 High | CI/Cross | `ndp.rs`: unused params на не-Linux → `-D warnings` → ошибка сборки macOS/Windows | ✅ Исправлен `d39f17b` |
 
 ---
