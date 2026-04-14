@@ -50,6 +50,17 @@ const LogPanel = (() => {
   // ── Data ────────────────────────────────────────────────────────────────────
 
   async function _loadInitial() {
+    // Sync the log level selector with server-side current level
+    try {
+      const lvl = await api.get('/logs/level');
+      if (lvl?.level) {
+        _level = lvl.level;
+        const sel = document.getElementById('log-level-sel');
+        if (sel) sel.value = _level;
+        const badge = document.getElementById('log-bar-level');
+        if (badge) badge.textContent = _level;
+      }
+    } catch (e) { /* best-effort */ }
     try {
       const data = await api.get('/logs?limit=200');
       _entries = data || [];

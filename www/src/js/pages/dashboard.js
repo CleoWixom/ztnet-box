@@ -93,6 +93,19 @@ const DashboardPage = (() => {
     </div>`;
 
     async function refresh() {
+      // Check ZeroTier installation first — show setup banner if not found
+      try {
+        const zt = await api.get('/system/zt-status');
+        if (!zt.cli_available) {
+          document.getElementById('dash-status').innerHTML = `
+            <div class="banner banner-warn">
+              ⚠️ ZeroTier is not installed or not running on this host.
+              <button class="btn btn-sm btn-primary ml-sm" onclick="DashboardPage._installZt(this)">Install ZeroTier</button>
+            </div>`;
+          return; // no point loading node data
+        }
+      } catch(e) {}
+
       try {
         const node = await api.get('/local/status');
         State.set('nodeStatus', node);
@@ -121,5 +134,21 @@ const DashboardPage = (() => {
   return {
     init() { render(); },
     destroy() { _intervals.forEach(clearInterval); _intervals = []; },
+    async _installZt(btn) {
+      if (btn) { btn.disabled = true; btn.textContent = 'Installing…'; }
+      try {
+        const res = await api.post('/system/zt-install', {});
+        if (res.status === 'installed' || res.status === 'already_installed') {
+          Toast.success('ZeroTier installed — refreshing…');
+          setTimeout(() => refresh(), 1500);
+        } else {
+          Toast.error(res.reason || 'Install failed');
+          if (btn) { btn.disabled = false; btn.textContent = 'Install ZeroTier'; }
+        }
+      } catch(e) {
+        Toast.error(e.message);
+        if (btn) { btn.disabled = false; btn.textContent = 'Install ZeroTier'; }
+      }
+    },
   };
 })();

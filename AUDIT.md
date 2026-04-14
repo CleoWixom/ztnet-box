@@ -1,6 +1,6 @@
 # AUDIT.md — ztnet-box
 
-**Дата последнего аудита:** 2026-04-14  
+**Дата последнего аудита:** 2026-04-14 (финал)  
 **Репозиторий:** `CleoWixom/ztnet-box`  
 **Стек:** Rust (Axum, Tokio) + Vanilla JS/HTML/CSS (SPA, сборка через `build.rs`)  
 **Текущая версия:** 0.7.6 (Cargo.toml: 0.6.3 — версия обновляется workflow)
@@ -956,9 +956,9 @@ pub async fn enable(
 | 1 | ✅ Resolved | Build | `log-panel.js` не включался в бандл → перемещён в `components/` | ✅ `d53a1c2` |
 | 2 | ✅ Resolved | Rust | Rate limiter не работал (permit сразу дропался) — исправлен `.forget()` | ✅ `d53a1c2` |
 | 3 | ✅ Resolved | JS ↔ API | POST вместо PUT для update controller network → исправлено | ✅ `d53a1c2` |
-| 4 | 🔴 High | Security | SSH: `StrictHostKeyChecking=no` | ❌ Открыт |
-| 5 | 🔴 High | Security | Docker install via `curl \| sh` | ❌ Открыт |
-| 6 | 🔴 High | Security | SSH-пароль в plain JSON по HTTP | ❌ Открыт |
+| 4 | ✅ Resolved | Security | SSH: `StrictHostKeyChecking=no` → `accept-new` | ✅ `6d4c76f` |
+| 5 | ✅ Resolved | Security | Docker install via `curl \| sh` → apt/dnf/pacman | ✅ `6d4c76f` |
+| 6 | ✅ Resolved | Security | SSH-пароль: добавлено UI-предупреждение об HTTPS | ✅ `6d4c76f` |
 | 7 | ✅ Resolved | Frontend | Нет мобильной адаптации (`@media` queries) | ✅ `85bc5a2` |
 | 8 | ✅ Resolved | Rust | `rand_byte()` → `getrandom::getrandom()` — 6 байт, без fallback | ✅ `c474bb1` |
 | 9 | ✅ Resolved | Rust | `update_token` уничтожал UUID — исправлено через `TokenStore::update()` | ✅ `c474bb1` |
@@ -968,11 +968,11 @@ pub async fn enable(
 | 13 | ✅ Resolved | Frontend | `PeersPage` inline в `shell.html`, не загружает данные при прямом переходе | ✅ `502a8aa` |
 | 14 | ✅ Resolved | Rust | Поле `zt_network_id` содержало имя интерфейса — переименовано в `zt_interface` | ✅ `c474bb1` |
 | 15 | ✅ Resolved | Frontend | Нет кнопки toggle sidebar (мобильная и десктоп UX) | ✅ `85bc5a2` |
-| 16 | 🟡 Medium | Frontend | `metricstoken_file` не настраивается через UI | ❌ Открыт |
+| 16 | ✅ Resolved | Frontend | `metricstoken_file` добавлено в Settings UI | ✅ `6d4c76f` |
 | 17 | ✅ Resolved | Frontend | `Modal.prompt?.()` — тихий fail при отсутствии метода | ✅ Решён (2026-04) |
 | 18 | 🟡 Medium | Rust | bridge/physnet/relay state in-memory, теряется при перезапуске | ❌ Открыт |
 | 19 | 🟡 Medium | Rust | Внешние зависимости от `ssh`/`sshpass` CLI-утилит | ❌ Открыт |
-| 20 | 🟢 Low | Security | CSP: `unsafe-inline` + `connect-src *` | ❌ Открыт |
+| 20 | ✅ Resolved | Security | CSP: `connect-src *` → `connect-src 'self'` | ✅ `6d4c76f` |
 | 21 | ✅ Resolved | Security | `danger_accept_invalid_certs(true)` безусловно — исправлено is_loopback | ✅ `85bc5a2` |
 | 22 | ✅ Resolved | Frontend | Дублирование функции `_esc()` — вынесена в `Utils.esc()` | ✅ `c474bb1` |
 | 23 | 🟢 Low | Frontend | 8 backend-эндпоинтов без UI-покрытия (8 из 16 покрыто после feat(ndp)+feat(settings)) | ❌ Частично |
