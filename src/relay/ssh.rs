@@ -4,6 +4,11 @@
 //! - Avoids heavy crypto dependencies.
 //! - Reuses the user's existing `~/.ssh/known_hosts` and agent.
 //! - Works on every platform that ships OpenSSH.
+//!
+//! **Key-based authentication only.** Password authentication via `sshpass`
+//! has been removed: `sshpass` exposes the password via process arguments
+//! (visible in `ps aux`), requires an optional system package, and is
+//! inherently less secure than key-based auth. Users must configure a key.
 
 use thiserror::Error;
 
@@ -21,7 +26,8 @@ pub struct SshClient {
     pub host: String,
     pub port: u16,
     pub user: String,
-    pub password: Option<String>,
+    /// Path to the private key file on the *local* machine.
+    /// If `None`, SSH will use the default key from `~/.ssh/`.
     pub key_path: Option<String>,
 }
 
@@ -36,10 +42,10 @@ impl SshClient {
             // accept-new: auto-accept the host key on first connect only.
             // Unlike StrictHostKeyChecking=no, it WILL reject changed keys on
             // subsequent connects — protecting against MITM after first use.
-            // For the highest security, users should manually ssh to the host
-            // first to populate known_hosts, then use key-based auth only.
             "-o".into(),
             "StrictHostKeyChecking=accept-new".into(),
+            // BatchMode=yes: never prompt interactively (fail instead).
+            // This ensures key auth is required; password prompts are suppressed.
             "-o".into(),
             "BatchMode=yes".into(),
         ];
@@ -52,22 +58,7 @@ impl SshClient {
         args.push(format!("{}@{}", self.user, self.host));
         args.push(cmd.to_string());
 
-        let mut command = std::process::Command::new(ssh);
-        command.args(&args);
-
-        // Inject password via sshpass if provided
-        let output = if let Some(ref pass) = self.password {
-            let sshpass =
-                which::which("sshpass").map_err(|e| SshError::NotFound(format!("sshpass: {e}")))?;
-            std::process::Command::new(sshpass)
-                .arg("-p")
-                .arg(pass)
-                .arg("ssh")
-                .args(&args[1..]) // skip redundant "ssh"
-                .output()?
-        } else {
-            command.output()?
-        };
+        let output = std::process::Command::new(ssh).args(&args).output()?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).into_owned())
@@ -90,11 +81,21 @@ mod tests {
             host: "1.2.3.4".into(),
             port: 22,
             user: "root".into(),
-            password: None,
             key_path: Some("/tmp/key".into()),
         };
         assert_eq!(c.host, "1.2.3.4");
         assert_eq!(c.port, 22);
-        assert!(c.password.is_none());
+        assert_eq!(c.key_path.as_deref(), Some("/tmp/key"));
+    }
+
+    #[test]
+    fn ssh_client_no_key() {
+        let c = SshClient {
+            host: "1.2.3.4".into(),
+            port: 22,
+            user: "root".into(),
+            key_path: None,
+        };
+        assert!(c.key_path.is_none());
     }
 }

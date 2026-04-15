@@ -57,9 +57,8 @@ pub struct RelayDeployConfig {
     /// SSH user (default "root").
     #[serde(default = "default_ssh_user")]
     pub ssh_user: String,
-    /// SSH password (mutually exclusive with key_path).
-    pub password: Option<String>,
     /// Path to private key file on the *local* machine.
+    /// If omitted, SSH uses the default key from `~/.ssh/`.
     pub key_path: Option<String>,
     /// Port for the pylon reflect container (default 443).
     #[serde(default = "default_pylon_port")]

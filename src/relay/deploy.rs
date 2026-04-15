@@ -23,7 +23,6 @@ pub fn deploy(cfg: &RelayDeployConfig) -> Result<RemoteRelayInfo, DeployError> {
         host: cfg.host.clone(),
         port: cfg.ssh_port,
         user: cfg.ssh_user.clone(),
-        password: cfg.password.clone(),
         key_path: cfg.key_path.clone(),
     };
 
@@ -96,7 +95,6 @@ pub fn remove(info: &RemoteRelayInfo, ssh_cfg: &RelayDeployConfig) -> Result<(),
         host: info.host.clone(),
         port: ssh_cfg.ssh_port,
         user: ssh_cfg.ssh_user.clone(),
-        password: ssh_cfg.password.clone(),
         key_path: ssh_cfg.key_path.clone(),
     };
     let _ = client.run("docker stop ztnet-pylon && docker rm ztnet-pylon");

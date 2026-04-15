@@ -65,17 +65,10 @@ const RelayPage = (() => {
             <label class="field-label">SSH User</label>
             <input class="input" id="dep-user" value="root" style="width:120px"></div>
           <div class="field">
-            <label class="field-label">Password <span class="text-dim">(or use key)</span></label>
-            <input class="input" id="dep-pass" type="password" placeholder="SSH password"
-                   oninput="RelayPage._onPassInput(this.value)">
-            <div id="dep-pass-warn" class="banner banner-warn text-sm mt-sm" style="display:none">
-              ⚠️ Password auth is only safe when ztnet-box is accessed over HTTPS or a localhost tunnel.
-              Key-based auth (<code>id_ed25519</code>) is strongly recommended.
-            </div>
+            <label class="field-label">Private Key Path <span class="text-dim">(local path)</span></label>
+            <input class="input" id="dep-key" placeholder="/home/user/.ssh/id_ed25519">
+            <div class="text-dim text-sm">Key-based auth only. Ensure the key's public part is in <code>~/.ssh/authorized_keys</code> on the remote host.</div>
           </div>
-          <div class="field">
-            <label class="field-label">Private Key Path <span class="text-dim">(local path, optional)</span></label>
-            <input class="input" id="dep-key" placeholder="/home/user/.ssh/id_ed25519"></div>
           <div class="field">
             <label class="field-label">Pylon Port</label>
             <input class="input" id="dep-port" value="443" style="width:80px"></div>
@@ -122,19 +115,17 @@ const RelayPage = (() => {
       const host     = document.getElementById('dep-host')?.value.trim();
       const ssh_port = parseInt(document.getElementById('dep-sshport')?.value) || 22;
       const ssh_user = document.getElementById('dep-user')?.value.trim() || 'root';
-      const password = document.getElementById('dep-pass')?.value || null;
       const key_path = document.getElementById('dep-key')?.value.trim() || null;
       const pylon_port = parseInt(document.getElementById('dep-port')?.value) || 443;
       const stop_ufw = document.getElementById('dep-ufw')?.checked ?? true;
       if (!host) return Toast.error('Host is required');
-      if (!password && !key_path) return Toast.error('Provide a password or key path');
       if (!await Modal.confirm(
         `Deploy pylon relay on <b>${host}:${pylon_port}</b>?<br>
-        <small>SSH will be used. Ensure host is reachable.</small>`)) return;
+        <small>SSH will be used. Ensure host is reachable and your key is in authorized_keys.</small>`)) return;
       const btn = document.querySelector('[onclick="RelayPage._deploy()"]');
       if (btn) { btn.disabled = true; btn.textContent = 'Deploying…'; }
       try {
-        await api.post('/relay/deploy', { host, ssh_port, ssh_user, password, key_path, pylon_port, stop_ufw });
+        await api.post('/relay/deploy', { host, ssh_port, ssh_user, key_path, pylon_port, stop_ufw });
         Toast.success(`Relay deployed on ${host}:${pylon_port}`);
         load();
       } catch (e) {
@@ -155,16 +146,11 @@ const RelayPage = (() => {
     async _removeRemote() {
       if (!await Modal.confirm('Remove remote relay?', { danger: true })) return;
       const host = _data.status?.remote?.host;
-      const pass = await Modal.prompt?.('SSH password or leave empty to use key:') ?? null;
       try {
-        await api.post('/relay/remote', { host: host || '', password: pass || null });
+        await api.post('/relay/remote', { host: host || '' });
         Toast.success('Remote relay removed');
         load();
       } catch (e) { Toast.error(e.message); }
-    },
-    _onPassInput(val) {
-      const warn = document.getElementById('dep-pass-warn');
-      if (warn) warn.style.display = val ? 'block' : 'none';
     },
   };
 })();
