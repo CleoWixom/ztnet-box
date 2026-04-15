@@ -866,14 +866,14 @@ const Utils = (() => {
 
 | Эндпоинт | Назначение | Статус во Frontend |
 |----------|-----------|-------------------|
-| `GET /api/system/zt-status` | Детектирование установки ZeroTier | ❌ Не используется |
-| `POST /api/system/zt-install` | Установка ZeroTier | ❌ Не используется |
-| `GET /api/central/status` | Статус Central API аккаунта | ❌ Не используется |
-| `GET /api/central/user` | Информация о пользователе Central | ❌ Не используется |
-| `GET /api/metrics/raw` | Raw Prometheus метрики | ❌ Не используется |
-| `GET /api/local/networks/:id/localconf` | Per-network local.conf (allowDefault и др.) | ❌ Не используется |
-| `PUT /api/local/networks/:id/localconf` | Обновление per-network local.conf | ❌ Не используется |
-| `GET /api/logs/level` | Текущий уровень логирования | ❌ Только PUT используется |
+| `GET /api/system/zt-status` | Детектирование установки ZeroTier | ✅ Dashboard (banner + install btn) |
+| `POST /api/system/zt-install` | Установка ZeroTier | ✅ Dashboard `_installZt()` |
+| `GET /api/central/status` | Статус Central API аккаунта | ⚪ Diagnostic — intentionally not in UI |
+| `GET /api/central/user` | Информация о пользователе Central | ⚪ Diagnostic — intentionally not in UI |
+| `GET /api/metrics/raw` | Raw Prometheus метрики | ⚪ For external scraping — not needed in UI |
+| `GET /api/local/networks/:id/localconf` | Per-network local.conf (allowDefault и др.) | ⚪ Future: network detail page |
+| `PUT /api/local/networks/:id/localconf` | Обновление per-network local.conf | ⚪ Future: network detail page |
+| `GET /api/logs/level` | Текущий уровень логирования | ✅ LogPanel sync on init |
 | `GET /api/local/config` | Настройки ZeroTier node (local.conf) | ✅ Покрыт `settings-ztnode.js` |
 | `PUT /api/local/config` | Обновление настроек ZeroTier node | ✅ Покрыт `settings-ztnode.js` |
 | `GET /api/settings/config` | Настройки ztnet-box (config.yml) | ✅ Покрыт `settings-global.js` |
