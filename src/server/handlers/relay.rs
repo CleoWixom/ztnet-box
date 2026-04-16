@@ -1,11 +1,10 @@
 use crate::{
-    relay::{deploy, LocalRelayConfig, RelayDeployConfig, RelayStatus, RemoteRelayInfo},
+    relay::{deploy, LocalRelayConfig, RelayDeployConfig, RelayStatus},
     server::{error::ApiError, state::AppState},
     zerotier::local_config::{self, LocalSettings},
 };
 use axum::{extract::State, response::IntoResponse, Json};
 use serde::Deserialize;
-use tokio::sync::RwLock;
 
 // ── GET /api/relay/status ─────────────────────────────────────────────────────
 
@@ -75,11 +74,7 @@ pub async fn deploy_relay(
     if cfg.host.trim().is_empty() {
         return Err(ApiError::InvalidInput("host is required".into()));
     }
-    if cfg.password.is_none() && cfg.key_path.is_none() {
-        return Err(ApiError::InvalidInput(
-            "either password or key_path is required".into(),
-        ));
-    }
+    // key_path is optional — if absent, SSH will use the default key from ~/.ssh/
 
     let info = tokio::task::spawn_blocking(move || deploy::deploy(&cfg))
         .await
@@ -192,7 +187,3 @@ fn validate_relay_endpoint(ep: &str) -> Result<(), ApiError> {
     }
     Ok(())
 }
-
-// ── Shared state type alias (used in state.rs) ────────────────────────────────
-
-pub type RelayRemoteState = RwLock<Option<RemoteRelayInfo>>;
