@@ -10,6 +10,40 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-04-17
+
+### Security
+- SSH relay: removed `sshpass` dependency — key-based auth only (`BatchMode=yes` enforces it)
+- SSH relay: `StrictHostKeyChecking=no` → `accept-new` (MITM protection after first connect)
+- Docker install: replaced `curl -fsSL https://get.docker.com | sh` with apt/dnf/pacman
+- CSP: tightened `connect-src *` → `connect-src 'self'`
+- ZT local client: `danger_accept_invalid_certs` is now conditional on is_loopback
+
+### Features
+- Mobile UI: `@media (max-width:768px)` responsive layout, off-canvas sidebar, hamburger toggle
+- Dashboard: ZeroTier install detection banner + Install button (uses `/api/system/zt-status`)
+- Settings: `metricstoken_file` path now configurable in Global Settings UI
+- Peers page: full standalone page with live `api.get('/local/peers')` (was inline stub)
+- Exit node: `zt_network_id` properly stored in `ExitNodeState` (separate from `zt_interface`)
+- State persistence: bridge/physnet/relay state survives restarts via `runtime_state.rs`
+- Rate limiter: `RateLimiter::acquire()` now uses `.forget()` — true token-bucket semantics
+
+### Bug Fixes
+- `log-panel.js` moved to `components/` so it's included in the build bundle (was missing)
+- `controllers-config.js`: `api.post` → `api.put` for local controller network update
+- `update_token` handler: UUID preserved on rename (was destroy+recreate)
+- `rand_byte()`: replaced `/dev/urandom` + `0xAB` fallback with `getrandom::getrandom()`
+- N+1 requests in controllers-networks: parallel `Promise.allSettled()`
+- `_esc()` deduplication: single `Utils.esc()` in `state.js`; log-panel CSS vars aligned
+- NDP `install/enable/disable`: split into `#[cfg(target_os="linux")]` overloads (cross-platform CI)
+- Relay handler: removed stale `cfg.password` check after password field removal
+
+### Chores
+- `PhysNetStateArc` dead type alias removed
+- `#[allow(clippy::derivable_impls)]` → `#[derive(Default)]` for `Config` + `ZeroTierConfig`
+- Log panel: all CSS variables aligned with `variables.css` (`--c-*` names)
+
+
 ## [0.7.6] — 2026-04-12
 
 ### Features
