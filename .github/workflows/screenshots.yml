@@ -64,19 +64,36 @@ jobs:
             central:
               base_url: "https://my.zerotier.com"
           EOF
-
-      - name: Start ztnet-box
+          
+      - name: Install ZeroTier
+        run: curl -s https://install.zerotier.com | sudo bash
+      
+      - name: Start ZeroTier (userspace, no TUN needed)
         run: |
-          ./target/release/ztnet-box --config /tmp/ztnet-box-screenshot.yml &
-          echo "ZTNET_PID=$!" >> "$GITHUB_ENV"
-          # Wait for server to be ready
+          sudo mkdir -p /var/lib/zerotier-one
+          sudo zerotier-one -U -d
+          # Ждём появления authtoken
           for i in $(seq 1 20); do
-            if curl -sf http://127.0.0.1:7979/api/health >/dev/null 2>&1; then
-              echo "ztnet-box ready after ${i}s"
-              break
-            fi
-            sleep 1
+             [ -f /var/lib/zerotier-one/authtoken.secret ] && \
+             curl -sf http://127.0.0.1:9993/status \
+          -H "X-ZT1-Auth: $(sudo cat /var/lib/zerotier-one/authtoken.secret)" \
+          >/dev/null 2>&1 && break
+          sleep 1
           done
+          echo "ZT_TOKEN=$(sudo cat /var/lib/zerotier-one/authtoken.secret)" >> "$GITHUB_ENV"
+  
+     # - name: Start ztnet-box
+     #   run: |
+     #     ./target/release/ztnet-box --config /tmp/ztnet-box-screenshot.yml &
+     #     echo "ZTNET_PID=$!" >> "$GITHUB_ENV"
+     #     # Wait for server to be ready
+     #     for i in $(seq 1 20); do
+     #       if curl -sf http://127.0.0.1:7979/api/health >/dev/null 2>&1; then
+     #         echo "ztnet-box ready after ${i}s"
+     #         break
+     #       fi
+     #       sleep 1
+     #     done
 
       # ── Playwright ────────────────────────────────────────────────────────
 
