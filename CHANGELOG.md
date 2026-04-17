@@ -10,6 +10,12 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.8.2] — 2026-04-17
+
+### Chores
+- docs: rewrite README + actualize AUDIT.md (v0.8.0) (73c0f7b)
+
+
 ## [0.8.1] — 2026-04-17
 
 
