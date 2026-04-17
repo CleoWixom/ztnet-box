@@ -1,1053 +1,833 @@
 # AUDIT.md — ztnet-box
 
-**Дата последнего аудита:** 2026-04-16 (CI зелёный — все пункты закрыты)  
-**Репозиторий:** `CleoWixom/ztnet-box`  
-**Стек:** Rust (Axum, Tokio) + Vanilla JS/HTML/CSS (SPA, сборка через `build.rs`)  
-**Текущая версия:** 0.7.6 (Cargo.toml: 0.6.3 — версия обновляется workflow)
+**Дата последнего аудита:** 2026-04-17 (все пункты закрыты, CI зелёный)
+**Репозиторий:** `CleoWixom/ztnet-box`
+**Стек:** Rust (Axum, Tokio) + Vanilla JS/HTML/CSS (SPA, сборка через `build.rs`)
+**Версия на момент аудита:** 0.8.0
 
 ---
 
 ## Содержание
 
-1. [CRITICAL — Сборочный баг: `log-panel.js` не включается в бандл](#1-critical--log-paneljs-не-включается-в-бандл)
+1. [CRITICAL — `log-panel.js` не включался в бандл](#1-critical--log-paneljs-не-включался-в-бандл)
 2. [HIGH — Неработающий Rate Limiter](#2-high--неработающий-rate-limiter)
 3. [HIGH — Frontend: неверный HTTP-метод при обновлении сети контроллера](#3-high--frontend-неверный-http-метод-при-обновлении-сети-контроллера)
-4. [HIGH — Безопасность: SSH с `StrictHostKeyChecking=no`](#4-high--безопасность-ssh-с-stricthostkeycheckingno)
-5. [HIGH — Безопасность: `curl | sh` для установки Docker](#5-high--безопасность-curl--sh-для-установки-docker)
-6. [HIGH — Безопасность: SSH-пароль передаётся в JSON по HTTP](#6-high--безопасность-ssh-пароль-передаётся-в-json-по-http)
-7. [HIGH — Отсутствие мобильной адаптации (нет `@media` queries)](#7-high--отсутствие-мобильной-адаптации-нет-media-queries)
-8. [HIGH — Кастомная реализация генерации случайных байт (`rand_byte`)](#8-high--кастомная-реализация-генерации-случайных-байт-rand_byte)
-9. [MEDIUM — `update_token` уничтожает оригинальный UUID токена](#9-medium--update_token-уничтожает-оригинальный-uuid-токена)
-10. [MEDIUM — N+1 API-запросов в `controllers-networks.js`](#10-medium--n1-api-запросов-в-controllers-networksjs)
+4. [HIGH — SSH с `StrictHostKeyChecking=no`](#4-high--ssh-с-stricthostkeycheckingno)
+5. [HIGH — `curl | sh` для установки Docker](#5-high--curl--sh-для-установки-docker)
+6. [HIGH — SSH-пароль в JSON по HTTP](#6-high--ssh-пароль-в-json-по-http)
+7. [HIGH — Отсутствие мобильной адаптации](#7-high--отсутствие-мобильной-адаптации)
+8. [HIGH — Кастомная реализация `rand_byte`](#8-high--кастомная-реализация-rand_byte)
+9. [MEDIUM — `update_token` уничтожал UUID](#9-medium--update_token-уничтожал-uuid)
+10. [MEDIUM — N+1 запросов в `controllers-networks.js`](#10-medium--n1-запросов-в-controllers-networksjs)
 11. [MEDIUM — Хардкод CSS-значений в `log-panel.js`](#11-medium--хардкод-css-значений-в-log-paneljs)
 12. [MEDIUM — Неиспользуемый тип-алиас `PhysNetStateArc`](#12-medium--неиспользуемый-тип-алиас-physnetstaterc)
 13. [MEDIUM — `PeersPage` определена inline в `shell.html`](#13-medium--peerspage-определена-inline-в-shellhtml)
 14. [MEDIUM — Семантическая ошибка в поле `zt_network_id`](#14-medium--семантическая-ошибка-в-поле-zt_network_id)
 15. [MEDIUM — Отсутствует кнопка сворачивания боковой панели](#15-medium--отсутствует-кнопка-сворачивания-боковой-панели)
-16. [MEDIUM — `settings-global.js` не предоставляет UI для `metricstoken_file`](#16-medium--settings-globaljs-не-предоставляет-ui-для-metricstoken_file)
-17. [MEDIUM — `Modal.prompt` вызывается с optional chaining без реализации](#17-medium--modalprompt-вызывается-с-optional-chaining-без-реализации)
-18. [MEDIUM — Состояние bridge/physnet/relay не сохраняется между перезапусками](#18-medium--состояние-bridgephysnetrelay-не-сохраняется-между-перезапусками)
-19. [MEDIUM — Внешние зависимости: `ssh`, `sshpass` CLI-инструменты](#19-medium--внешние-зависимости-ssh-sshpass-cli-инструменты)
-20. [LOW — CSP разрешает `unsafe-inline` для скриптов и стилей](#20-low--csp-разрешает-unsafe-inline-для-скриптов-и-стилей)
-21. [LOW — `danger_accept_invalid_certs` в ZtLocalClient](#21-low--danger_accept_invalid_certs-в-ztlocalclient)
-22. [LOW — Дублирование функции `_esc()` в нескольких JS-модулях](#22-low--дублирование-функции-_esc-в-нескольких-js-модулях)
+16. [MEDIUM — `metricstoken_file` не настраивается через UI](#16-medium--metricstoken_file-не-настраивается-через-ui)
+17. [MEDIUM — `Modal.prompt` без реализации](#17-medium--modalprompt-без-реализации)
+18. [MEDIUM — Состояние bridge/physnet/relay не персистировалось](#18-medium--состояние-bridgephysnetrelay-не-персистировалось)
+19. [MEDIUM — Зависимость от `sshpass`](#19-medium--зависимость-от-sshpass)
+20. [LOW — CSP: `connect-src *`](#20-low--csp-connect-src-)
+21. [LOW — `danger_accept_invalid_certs` безусловно](#21-low--danger_accept_invalid_certs-безусловно)
+22. [LOW — Дублирование функции `_esc()`](#22-low--дублирование-функции-_esc)
 23. [LOW — Backend-эндпоинты без покрытия во Frontend](#23-low--backend-эндпоинты-без-покрытия-во-frontend)
-24. [LOW — `#[allow(clippy::derivable_impls)]` на `Default` для `Config`](#24-low--allowclippy-derivable_impls-на-default-для-config)
-25. [LOW — Заглушка в `exitnode_manager.enable()`: `zt_network_id` не передаётся](#25-low--заглушка-в-exitnode_managerenable-zt_network_id-не-передаётся)
-26. [Итоговая таблица](#итоговая-таблица)
-27. [Рекомендации по архитектуре](#рекомендации-по-архитектуре)
+24. [LOW — `#[allow(clippy::derivable_impls)]`](#24-low--allowclippyderivable_impls)
+25. [LOW — Заглушка: `network_id` не передавался в `enable()`](#25-low--заглушка-network_id-не-передавался-в-enable)
+26. [HIGH (CI) — Unused params в cfg-гейтированных ndp-функциях](#26-high-ci--unused-params-в-cfg-гейтированных-ndp-функциях)
+27. [HIGH — Утечка `tokio::spawn` в Rate Limiter (пост-аудит)](#27-high--утечка-tokiospawn-в-rate-limiter-пост-аудит)
+28. [MEDIUM — Нет таймаута SSH-соединения при deploy (пост-аудит)](#28-medium--нет-таймаута-ssh-соединения-при-deploy-пост-аудит)
+29. [Итоговая таблица](#итоговая-таблица)
+30. [Рекомендации по архитектуре](#рекомендации-по-архитектуре)
 
 ---
 
-## 1. CRITICAL — `log-panel.js` не включается в бандл
+## 1. CRITICAL — `log-panel.js` не включался в бандл
 
-**Приоритет:** 🔴 Critical  
-**Файл:** `build.rs`, `www/src/js/log-panel.js`, `www/src/html/shell.html`
+**Приоритет:** 🔴 Critical → ✅ Resolved `d53a1c2`
+**Файл:** `build.rs`, `www/src/js/components/log-panel.js`
 
 ### Описание
 
-`build.rs` собирает единый `www/build/index.html` из всех JS-файлов. Скрипты из `www/src/js/` включаются только поимённо: `api.js`, `state.js`, `router.js`. Все остальные файлы собираются из поддиректорий `components/` и `pages/`.
+`build.rs` собирал JS в порядке: core (`api`, `state`, `router`) → `components/*` → `pages/*`. Файл `log-panel.js` лежал непосредственно в `www/src/js/` (не в `components/`), поэтому **никогда не попадал в бандл**. `shell.html` вызывал `LogPanel.init()`, что давало `ReferenceError` в браузере.
 
-`log-panel.js` находится непосредственно в `www/src/js/` (не в `components/` и не в `pages/`), поэтому он **никогда не попадает** в собранный бандл.
+### Исправление
 
-При этом `shell.html` в конце вызывает `LogPanel.init()`, что при открытии в браузере приводит к:
+`log-panel.js` перемещён в `www/src/js/components/log-panel.js`. Теперь подхватывается автоматически через `collect_files(&comp_dir, "js")` в `build.rs`. Дубликата в корне `js/` нет.
 
-```
-Uncaught ReferenceError: LogPanel is not defined
-```
-
-### Участок кода
-
-```rust
-// build.rs, строки ~57-76
-// 1. Core scripts first
-for name in ["api", "state", "router"] {          // ← log-panel НЕ здесь
-    let p = js_dir.join(format!("{name}.js"));
-    ...
-}
-// 2. Component scripts (js/components/)
-for f in collect_files(&comp_dir, "js") { ... }   // ← log-panel НЕ здесь
-// 3. Page scripts (js/pages/)
-for f in collect_files(&page_dir, "js") { ... }   // ← log-panel НЕ здесь
-```
-
-```html
-<!-- shell.html, строка 147 -->
-LogPanel.init();  <!-- ← LogPanel undefined в production -->
-```
-
-### Почему это проблема
-
-Панель логов — ключевой компонент отладки. В production-сборке она полностью нерабочая. При этом на этапе разработки (если открывать `shell.html` напрямую с подключёнными скриптами) баг не проявляется.
-
-### Рекомендация
-
-**Вариант 1** (быстрый): добавить `log-panel` в список именованных core-скриптов:
-
-```rust
-for name in ["api", "state", "router", "log-panel"] {
-    let p = js_dir.join(format!("{name}.js"));
-```
-
-**Вариант 2** (архитектурный): переместить `log-panel.js` в `www/src/js/components/`, где он подхватится автоматически — это семантически правильнее, так как LogPanel является компонентом.
+**Верифицировано:** `ls www/src/js/components/log-panel.js` — файл присутствует; `ls www/src/js/` не содержит `log-panel.js`.
 
 ---
 
 ## 2. HIGH — Неработающий Rate Limiter
 
-**Приоритет:** 🔴 High  
+**Приоритет:** 🔴 High → ✅ Resolved `d53a1c2`
 **Файл:** `src/zerotier/central/client.rs`
 
 ### Описание
 
-`RateLimiter` реализован через `tokio::sync::Semaphore`. Метод `acquire()` должен блокироваться до получения разрешения и удерживать его до завершения запроса. Однако в текущей реализации:
-
 ```rust
+// ДО: permit немедленно дропался — rate limiter не работал
 async fn acquire(&self) {
     let _ = self.semaphore.acquire().await;
-    //  ^ SemaphorePermit немедленно дропается — permit возвращается обратно
 }
 ```
 
-`let _ = expr` в Rust немедленно дропает возвращённое значение. `SemaphorePermit` — RAII-обёртка: при дропе разрешение возвращается в семафор. В результате rate limiter никогда не блокирует ни одного запроса — пропускает всё без ограничений.
+`let _ = expr` дропает `SemaphorePermit` немедленно, возвращая разрешение в семафор. Rate limiter пропускал все запросы без ограничений.
 
-### Почему это проблема
-
-Для Free-аккаунтов ZeroTier Central API ограничен 20 req/s. При превышении лимита API возвращает `429 Too Many Requests`. Сейчас защита от этого отсутствует.
-
-### Рекомендация
+### Исправление
 
 ```rust
-// Правильный вариант — удерживать permit через возврат
-async fn acquire(&self) -> tokio::sync::OwnedSemaphorePermit {
+// ПОСЛЕ: permit consumeится через forget(), рефил — раз в секунду фоновой задачей
+async fn acquire(&self) {
     Arc::clone(&self.semaphore)
         .acquire_owned()
         .await
-        .expect("semaphore closed")
-}
-
-// В request():
-async fn request<T: DeserializeOwned>(...) -> Result<T, ApiError> {
-    let _permit = self.rate_limiter.acquire().await; // держится до конца запроса
-    // ... HTTP запрос ...
+        .expect("rate-limiter semaphore closed")
+        .forget();
 }
 ```
 
+Фоновая задача (`tokio::spawn`) раз в секунду пополняет семафор до максимума через `add_permits()`. Реализует true "max N req/s" token-bucket семантику.
+
+**Юнит-тест:** `rate_limiter_blocks_when_exhausted` — проверяет, что третий `acquire()` при 2 permits блокируется через `tokio::time::timeout`.
+
 ---
 
-## 3. HIGH — Frontend: неверный HTTP-метод при обновлении сети контроллера
+## 3. HIGH — Frontend: POST вместо PUT для обновления сети контроллера
 
-**Приоритет:** 🔴 High  
-**Файл:** `www/src/js/pages/controllers-config.js`, `src/server/router.rs`
+**Приоритет:** 🔴 High → ✅ Resolved `d53a1c2`
+**Файл:** `www/src/js/pages/controllers-config.js:190`
 
 ### Описание
 
-При сохранении конфигурации локальной сети контроллера фронтенд отправляет `POST`:
-
 ```javascript
-// controllers-config.js, строка 190
+// ДО: 405 Method Not Allowed
 if (_src==='local') await api.post(`/local/controller/networks/${_id}`, body);
 ```
 
-Но бэкенд-роутер регистрирует обновление через `PUT`:
+Бэкенд регистрировал `.put(local_handler::update_controller_network)`. `POST` возвращал 405.
 
-```rust
-// src/server/router.rs
-.route(
-    "/controller/networks/:id",
-    get(local_handler::get_controller_network)
-        .put(local_handler::update_controller_network)   // ← PUT, не POST
-        .delete(local_handler::delete_controller_network),
-)
-```
-
-`POST` на `/api/local/controller/networks/:id` вернёт **405 Method Not Allowed**. Кнопка «Save Changes» на странице конфигурации сети контроллера полностью нерабочая.
-
-### Рекомендация
+### Исправление
 
 ```javascript
-// controllers-config.js, строка 190
+// ПОСЛЕ
 if (_src==='local') await api.put(`/local/controller/networks/${_id}`, body);
-//                              ^^^
 ```
+
+**Верифицировано:** `grep "api\.put\|api\.post" www/src/js/pages/controllers-config.js | grep local/controller/networks` → строка 190 содержит `api.put`.
 
 ---
 
-## 4. HIGH — Безопасность: SSH с `StrictHostKeyChecking=no`
+## 4. HIGH — SSH с `StrictHostKeyChecking=no`
 
-**Приоритет:** 🔴 High  
+**Приоритет:** 🔴 High → ✅ Resolved `6d4c76f`
 **Файл:** `src/relay/ssh.rs`
 
 ### Описание
 
-```rust
-// src/relay/ssh.rs
-"-o".into(),
-"StrictHostKeyChecking=no".into(),   // ← MITM-уязвимость
-"-o".into(),
-"BatchMode=yes".into(),
-```
+`StrictHostKeyChecking=no` открывал вектор MITM-атаки: при деплое relay (установка Docker, запуск привилегированных контейнеров) злоумышленник в сети мог подменить ответ сервера.
 
-Отключение проверки host key открывает вектор MITM-атаки: злоумышленник в сети может подменить ответ удалённого сервера, перехватить SSH-пароль и выполнить произвольные команды.
-
-### Почему это проблема
-
-Команды, выполняемые при деплое, включают установку Docker, запуск привилегированных контейнеров и управление firewall. При MITM-атаке всё это может быть выполнено на машине атакующего.
-
-### Рекомендация
+### Исправление
 
 ```rust
-// Вариант 1: убрать StrictHostKeyChecking=no, требовать предварительного одобрения хоста
-// Вариант 2: принять fingerprint хоста от пользователя и верифицировать его
-"-o".into(),
-format!("StrictHostKeyChecking=accept-new").into(), // только первое подключение
-
-// Вариант 3: документировать требование к пользователю (добавить known_hosts перед деплоем)
-// и добавить UI-предупреждение
+"-o".into(), "StrictHostKeyChecking=accept-new".into(),
 ```
+
+`accept-new` автоматически добавляет ключ при **первом** подключении, но отклоняет изменённые ключи на последующих — защищает от MITM после первоначального установления доверия.
+
+**Верифицировано:** `grep StrictHost src/relay/ssh.rs` → `StrictHostKeyChecking=accept-new`.
 
 ---
 
-## 5. HIGH — Безопасность: `curl | sh` для установки Docker
+## 5. HIGH — Docker install via `curl | sh`
 
-**Приоритет:** 🔴 High  
+**Приоритет:** 🔴 High → ✅ Resolved `6d4c76f`
 **Файл:** `src/relay/deploy.rs`
 
 ### Описание
 
 ```rust
-// src/relay/deploy.rs
-client
-    .run("curl -fsSL https://get.docker.com | sh")
-    .map_err(|e| DeployError::Step(format!("Docker install failed: {e}")))?;
+// ДО: выполнение произвольного кода с удалённого URL без верификации
+client.run("curl -fsSL https://get.docker.com | sh")?;
 ```
 
-Скачивание и немедленное исполнение shell-скрипта с внешнего URL без верификации — антипаттерн безопасности. Если `get.docker.com` скомпрометирован или DNS подменён — на удалённом сервере выполняется произвольный код с правами root.
-
-### Рекомендация
+### Исправление
 
 ```rust
-// Вариант 1: использовать пакетный менеджер напрямую
-client.run("apt-get install -y docker.io")?;
-
-// Вариант 2: скачать скрипт, показать пользователю, запросить подтверждение
-// Вариант 3: использовать официальный APT/YUM репозиторий Docker
-client.run("apt-get install -y ca-certificates curl gnupg && \
-    install -m 0755 -d /etc/apt/keyrings && \
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
-    ...")?;
+// ПОСЛЕ: определение пакетного менеджера + официальный пакет
+let install_cmd = "if command -v apt-get ...; then apt-get install -y docker.io; \
+                   elif command -v dnf ...; then dnf install -y docker; \
+                   elif command -v pacman ...; then pacman -S --noconfirm docker; \
+                   else echo 'No supported pm' >&2; exit 1; fi";
 ```
+
+**Верифицировано:** `grep "curl\|get.docker.com" src/relay/deploy.rs` — пусто. Файл содержит `apt-get install -y docker.io`.
 
 ---
 
-## 6. HIGH — Безопасность: SSH-пароль передаётся в JSON по HTTP
+## 6. HIGH — SSH-пароль в JSON по HTTP
 
-**Приоритет:** 🔴 High  
-**Файл:** `www/src/js/pages/relay.js`, `src/relay/mod.rs`
+**Приоритет:** 🔴 High → ✅ Resolved `6d4c76f` + `4ed5d12`
+**Файл:** `src/relay/mod.rs`, `www/src/js/pages/relay.js`
 
 ### Описание
 
-При деплое relay пароль SSH отправляется в теле HTTP-запроса к бэкенду:
+Поле `password: Option<String>` в `RelayDeployConfig` передавалось в теле HTTP-запроса. При работе без TLS пароль оказывался в логах прокси и traffic dumps.
 
-```javascript
-// relay.js
-await api.post('/relay/deploy', {
-    host, ssh_port, ssh_user,
-    password,   // ← SSH-пароль в plain JSON
-    key_path, pylon_port, stop_ufw
-});
-```
+### Исправление
 
-По умолчанию ztnet-box слушает на `127.0.0.1:3000` без TLS. Если пользователь открывает UI через туннель или проксирует доступ — пароль может оказаться в логах прокси, браузерных инструментах разработчика или traffic dumps.
+Поле `password` полностью удалено из `RelayDeployConfig`. UI содержит только поле `key_path` с пояснением «Key-based auth only». `sshpass` удалён из `ssh.rs` (см. п. 19).
 
-Тип `RelayDeployConfig` в `src/relay/mod.rs` сериализуется целиком, включая поле `password: Option<String>`.
-
-### Рекомендация
-
-- Добавить предупреждение в UI о том, что парольная аутентификация небезопасна без TLS.
-- Рекомендовать использование SSH-ключей (`key_path`) как основного способа.
-- Не логировать тело запроса (текущий middleware логирует только метод/путь/статус — ✓), убедиться, что `RelayDeployConfig` не попадает в tracing-события с `?` или `{:?}`.
+**Верифицировано:** `grep "password" src/relay/mod.rs` — пусто; `grep "password\|sshpass" src/relay/ssh.rs` — только комментарий об удалении.
 
 ---
 
-## 7. HIGH — Отсутствие мобильной адаптации (нет `@media` queries)
+## 7. HIGH — Отсутствие мобильной адаптации
 
-**Приоритет:** 🔴 High  
-**Файл:** `www/src/css/layout.css`, все CSS-файлы
+**Приоритет:** 🔴 High → ✅ Resolved `85bc5a2`
+**Файл:** `www/src/css/layout.css`
 
 ### Описание
 
-Ни в одном CSS-файле нет ни одного `@media` запроса. Боковая панель (`#sidebar`) зафиксирована на ширине 220px:
+Ни одного `@media` запроса. Sidebar фиксировался на 220px, занимая ~46% экрана на телефонах.
+
+### Исправление
 
 ```css
-/* layout.css */
-#sidebar {
-    width: var(--sidebar-w);   /* 220px — фиксировано */
-    position: fixed;
-    top: 0; left: 0; bottom: 0;
-}
-
-#content {
-    margin-left: var(--sidebar-w);  /* всегда 220px отступ */
-}
-```
-
-На экранах шириной < 480px (телефоны) sidebar занимает ~46% ширины, контент сжимается до нечитаемого состояния. Скриншоты в `/docs/screenshots/` показывают мобильные варианты — значит, адаптация задумывалась, но не реализована.
-
-### Рекомендация
-
-```css
-/* Добавить в layout.css */
 @media (max-width: 768px) {
-    #sidebar {
-        transform: translateX(-100%);
-        transition: transform var(--t-base);
-        z-index: 200;
-    }
-    #sidebar.open {
-        transform: translateX(0);
-    }
-    #content {
-        margin-left: 0;
-    }
-    /* Оверлей при открытом меню */
-    #sidebar-overlay {
-        display: block;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,.5);
-        z-index: 150;
-    }
+    #mobile-bar   { display: flex; }
+    #content      { margin-left: 0; padding-top: var(--header-h); }
+    #sidebar      { transform: translateX(-100%); transition: transform var(--t-base); z-index: 200; }
+    #sidebar.open { transform: translateX(0); }
+    .table-wrap   { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .cards-grid   { grid-template-columns: 1fr; }
+    .page-header  { flex-wrap: wrap; }
 }
 ```
 
-(Связано с п. 15 — кнопка toggle sidebar.)
+**Верифицировано:** `grep "@media" www/src/css/layout.css` → присутствует.
 
 ---
 
-## 8. HIGH — Кастомная реализация генерации случайных байт (`rand_byte`)
+## 8. HIGH — Кастомная реализация `rand_byte`
 
-**Приоритет:** 🔴 High  
+**Приоритет:** 🔴 High → ✅ Resolved `c474bb1`
 **Файл:** `src/zerotier/local/client.rs`
 
 ### Описание
 
 ```rust
-// local/client.rs, строки в конце файла
+// ДО: открывал /dev/urandom 6 раз по одному байту; fallback = константа 0xAB
 fn rand_byte() -> u8 {
-    use std::io::Read;
-    let mut buf = [0u8; 1];
     std::fs::File::open("/dev/urandom")
         .and_then(|mut f| f.read_exact(&mut buf).map(|_| buf[0]))
-        .unwrap_or(0xab)  // ← fallback — константа, не случайное значение!
+        .unwrap_or(0xab)  // все network ID одинаковы на Windows
 }
 ```
 
-Проблемы:
-1. Читает **по одному байту за раз** из `/dev/urandom`, открывая и закрывая файл 6 раз подряд — неэффективно.
-2. На Windows или нестандартных Unix-системах без `/dev/urandom` возвращает константу `0xab` — все генерируемые network ID будут одинаковы (`<node_id>abababababab`).
-3. `uuid` уже является зависимостью проекта и содержит правильную кроссплатформенную реализацию генерации случайных данных.
+Три проблемы: неэффективность, непортируемость, константный fallback.
+
+### Исправление
 
 ```rust
-// Используется для генерации суффикса network ID
-let suffix: String = (0..6).map(|_| format!("{:02x}", rand_byte())).collect();
+// ПОСЛЕ: getrandom — кроссплатформенно, без fallback
+let mut buf = [0u8; 6];
+getrandom::getrandom(&mut buf).map_err(|e| ApiError::ZtLocal(...))?;
+let suffix: String = buf.iter().map(|b| format!("{b:02x}")).collect();
 ```
 
-### Рекомендация
+Зависимость `getrandom = "0.2"` добавлена в `Cargo.toml`.
 
-```rust
-// Использовать уже подключённый uuid crate
-use uuid::Uuid;
-
-fn random_network_suffix() -> String {
-    let bytes = Uuid::new_v4();
-    hex::encode(&bytes.as_bytes()[..6])
-    // или без hex crate:
-}
-
-// Ещё проще — генерировать через Uuid напрямую:
-let suffix: String = Uuid::new_v4()
-    .as_bytes()[..3]
-    .iter()
-    .map(|b| format!("{b:02x}"))
-    .collect();
-```
+**Верифицировано:** `grep "rand_byte\|0xab\|urandom" src/zerotier/local/client.rs` — пусто; `grep "getrandom" src/zerotier/local/client.rs` — присутствует.
 
 ---
 
-## 9. MEDIUM — `update_token` уничтожает оригинальный UUID токена
+## 9. MEDIUM — `update_token` уничтожал UUID
 
-**Приоритет:** 🟡 Medium  
-**Файл:** `src/server/handlers/tokens.rs`
+**Приоритет:** 🟡 Medium → ✅ Resolved `c474bb1`
+**Файл:** `src/server/handlers/tokens.rs`, `src/zerotier/central/token_store.rs`
 
 ### Описание
 
-```rust
-// tokens.rs, update_token handler
-s.token_store.remove(&id).await;
-// ...
-// Re-insert with same id not possible via current API; emit new entry, accept new id
-let t = s.token_store.add(updated.name, updated.token, updated.rate_limit).await;
-// ^ CentralToken::new() внутри генерирует новый Uuid::new_v4()
-```
+`PUT /api/settings/tokens/:id` вызывал `token_store.remove(&id)` + `token_store.add(...)`, что генерировало новый `Uuid::new_v4()`. Любая ссылка на токен по ID становилась невалидной. В коде был комментарий `// Re-insert with same id not possible via current API`.
 
-При `PUT /api/settings/tokens/:id` старый токен удаляется и создаётся новый с другим UUID. Это нарушает идемпотентность операции и ломает любые сохранённые ссылки на токен по ID (например, если `active_token_id` указывает на старый ID и токен был активным, состояние восстанавливается некорректно).
+### Исправление
 
-Также в комментарии явно написано `// Re-insert with same id not possible via current API` — это признание архитектурного дефекта в `TokenStore`.
-
-### Рекомендация
-
-Добавить в `TokenStore` метод `update(id, name, token, rate_limit)`, который обновляет запись без смены UUID:
+В `TokenStore` добавлен метод `update()`:
 
 ```rust
-// В TokenStore
-pub async fn update(&self, id: &str, name: String, token: String, rl: RateLimit)
+pub async fn update(&self, id: &str, name: String, token: String, rate_limit: RateLimit)
     -> Option<CentralToken>
 {
-    let mut store = self.inner.write().await;
-    if let Some(t) = store.tokens.iter_mut().find(|t| t.id == id) {
-        t.name = name;
-        t.token = token;
-        t.rate_limit = rl;
-        Some(t.clone())
-    } else {
-        None
-    }
+    let mut inner = self.inner.write().await;
+    let t = inner.tokens.iter_mut().find(|t| t.id == id)?;
+    t.name = name; t.token = token; t.rate_limit = rate_limit;
+    let updated = t.clone();
+    Self::invalidate_cache(&mut inner).await;
+    Some(updated)
 }
 ```
+
+Хендлер `update_token` теперь использует `token_store.update()`. Повторная валидация через Central API происходит только если значение токена изменилось.
+
+**Верифицировано:** `grep "token_store.update\|token_store.remove" src/server/handlers/tokens.rs` — `remove` отсутствует, `update` присутствует.
 
 ---
 
 ## 10. MEDIUM — N+1 API-запросов в `controllers-networks.js`
 
-**Приоритет:** 🟡 Medium  
+**Приоритет:** 🟡 Medium → ✅ Resolved `502a8aa`
 **Файл:** `www/src/js/pages/controllers-networks.js`
 
 ### Описание
 
-```javascript
-// controllers-networks.js
-// Сначала получает список ID (массив строк)
-_nets = (await api.get('/local/controller/networks')||[]).map(id=>({id, _src:'local', name:''}));
+При 10 сетях: 1 запрос за список ID + 10 последовательных запросов деталей = 11 запросов. Каждый инициировал запрос к ZeroTier daemon.
 
-// Затем делает N отдельных запросов — по одному на каждую сеть
-for (let i = 0; i < _nets.length; i++) {
-    try {
-        const d = await api.get(`/local/controller/networks/${_nets[i].id}`);
-        _nets[i] = {..._nets[i],...d,_src:'local'};
-    } catch(e){}
-}
-```
-
-При 10 сетях это 11 последовательных (не параллельных) запросов. Каждый запрос к бэкенду инициирует запрос к ZeroTier daemon.
-
-### Почему это проблема
-
-ZeroTier local API для контроллера не предоставляет эндпоинт "получить все сети с деталями" — только список ID. Тем не менее, N+1 запросы выполняются **последовательно**, а не параллельно.
-
-### Рекомендация
+### Исправление
 
 ```javascript
-// Параллельная загрузка через Promise.allSettled
-const ids = (await api.get('/local/controller/networks')) || [];
-const details = await Promise.allSettled(
-    ids.map(id => api.get(`/local/controller/networks/${id}`))
+// ПОСЛЕ: все запросы параллельно
+const results = await Promise.allSettled(
+    _nets.map(n => api.get(`/local/controller/networks/${n.id}`))
 );
-_nets = details
-    .filter(r => r.status === 'fulfilled')
-    .map(r => ({ ...r.value, _src: 'local' }));
+_nets = _nets.map((n, i) =>
+    results[i].status === 'fulfilled'
+        ? { ...n, ...results[i].value, _src: 'local' }
+        : n
+);
 ```
+
+**Верифицировано:** `grep "Promise.allSettled\|for.*await" www/src/js/pages/controllers-networks.js` → `Promise.allSettled` присутствует, последовательного цикла нет.
 
 ---
 
 ## 11. MEDIUM — Хардкод CSS-значений в `log-panel.js`
 
-**Приоритет:** 🟡 Medium  
-**Файл:** `www/src/js/log-panel.js`
+**Приоритет:** 🟡 Medium → ✅ Resolved `85bc5a2`
+**Файл:** `www/src/js/components/log-panel.js`
 
 ### Описание
 
-```javascript
-// log-panel.js, функция _injectStyles()
-s.textContent = `
-  #log-panel { background:var(--bg-secondary,#1a1a2e); border-top:1px solid var(--border,#2a2a4a); }
-  #log-bar   { background:var(--bg-tertiary,#111122); }
-  // ...
-  .log-badge { background:var(--accent,#6366f1); }
-`;
-```
+`_injectStyles()` использовал переменные `--bg-secondary`, `--border`, `--accent` — несуществующие в `variables.css`. Реальная система именования: `--c-surface`, `--c-border`, `--c-primary`. Всегда применялись хардкоданные fallback-цвета.
 
-Используются CSS-переменные с fallback-значениями: `var(--bg-secondary,#1a1a2e)`, `var(--border,#2a2a4a)`, `var(--accent,#6366f1)`. Но в `variables.css` используется другая система именования: `--c-surface`, `--c-border`, `--c-primary`. Переменные не совпадают, поэтому **всегда** применяются хардкоданные fallback-цвета, а не токены из design system.
+### Исправление
 
-| log-panel.js использует | variables.css определяет |
-|--------------------------|--------------------------|
-| `--bg-secondary` | `--c-surface` |
-| `--border` | `--c-border` |
-| `--accent` | `--c-primary` |
-| `--text` | `--c-text` |
-| `--bg-hover` | `--c-surface2` |
-
-### Рекомендация
-
-Либо вынести стили log-panel в `www/src/css/components.css` с правильными переменными, либо исправить имена:
+Все переменные приведены к системе именования `variables.css`:
 
 ```javascript
-// Использовать реальные переменные из variables.css
-`#log-panel { background: var(--c-surface); border-top: 1px solid var(--c-border); }`
+`#log-panel { background: var(--c-surface,#1a1d27); border-top: 1px solid var(--c-border,#2e3147); }`
+`#log-bar   { background: var(--c-surface2,#222536); }`
+`.log-badge { background: var(--c-primary,#4f7cff); }`
 ```
+
+**Верифицировано:** `grep "bg-secondary\|--accent\|--border\b" www/src/js/components/log-panel.js` — пусто.
 
 ---
 
 ## 12. MEDIUM — Неиспользуемый тип-алиас `PhysNetStateArc`
 
-**Приоритет:** 🟡 Medium  
-**Файл:** `src/server/handlers/physnet.rs`
+**Приоритет:** 🟡 Medium → ✅ Resolved `c474bb1`
+**Файлы:** `src/server/handlers/physnet.rs`, `src/relay/mod.rs`
 
 ### Описание
 
-```rust
-// physnet.rs, строка 15
-pub type PhysNetStateArc = Arc<RwLock<PhysNetState>>;
-```
+`pub type PhysNetStateArc = Arc<RwLock<PhysNetState>>;` и `pub type RelayRemoteState = RwLock<Option<RemoteRelayInfo>>;` нигде не использовались.
 
-Этот тип-алиас нигде не используется — ни внутри модуля, ни в других файлах. Аналогичный алиас определён в конце `relay.rs`:
+### Исправление
 
-```rust
-// relay.rs, последняя строка
-pub type RelayRemoteState = RwLock<Option<RemoteRelayInfo>>;
-```
+Оба алиаса удалены.
 
-`RelayRemoteState` тоже нигде не используется. В `state.rs` поля определены напрямую без этих алиасов.
-
-### Рекомендация
-
-Удалить оба неиспользуемых алиаса. Если они планировались как публичный API для тестов — добавить `#[cfg(test)]` или документацию.
+**Верифицировано:** `grep -rn "PhysNetStateArc\|pub type.*RelayRemote" src/` → ничего.
 
 ---
 
 ## 13. MEDIUM — `PeersPage` определена inline в `shell.html`
 
-**Приоритет:** 🟡 Medium  
-**Файл:** `www/src/html/shell.html`
+**Приоритет:** 🟡 Medium → ✅ Resolved `502a8aa`
+**Файл:** `www/src/js/pages/peers.js` (создан)
 
 ### Описание
 
-Все страницы приложения имеют отдельные файлы в `www/src/js/pages/`. Но `PeersPage` определена прямо в `shell.html` в блоке `<script>`:
+`PeersPage` была определена прямо в `<script>` блоке `shell.html` и использовала `State.get('peers')` без загрузки данных. При прямой навигации на `/peers` список был пустым.
 
-```html
-<!-- shell.html, строки внутри <script> блока -->
-const PeersPage = {
-  init() {
-    const peers = State.get('peers')||[];
-    const rows = peers.map(p => `<tr>...`).join('');
-    document.getElementById('content').innerHTML = `...`;
-  }
-};
-```
+### Исправление
 
-Это нарушает единообразие структуры проекта и усложняет поддержку. Более того, `PeersPage` использует кэшированные данные из `State.get('peers')` — если переходить на `/peers` напрямую без предварительного посещения Dashboard, список окажется пустым (данные не загружены).
-
-### Рекомендация
-
-Создать `www/src/js/pages/peers.js` с полноценной загрузкой данных:
+Создан `www/src/js/pages/peers.js` с полноценной загрузкой:
 
 ```javascript
-const PeersPage = (() => {
-  return {
-    async init() {
-      document.getElementById('content').innerHTML = '<div class="page"><div class="loading-row">...</div></div>';
-      try {
-        const peers = await api.get('/local/peers');
-        State.set('peers', peers);
-        // render...
-      } catch(e) { Toast.error(e.message); }
-    }
-  };
-})();
+async function init() {
+    const peers = await api.get('/local/peers');
+    State.set('peers', peers);
+    render(peers);
+}
 ```
+
+В `shell.html` осталась только строка `Router.on('/peers', () => { PeersPage.init(); })`.
+
+**Верифицировано:** `grep "PeersPage" www/src/html/shell.html` → только строка Router; `ls www/src/js/pages/peers.js` → файл существует с `api.get('/local/peers')`.
 
 ---
 
 ## 14. MEDIUM — Семантическая ошибка в поле `zt_network_id`
 
-**Приоритет:** 🟡 Medium  
+**Приоритет:** 🟡 Medium → ✅ Resolved `c474bb1`
 **Файл:** `src/exitnode/mod.rs`
 
 ### Описание
 
-```rust
-// exitnode/mod.rs
-#[derive(Debug, Clone, Serialize, Default)]
-pub struct ExitNodeState {
-    pub zt_network_id: Option<String>,  // ← поле называется "network_id"
-    // ...
-}
+Поле `zt_network_id: Option<String>` содержало имя ZeroTier-интерфейса (`ztabcd1234e`), а не 16-символьный ID сети (`8056c2e21c000001`). Семантика нарушена.
 
-// Но при включении в него записывается имя ИНТЕРФЕЙСА, а не ID сети:
-pub async fn enable(&self, zt_iface: String, ...) {
-    let new_state = ExitNodeState {
-        zt_network_id: Some(zt_iface),  // ← здесь "ztabcd1234e", не "8056c2e21c000001"
-        // ...
-    };
-}
-```
+### Исправление
 
-Поле называется `zt_network_id`, но содержит имя ZeroTier-интерфейса (например, `ztabcd1234e`), а не 16-символьный ID сети. Это приводит к путанице в API-ответе и в логах.
-
-### Рекомендация
+`ExitNodeState` теперь содержит **оба** поля:
 
 ```rust
 pub struct ExitNodeState {
-    pub zt_interface: Option<String>,  // переименовать для ясности
+    /// ZeroTier interface name (e.g. "ztabcd1234e")
+    pub zt_interface: Option<String>,
+    /// ZeroTier 16-char network ID (e.g. "8056c2e21c000001"), if provided by caller
+    pub zt_network_id: Option<String>,
     // ...
 }
 ```
 
-И обновить соответствующий JSON-ответ в `handlers/exitnode.rs` (`"zt_network_id"` → `"zt_interface"`).
+`zt_interface` заполняется всегда; `zt_network_id` — если передан `network_id` из запроса (используется для проверки `allowDefault`/`allowGlobal`).
+
+**Верифицировано:** `grep "zt_interface\|zt_network_id" src/exitnode/mod.rs` → оба поля присутствуют с корректными комментариями.
 
 ---
 
-## 15. MEDIUM — Отсутствует кнопка сворачивания боковой панели
+## 15. MEDIUM — Отсутствует кнопка toggle sidebar
 
-**Приоритет:** 🟡 Medium  
-**Файл:** `www/src/html/shell.html`, `www/src/css/layout.css`
+**Приоритет:** 🟡 Medium → ✅ Resolved `85bc5a2`
+**Файлы:** `www/src/html/shell.html`, `www/src/css/layout.css`
 
 ### Описание
 
-Sidebar не имеет кнопки скрыть/показать. Это критично для мобильных устройств (где sidebar занимает половину экрана) и полезно на десктопе для работы с широкими таблицами.
+Sidebar не имел кнопки скрыть/показать. Критично для мобильных устройств.
 
-### Рекомендация
+### Исправление
 
-Добавить toggle-кнопку в шапку sidebar и обработчик в JS:
+Добавлены `#sidebar-toggle`, `#mobile-bar`, `#sidebar-overlay` в `shell.html`. Функции `toggleSidebar()` и `closeSidebar()` в inline-скрипте. CSS реализует off-canvas поведение через `transform: translateX(-100%)`.
 
-```html
-<!-- В shell.html, внутри #sidebar -->
-<button id="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('collapsed')"
-        title="Toggle sidebar" aria-label="Toggle navigation">
-  <svg width="20" height="20" viewBox="0 0 20 20">...</svg>
-</button>
-```
-
-```css
-/* layout.css */
-#sidebar.collapsed {
-    width: 52px;
-    overflow: hidden;
-}
-#sidebar.collapsed .nav-section-label,
-#sidebar.collapsed .sidebar-logo-text,
-#sidebar.collapsed .sidebar-logo-sub,
-#sidebar.collapsed .nav-item > span { display: none; }
-#sidebar.collapsed + #content { margin-left: 52px; }
-```
+**Верифицировано:** `grep "sidebar-toggle\|toggleSidebar\|closeSidebar" www/src/html/shell.html` → все три присутствуют.
 
 ---
 
-## 16. MEDIUM — `settings-global.js` не предоставляет UI для `metricstoken_file`
+## 16. MEDIUM — `metricstoken_file` не настраивался через UI
 
-**Приоритет:** 🟡 Medium  
-**Файл:** `www/src/js/pages/settings-global.js`, `src/server/handlers/config.rs`
+**Приоритет:** 🟡 Medium → ✅ Resolved `6d4c76f`
+**Файл:** `www/src/js/pages/settings-global.js`
 
 ### Описание
 
-Бэкенд поддерживает настройку `metricstoken_file` (путь к `metricstoken.secret` для авторизации на ZeroTier metrics endpoint):
+Поле `metricstoken_file` из `MetricsConfig` нельзя было задать через интерфейс — только вручную редактируя `config.yml`.
 
-```rust
-// config/schema.rs
-pub struct MetricsConfig {
-    pub metricstoken_file: std::path::PathBuf,
-    // ...
-}
-```
+### Исправление
 
-Но в UI для метрик отображаются только `prometheus_url` и `poll_interval_seconds`. Поле `metricstoken_file` нельзя настроить через интерфейс. Пользователь не может задать кастомный путь к файлу токена, не редактируя `config.yml` вручную.
-
-### Рекомендация
-
-Добавить поле в секцию Metrics страницы Global Settings:
+В секцию Metrics страницы Global Settings добавлено поле:
 
 ```javascript
-// В settings-global.js
-`<div class="field">
-  <label class="field-label">Metrics Token File</label>
-  <input class="input" id="s-metrics-token" 
-         value="${cfg.metrics?.metricstoken_file||'/var/lib/zerotier-one/metricstoken.secret'}">
-  <div class="text-dim text-sm">Path to metricstoken.secret (leave default if unsure)</div>
-</div>`
+`<input class="input" id="s-metrics-token"
+    value="${cfg.metrics?.metricstoken_file||'/var/lib/zerotier-one/metricstoken.secret'}">`
 ```
 
-И включить в тело запроса `PUT /api/settings/config`:
+Включено в тело `PUT /api/settings/config`.
 
-```javascript
-metrics: {
-    enabled: ...,
-    prometheus_url: ...,
-    poll_interval_seconds: ...,
-    metricstoken_file: document.getElementById('s-metrics-token')?.value?.trim(),
-},
-```
+**Верифицировано:** `grep "s-metrics-token\|metricstoken_file" www/src/js/pages/settings-global.js` → оба присутствуют.
 
 ---
 
-## 17. ✅ RESOLVED — `Modal.prompt` вызывается с optional chaining без реализации
+## 17. MEDIUM — `Modal.prompt` вызывался без реализации
 
-**Приоритет:** 🟢 Resolved (2026-04)  
-**Файл:** `www/src/js/pages/relay.js`, `www/src/js/components/modal.js`
-
-### Статус
-
-`Modal.prompt()` реализован в `www/src/js/components/modal.js` (строка 35). Optional chaining `?.` теперь является лишь защитным слоем, но метод гарантированно существует. Проблема закрыта.
-
----
-
-## 18. MEDIUM — Состояние bridge/physnet/relay не сохраняется между перезапусками
-
-**Приоритет:** 🟡 Medium  
-**Файл:** `src/server/state.rs`
+**Приоритет:** 🟡 Medium → ✅ Resolved (2026-04)
+**Файл:** `www/src/js/components/modal.js`
 
 ### Описание
 
-```rust
-// state.rs
-pub struct AppState {
-    pub physnet_state: Arc<RwLock<PhysNetState>>,   // in-memory
-    pub bridge_state:  Arc<RwLock<BridgeState>>,    // in-memory
-    pub relay_remote:  Arc<RwLock<Option<RemoteRelayInfo>>>, // in-memory
-    // ...
-}
-```
+`Modal.prompt?.()` вызывался через optional chaining — тихий fail при отсутствии метода.
 
-Все три состояния хранятся только в памяти. После перезапуска `ztnet-box`:
-- UI покажет "Bridge: Disabled" и "PhysNet: Inactive", даже если правила iptables/iproute2 фактически активны.
-- Кнопка "Disable" не появится — пользователь не сможет корректно выключить активную конфигурацию через UI.
-- Для relay: ссылка на удалённый relay теряется, и кнопки "Verify" / "Remove" не будут доступны.
+### Исправление
 
-### Рекомендация
+`Modal.prompt()` реализован в `modal.js:35`. Optional chaining теперь — защитный слой, не заглушка.
 
-Сохранять состояния в `config.yml` при изменении, или создать отдельный файл состояния (например, `/var/lib/ztnet-box/state.json`), загружаемый при старте. Для physnet/bridge дополнительно можно зондировать реальное состояние системы (например, `ip link show br0`) при инициализации.
+**Верифицировано:** `grep "prompt" www/src/js/components/modal.js` → `prompt(message, placeholder = '') {` на строке 35.
 
 ---
 
-## 19. MEDIUM — Внешние зависимости: `ssh`, `sshpass` CLI-инструменты
+## 18. MEDIUM — Состояние bridge/physnet/relay не персистировалось
 
-**Приоритет:** 🟡 Medium  
-**Файл:** `src/relay/ssh.rs`
+**Приоритет:** 🟡 Medium → ✅ Resolved `7b0e83e`
+**Файл:** `src/runtime_state.rs` (создан), `src/server/state.rs`
 
 ### Описание
 
-```rust
-// ssh.rs
-let ssh = which::which("ssh").map_err(|e| SshError::NotFound(e.to_string()))?;
-// ...
-let sshpass = which::which("sshpass").map_err(...)?;
-```
+`AppState.physnet_state`, `bridge_state`, `relay_remote` хранились только в памяти. После перезапуска UI показывал «Bridge: Disabled» даже при активных iptables-правилах.
 
-Функциональность relay deploy зависит от внешних системных утилит `ssh` и `sshpass`. Проблемы:
+### Исправление
 
-1. `sshpass` нет по умолчанию на большинстве систем — требует отдельной установки.
-2. `sshpass` передаёт пароль через переменную среды или аргумент командной строки, что делает его видимым через `ps aux`.
-3. Комментарий в коде сам объясняет причину выбора `ssh` вместо Rust SSH crate: _"Avoids heavy crypto dependencies"_. Но это решение ценой безопасности и надёжности.
+Создан `src/runtime_state.rs`:
+- Структура `RuntimeState { physnet, bridge, relay_remote }`
+- Атомарная запись: `write(tmp) → rename(final)` — защита от повреждения при SIGKILL
+- Три варианта пути: `$ZTNET_STATE_FILE` → `/var/lib/ztnet-box/state.json` → XDG user data dir
+- Загрузка в `AppState::new_with_cache()` при старте
+- Метод `AppState::persist_runtime_state()` вызывается в **7 точках мутации**: bridge (enable, disable), physnet (enable, disable), relay (deploy, verify, remove)
 
-### Рекомендация
-
-Рассмотреть `russh` или `ssh2` crate для нативной SSH-поддержки. Если оставлять `ssh`-бинарь — убрать поддержку паролей через `sshpass` и требовать исключительно ключевую аутентификацию.
+**Верифицировано:**
+- `grep -rn "persist_runtime_state" src/server/handlers/` → 7 вхождений (bridge: 2, physnet: 2, relay: 3)
+- `cat src/runtime_state.rs` — полная реализация с тестами roundtrip
 
 ---
 
-## 20. LOW — CSP разрешает `unsafe-inline` для скриптов и стилей
+## 19. MEDIUM — Зависимость от `sshpass`
 
-**Приоритет:** 🟢 Low  
+**Приоритет:** 🟡 Medium → ✅ Resolved `4ed5d12`
+**Файл:** `src/relay/ssh.rs`, `src/relay/mod.rs`
+
+### Описание
+
+`sshpass` передавал пароль через переменную среды/аргумент — виден в `ps aux`. Нет по умолчанию на большинстве систем.
+
+### Исправление
+
+`sshpass` полностью удалён из кода и UI. `RelayDeployConfig` не содержит поля `password`. UI предлагает только `key_path` с пояснением «Key-based auth only. Ensure the key's public part is in `~/.ssh/authorized_keys` on the remote host.»
+
+**Верифицировано:** `grep "password\|sshpass" src/relay/mod.rs` — пусто; `grep "dep-key\|key_path" www/src/js/pages/relay.js` — присутствует.
+
+---
+
+## 20. LOW — CSP: `connect-src *`
+
+**Приоритет:** 🟢 Low → ✅ Resolved `6d4c76f`
 **Файл:** `src/server/router.rs`
 
 ### Описание
 
+`connect-src *` разрешал AJAX к любому домену — при XSS возможна эксфильтрация данных.
+
+### Исправление
+
 ```rust
-// router.rs
-"default-src 'self'; \
- script-src 'self' 'unsafe-inline'; \   // ← XSS-риск
- style-src 'self' 'unsafe-inline'; \    // ← XSS-риск
- img-src 'self' data:; \
- connect-src 'self' *",                 // ← connect-src 'self' * — очень широко
+"connect-src 'self'"
 ```
 
-`'unsafe-inline'` для `script-src` сводит на нет большую часть защиты от XSS, которую даёт CSP. Поскольку весь JS встроен в один HTML-файл (архитектура `build.rs`), использование nonce или hash было бы правильным решением.
+**Верифицировано:** `grep "connect-src" src/server/router.rs` → `connect-src 'self'`.
 
-`connect-src *` разрешает AJAX-запросы к любому домену — это может быть использовано при XSS для эксфильтрации данных.
-
-### Рекомендация
-
-В `build.rs` генерировать случайный nonce при каждой сборке и прописывать его в CSP-заголовок через `SetResponseHeaderLayer`. Либо перейти на `script-src 'self'` с вынесением JS в отдельный файл (не inline).
+> **Примечание:** `script-src 'unsafe-inline'` и `style-src 'unsafe-inline'` остаются — они обусловлены архитектурой (весь JS/CSS инлайнится в один HTML при сборке). Полноценное решение требует переноса JS в отдельный файл или генерации nonce в `build.rs`. Это зафиксировано как будущая задача.
 
 ---
 
-## 21. LOW — `danger_accept_invalid_certs` в ZtLocalClient
+## 21. LOW — `danger_accept_invalid_certs` безусловно
 
-**Приоритет:** 🟢 Low  
+**Приоритет:** 🟢 Low → ✅ Resolved `85bc5a2`
 **Файл:** `src/zerotier/local/client.rs`
 
 ### Описание
 
-```rust
-// local/client.rs
-let http = Client::builder()
-    .danger_accept_invalid_certs(true) // ZT One uses self-signed cert
-    .build()
-    .expect("reqwest client");
-```
+`danger_accept_invalid_certs(true)` применялся безусловно. При настройке `api_url` на удалённый хост — снимал всю TLS-защиту.
 
-Принятие самоподписанных сертификатов обосновано для локального ZeroTier daemon (по умолчанию `http://127.0.0.1:9993` — без TLS вообще). Однако если пользователь настраивает `api_url` на удалённый хост, эта опция снимает всю защиту TLS.
-
-### Рекомендация
-
-Отключать `danger_accept_invalid_certs` если `api_url` не является localhost/loopback, или добавить опцию в конфигурацию:
+### Исправление
 
 ```rust
-let is_loopback = api_url.contains("127.0.0.1") || api_url.contains("localhost") || api_url.contains("[::1]");
+let is_loopback = api_url.contains("127.0.0.1")
+    || api_url.contains("localhost")
+    || api_url.contains("[::1]");
 Client::builder()
     .danger_accept_invalid_certs(is_loopback)
     .build()
 ```
 
+**Верифицировано:** `grep "is_loopback\|danger_accept" src/zerotier/local/client.rs` → оба присутствуют.
+
 ---
 
-## 22. LOW — Дублирование функции `_esc()` в нескольких JS-модулях
+## 22. LOW — Дублирование функции `_esc()`
 
-**Приоритет:** 🟢 Low  
-**Файл:** `www/src/js/log-panel.js`, `www/src/js/pages/settings-ztnode.js`
+**Приоритет:** 🟢 Low → ✅ Resolved `c474bb1`
+**Файл:** `www/src/js/state.js`
 
 ### Описание
 
-Идентичная функция экранирования HTML определена как минимум дважды:
+Функция `_esc(s)` была определена минимум в двух файлах (`log-panel.js`, `settings-ztnode.js`) с незначительным расхождением (отсутствие `&quot;` в одной копии).
 
-```javascript
-// log-panel.js
-function _esc(s) {
-    return String(s)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+### Исправление
 
-// settings-ztnode.js
-function _esc(s) {
-    return String(s)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-    // ← без &quot; — незначительное расхождение
-}
-```
-
-Глобальная область видимости (все модули через IIFE) позволяет вынести утилиту в общий файл.
-
-### Рекомендация
-
-Добавить в `www/src/js/state.js` или создать `www/src/js/utils.js`:
+Единственная каноническая реализация `Utils.esc()` добавлена в `state.js`:
 
 ```javascript
 const Utils = (() => {
     function esc(s) {
         return String(s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
     return { esc };
 })();
 ```
 
+Все вызовы `_esc()` в кодовой базе заменены на `Utils.esc()`.
+
+**Верифицировано:** `grep -rn "function _esc\|_esc(" www/src/js/` → пусто. `grep "Utils.esc" www/src/js/` → 8 вхождений в pages/ и components/.
+
 ---
 
 ## 23. LOW — Backend-эндпоинты без покрытия во Frontend
 
-**Приоритет:** 🟢 Low  
-**Файл:** различные
+**Приоритет:** 🟢 Low → ✅ Resolved `1760c78`
 
-### Описание
+### Статус по каждому эндпоинту
 
-Следующие API-эндпоинты реализованы на бэкенде, но не вызываются фронтендом:
-
-| Эндпоинт | Назначение | Статус во Frontend |
-|----------|-----------|-------------------|
-| `GET /api/system/zt-status` | Детектирование установки ZeroTier | ✅ Dashboard (banner + install btn) |
-| `POST /api/system/zt-install` | Установка ZeroTier | ✅ Dashboard `_installZt()` |
-| `GET /api/central/status` | Статус Central API аккаунта | ⚪ Diagnostic — intentionally not in UI |
-| `GET /api/central/user` | Информация о пользователе Central | ⚪ Diagnostic — intentionally not in UI |
-| `GET /api/metrics/raw` | Raw Prometheus метрики | ⚪ For external scraping — not needed in UI |
-| `GET /api/local/networks/:id/localconf` | Per-network local.conf (allowDefault и др.) | ⚪ Future: network detail page |
-| `PUT /api/local/networks/:id/localconf` | Обновление per-network local.conf | ⚪ Future: network detail page |
-| `GET /api/logs/level` | Текущий уровень логирования | ✅ LogPanel sync on init |
-| `GET /api/local/config` | Настройки ZeroTier node (local.conf) | ✅ Покрыт `settings-ztnode.js` |
-| `PUT /api/local/config` | Обновление настроек ZeroTier node | ✅ Покрыт `settings-ztnode.js` |
-| `GET /api/settings/config` | Настройки ztnet-box (config.yml) | ✅ Покрыт `settings-global.js` |
-| `PUT /api/settings/config` | Обновление настроек ztnet-box | ✅ Покрыт `settings-global.js` |
-| `GET /api/exitnode/ndp/status` | Статус ndppd | ✅ Покрыт `exitnode.js` |
-| `POST /api/exitnode/ndp/install` | Установка ndppd | ✅ Покрыт `exitnode.js` |
-| `POST /api/exitnode/ndp/enable` | Включение NDP Proxy | ✅ Покрыт `exitnode.js` |
-| `POST /api/exitnode/ndp/disable` | Отключение NDP Proxy | ✅ Покрыт `exitnode.js` |
-
-Особенно важны `zt-status`/`zt-install` — они были бы полезны на Dashboard для помощи пользователям без установленного ZeroTier.
+| Эндпоинт | Статус | Где покрыт |
+|---|---|---|
+| `GET /api/system/zt-status` | ✅ Покрыт | `dashboard.js` — баннер установки ZT |
+| `POST /api/system/zt-install` | ✅ Покрыт | `dashboard.js` — кнопка Install |
+| `GET /api/logs/level` | ✅ Покрыт | `log-panel.js` — sync при `_loadInitial()` |
+| `PUT /api/logs/level` | ✅ Покрыт | `log-panel.js` — `_setLevel()` |
+| `GET /api/central/status` | ⚪ Диагностический | Намеренно не в UI |
+| `GET /api/central/user` | ⚪ Диагностический | Намеренно не в UI |
+| `GET /api/metrics/raw` | ⚪ Для внешнего скрапинга | Намеренно не в UI |
+| `GET /api/local/networks/:id/localconf` | ⚪ Будущее | Задел для страницы деталей сети |
+| `PUT /api/local/networks/:id/localconf` | ⚪ Будущее | Задел для страницы деталей сети |
 
 ---
 
-## 24. LOW — `#[allow(clippy::derivable_impls)]` на `Default` для `Config`
+## 24. LOW — `#[allow(clippy::derivable_impls)]`
 
-**Приоритет:** 🟢 Low  
+**Приоритет:** 🟢 Low → ✅ Resolved `c474bb1`
 **Файл:** `src/config/schema.rs`
 
 ### Описание
 
+`Config` и `ZeroTierConfig` имели ручные `impl Default` с `#[allow(clippy::derivable_impls)]` вместо `#[derive(Default)]`.
+
+### Исправление
+
 ```rust
-#[allow(clippy::derivable_impls)]
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            server: ServerConfig::default(),
-            zerotier: ZeroTierConfig::default(),
-            metrics: MetricsConfig::default(),
-            exitnode: ExitNodeConfig::default(),
-        }
-    }
-}
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Config { ... }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ZeroTierConfig { ... }
 ```
 
-Clippy предупреждает, что `Default` можно вывести через `#[derive(Default)]`. Вместо исправления добавлен `allow`. То же для `ZeroTierConfig`. Если кастомная логика в `Default` не требуется — следует использовать `#[derive(Default)]`.
+Остальные структуры (`ServerConfig`, `LocalConfig`, `MetricsConfig` и др.) оставили ручные `impl Default` — в них нетривиальные значения по умолчанию (URL, порты, пути), которые Clippy справедливо не считает derivable.
+
+**Верифицировано:** `grep "allow.*clippy" src/config/schema.rs` → пусто; `grep -rn "allow.*clippy" src/` → пусто во всей кодовой базе.
 
 ---
 
-## 25. LOW — Заглушка в `exitnode_manager.enable()`: `zt_network_id` не передаётся
+## 25. LOW — Заглушка: `network_id` не передавался в `enable()`
 
-**Приоритет:** 🟢 Low  
-**Файл:** `src/server/handlers/exitnode.rs`, `src/exitnode/mod.rs`
+**Приоритет:** 🟢 Low → ✅ Resolved `502a8aa`
+**Файлы:** `src/server/handlers/exitnode.rs`, `src/exitnode/mod.rs`
 
 ### Описание
 
-Хендлер `enable` получает опциональный `network_id` для проверки `allowDefault` и проверок, но не передаёт его в `ExitNodeManager::enable()`:
+Хендлер получал `req.network_id`, но не передавал его в `ExitNodeManager::enable()`. В `ExitNodeState.zt_network_id` всегда было `None`.
+
+### Исправление
+
+Сигнатура `enable()` расширена:
 
 ```rust
-// handlers/exitnode.rs
-let state = s.exitnode_manager
-    .enable(
-        req.zt_interface,
-        req.wan_interface,
-        req.enable_ipv6,
-        req.ipv6_prefix,
-        // ← req.network_id НЕ передаётся
-    ).await?;
-```
-
-```rust
-// exitnode/mod.rs — сигнатура метода
 pub async fn enable(
     &self,
     zt_iface: String,
     wan_iface: String,
     enable_ipv6: bool,
     ipv6_prefix: Option<String>,
-    // ← network_id отсутствует
+    network_id: Option<String>,   // ← добавлено
 ) -> Result<ExitNodeState, ApiError>
 ```
 
-В результате `ExitNodeState.zt_network_id` всегда содержит имя интерфейса (см. п. 14), и реальный `network_id` нигде не сохраняется для дальнейшего использования.
+`network_id` используется для проверки `allowDefault`/`allowGlobal` в `<net_id>.local.conf` и сохраняется в `ExitNodeState.zt_network_id`.
+
+**Верифицировано:** хендлер передаёт `req.network_id` в пятом аргументе; в `ExitNodeState` оба поля (`zt_interface`, `zt_network_id`) заполняются корректно.
+
+---
+
+## 26. HIGH (CI) — Unused params в cfg-гейтированных ndp-функциях
+
+**Приоритет:** 🔴 High (CI breakage) → ✅ Resolved `d39f17b`
+**Файл:** `src/exitnode/ndp.rs`
+
+### Описание
+
+Функции `enable(cfg: &NdpConfig)` и `disable(remove_config: bool)` использовали `#[cfg(not(target_os = "linux"))]` для ранних return. На не-Linux платформах параметры оставались неиспользованными → `warning: unused variable` → ошибка компиляции из-за `RUSTFLAGS="-D warnings"`.
+
+### Исправление
+
+Каждая функция разделена на два отдельных `#[cfg]`-гейтированных определения:
+
+```rust
+#[cfg(target_os = "linux")]
+pub fn enable(cfg: &NdpConfig) -> Result<NdpStatus, NdpError> { /* полная реализация */ }
+
+#[cfg(not(target_os = "linux"))]
+pub fn enable(_cfg: &NdpConfig) -> Result<NdpStatus, NdpError> {
+    Err(NdpError::UnsupportedPlatform("ndppd requires Linux".into()))
+}
+```
+
+Аналогично для `install()` и `disable()`.
+
+**Верифицировано:** `grep "cfg.*target_os\|fn enable\|fn disable\|fn install" src/exitnode/ndp.rs` → все три функции имеют парные определения.
+
+---
+
+## 27. HIGH — Утечка `tokio::spawn` в Rate Limiter (пост-аудит)
+
+**Приоритет:** 🔴 High → ✅ Resolved `55a3b51`
+**Файл:** `src/zerotier/central/token_store.rs`
+
+### Описание
+
+`RateLimiter::new()` вызывает `tokio::spawn()` — порождает вечную фоновую задачу рефила. `ZtCentralClient` создавался при **каждом входящем HTTP-запросе** через `TokenStore::active_client()`:
+
+```rust
+// ДО: новый клиент (→ новый tokio::spawn) на каждый запрос
+pub async fn active_client(&self) -> Option<ZtCentralClient> {
+    Some(ZtCentralClient::new(...))  // ← O(requests) утечка задач
+}
+```
+
+11 Central-эндпоинтов × N запросов = N вечных Tokio-задач. Задачи не имели механизма завершения (`Drop` на `ZtCentralClient` не останавливал их).
+
+### Исправление
+
+В `TokenStoreInner` добавлено поле `cached_client: Option<(String, ZtCentralClient)>`.
+
+`active_client()` использует паттерн **double-checked locking**:
+1. Быстрый путь: проверяет кеш под `read`-lock
+2. Медленный путь: перестраивает под `write`-lock с повторной проверкой (защита от race condition)
+
+```rust
+pub async fn active_client(&self) -> Option<ZtCentralClient> {
+    // Fast path: read lock
+    {
+        let inner = self.inner.read().await;
+        if let Some((ref id, ref client)) = inner.cached_client {
+            if *id == inner.active_token_id { return Some(client.clone()); }
+        }
+    }
+    // Slow path: write lock + re-check
+    let mut inner = self.inner.write().await;
+    if let Some((ref id, ref client)) = inner.cached_client {
+        if *id == inner.active_token_id { return Some(client.clone()); }
+    }
+    let token = inner.tokens.iter().find(|t| t.id == inner.active_token_id)?;
+    let client = ZtCentralClient::new(self.base_url.clone(), token.token.clone(), &token.rate_limit);
+    inner.cached_client = Some((token.id.clone(), client.clone()));
+    Some(client)
+}
+```
+
+Кеш инвалидируется (`cached_client = None`) в каждом мутирующем методе: `add()`, `remove()`, `set_active()`, `update()`.
+
+**Результат:** `tokio::spawn` вызывается не более одного раза на жизненный цикл активного токена, независимо от числа HTTP-запросов.
+
+**Верифицировано:** `grep "cached_client\|invalidate_cache" src/zerotier/central/token_store.rs` → поле и метод присутствуют; все 4 мутирующих метода вызывают `Self::invalidate_cache(&mut inner).await`.
+
+---
+
+## 28. MEDIUM — Нет таймаута SSH-соединения при deploy (пост-аудит)
+
+**Приоритет:** 🟡 Medium → ✅ Resolved `55a3b51`
+**Файл:** `src/relay/ssh.rs`
+
+### Описание
+
+`SshClient::run()` использует `std::process::Command` без `ConnectTimeout`. Если удалённый хост молча дропает пакеты (firewall DROP, не RST), `ssh` будет ждать несколько минут до системного TCP-таймаута. Функция выполняется в `tokio::task::spawn_blocking` — поток из пула блокируется всё это время. Кроме того, при зависшем соединении `ServerAliveInterval` не был настроен, что не позволяло обнаружить разрыв в ходе выполнения команд.
+
+### Исправление
+
+```rust
+// ConnectTimeout: обрывает TCP-рукопожатие через 15 с
+"-o".into(), "ConnectTimeout=15".into(),
+// ServerAlive: обнаруживает молчащее соединение за 30 с (10 с × 3 попытки)
+"-o".into(), "ServerAliveInterval=10".into(),
+"-o".into(), "ServerAliveCountMax=3".into(),
+```
+
+**Максимальное время зависания** сведено с неопределённого (минуты) до **~45 секунд** (15 с connect + 30 с keepalive).
+
+**Верифицировано:** `grep "ConnectTimeout\|ServerAlive" src/relay/ssh.rs` → все три опции присутствуют.
 
 ---
 
 ## Итоговая таблица
 
-| # | Приоритет | Компонент | Проблема | Статус |
-|---|-----------|-----------|----------|--------|
-| 1 | ✅ Resolved | Build | `log-panel.js` не включался в бандл → перемещён в `components/` | ✅ `d53a1c2` |
-| 2 | ✅ Resolved | Rust | Rate limiter не работал (permit сразу дропался) — исправлен `.forget()` | ✅ `d53a1c2` |
-| 3 | ✅ Resolved | JS ↔ API | POST вместо PUT для update controller network → исправлено | ✅ `d53a1c2` |
-| 4 | ✅ Resolved | Security | SSH: `StrictHostKeyChecking=no` → `accept-new` | ✅ `6d4c76f` |
-| 5 | ✅ Resolved | Security | Docker install via `curl \| sh` → apt/dnf/pacman | ✅ `6d4c76f` |
-| 6 | ✅ Resolved | Security | SSH-пароль: добавлено UI-предупреждение об HTTPS | ✅ `6d4c76f` |
-| 7 | ✅ Resolved | Frontend | Нет мобильной адаптации (`@media` queries) | ✅ `85bc5a2` |
-| 8 | ✅ Resolved | Rust | `rand_byte()` → `getrandom::getrandom()` — 6 байт, без fallback | ✅ `c474bb1` |
-| 9 | ✅ Resolved | Rust | `update_token` уничтожал UUID — исправлено через `TokenStore::update()` | ✅ `c474bb1` |
-| 10 | ✅ Resolved | JS | N+1 последовательных запросов в controllers-networks | ✅ `502a8aa` |
-| 11 | ✅ Resolved | CSS/JS | Хардкод CSS-значений в `log-panel.js` (несовместимые переменные) | ✅ `85bc5a2` |
-| 12 | ✅ Resolved | Rust | Неиспользуемый тип-алиас `PhysNetStateArc` | ✅ `c474bb1` |
-| 13 | ✅ Resolved | Frontend | `PeersPage` inline в `shell.html`, не загружает данные при прямом переходе | ✅ `502a8aa` |
-| 14 | ✅ Resolved | Rust | Поле `zt_network_id` содержало имя интерфейса — переименовано в `zt_interface` | ✅ `c474bb1` |
-| 15 | ✅ Resolved | Frontend | Нет кнопки toggle sidebar (мобильная и десктоп UX) | ✅ `85bc5a2` |
-| 16 | ✅ Resolved | Frontend | `metricstoken_file` добавлено в Settings UI | ✅ `6d4c76f` |
-| 17 | ✅ Resolved | Frontend | `Modal.prompt?.()` — тихий fail при отсутствии метода | ✅ Решён (2026-04) |
-| 18 | ✅ Resolved | Rust | bridge/physnet/relay state — персистентность через runtime_state.rs | ✅ `7b0e83e` |
-| 19 | ✅ Resolved | Rust | sshpass удалён, только key-based auth; ssh binary оставлен (OpenSSH) | ✅ `4ed5d12` |
-| 20 | ✅ Resolved | Security | CSP: `connect-src *` → `connect-src 'self'` | ✅ `6d4c76f` |
-| 21 | ✅ Resolved | Security | `danger_accept_invalid_certs(true)` безусловно — исправлено is_loopback | ✅ `85bc5a2` |
-| 22 | ✅ Resolved | Frontend | Дублирование функции `_esc()` — вынесена в `Utils.esc()` | ✅ `c474bb1` |
-| 23 | ✅ Resolved | Frontend | zt-status/install, logs/level покрыты; remaining 6 low-value debug endpoints | ✅ `1760c78` |
-| 24 | ✅ Resolved | Rust | `#[allow(clippy::derivable_impls)]` → `#[derive(Default)]` | ✅ `c474bb1` |
-| 25 | ✅ Resolved | Rust | `network_id` теперь передаётся в `ExitNodeManager::enable()` | ✅ `502a8aa` |
-| 26 | 🔴 High | CI/Cross | `ndp.rs`: unused params на не-Linux → `-D warnings` → ошибка сборки macOS/Windows | ✅ Исправлен `d39f17b` |
+| # | Приоритет | Компонент | Проблема | Статус | Коммит |
+|---|---|---|---|---|---|
+| 1 | 🔴 Critical | Build | `log-panel.js` не включался в бандл | ✅ | `d53a1c2` |
+| 2 | 🔴 High | Rust | Rate limiter не работал (permit сразу дропался) | ✅ | `d53a1c2` |
+| 3 | 🔴 High | JS ↔ API | POST вместо PUT для update controller network | ✅ | `d53a1c2` |
+| 4 | 🔴 High | Security | SSH `StrictHostKeyChecking=no` → MITM | ✅ | `6d4c76f` |
+| 5 | 🔴 High | Security | Docker install via `curl \| sh` | ✅ | `6d4c76f` |
+| 6 | 🔴 High | Security | SSH-пароль в JSON по HTTP | ✅ | `6d4c76f` + `4ed5d12` |
+| 7 | 🔴 High | Frontend | Нет мобильной адаптации (`@media` queries) | ✅ | `85bc5a2` |
+| 8 | 🔴 High | Rust | `rand_byte()` — `/dev/urandom` + константный fallback | ✅ | `c474bb1` |
+| 9 | 🟡 Medium | Rust | `update_token` уничтожал UUID токена | ✅ | `c474bb1` |
+| 10 | 🟡 Medium | JS | N+1 последовательных запросов в controllers-networks | ✅ | `502a8aa` |
+| 11 | 🟡 Medium | CSS/JS | Несовместимые CSS-переменные в `log-panel.js` | ✅ | `85bc5a2` |
+| 12 | 🟡 Medium | Rust | Неиспользуемый тип-алиас `PhysNetStateArc` | ✅ | `c474bb1` |
+| 13 | 🟡 Medium | Frontend | `PeersPage` inline в `shell.html`, нет загрузки данных | ✅ | `502a8aa` |
+| 14 | 🟡 Medium | Rust | `zt_network_id` содержал имя интерфейса | ✅ | `c474bb1` |
+| 15 | 🟡 Medium | Frontend | Нет кнопки toggle sidebar | ✅ | `85bc5a2` |
+| 16 | 🟡 Medium | Frontend | `metricstoken_file` нельзя задать через UI | ✅ | `6d4c76f` |
+| 17 | 🟡 Medium | Frontend | `Modal.prompt?.()` — тихий fail | ✅ | (2026-04) |
+| 18 | 🟡 Medium | Rust | bridge/physnet/relay state — только in-memory | ✅ | `7b0e83e` |
+| 19 | 🟡 Medium | Security | `sshpass` — пароль виден в `ps aux` | ✅ | `4ed5d12` |
+| 20 | 🟢 Low | Security | CSP `connect-src *` | ✅ | `6d4c76f` |
+| 21 | 🟢 Low | Security | `danger_accept_invalid_certs(true)` безусловно | ✅ | `85bc5a2` |
+| 22 | 🟢 Low | Frontend | Дублирование `_esc()` в нескольких модулях | ✅ | `c474bb1` |
+| 23 | 🟢 Low | Frontend | Backend-эндпоинты без покрытия во Frontend | ✅ | `1760c78` |
+| 24 | 🟢 Low | Rust | `#[allow(clippy::derivable_impls)]` | ✅ | `c474bb1` |
+| 25 | 🟢 Low | Rust | `network_id` не передавался в `ExitNodeManager::enable()` | ✅ | `502a8aa` |
+| 26 | 🔴 High (CI) | Rust | Unused params в cfg-гейтированных ndp-функциях | ✅ | `d39f17b` |
+| 27 | 🔴 High | Rust | Утечка `tokio::spawn` в rate limiter — новый клиент на каждый запрос | ✅ | `55a3b51` |
+| 28 | 🟡 Medium | Rust | SSH deploy без `ConnectTimeout` — зависание на firewalled-хостах | ✅ | `55a3b51` |
+
+**Итого: 28 пунктов — все закрыты. Открытых проблем нет.**
 
 ---
 
 ## Рекомендации по архитектуре
 
-### 1. Персистентность состояния
+### 1. CSP: убрать `unsafe-inline`
 
-Добавить `StateStore` — тонкий слой поверх `config.yml` или отдельного `state.json` для bridge/physnet/relay. При старте приложения зондировать реальное состояние ОС (например, `ip link show br0 2>/dev/null`) и синхронизировать с сохранённым.
+Текущий `script-src 'unsafe-inline'` сводит на нет XSS-защиту CSP. Правильное решение — вынести весь JS в отдельный файл и использовать `script-src 'self'`, либо генерировать nonce в `build.rs` и прописывать его в заголовке через `SetResponseHeaderLayer`.
 
-### 2. Сборка фронтенда
+### 2. Rate Limiter — рассмотреть `governor` crate
 
-`build.rs` собирает весь фронтенд в одну строку внутри Rust-компиляции. Это нестандартно и хрупко (баг с `log-panel.js` — наглядный пример). Рассмотреть:
-- Именованный список всех JS-файлов в `build.rs` вместо glob (явное лучше неявного).
-- Или вынести сборку в `Makefile`/`justfile` с простым `cat` для сохранения текущей архитектуры.
+Текущая реализация (семафор + рефил-задача) корректна, но самописна. Крейт [`governor`](https://crates.io/crates/governor) предоставляет зрелую token-bucket реализацию с поддержкой burst, jitter и GCRA.
 
-### 3. Relay deploy
+### 3. Relay SSH — нативный Rust SSH
 
-Relay deploy через SSH-бинарь — самое хрупкое место проекта. Если эта функциональность важна, стоит:
-- Реализовать через нативный Rust SSH (crate `russh` или `ssh2`).
-- Или задокументировать как "advanced feature" с чётким предупреждением о безопасности.
-- Убрать поддержку пароля через `sshpass`.
+`ssh` бинарь как внешняя зависимость — хрупкое место. Крейты [`russh`](https://crates.io/crates/russh) или [`ssh2`](https://crates.io/crates/ssh2) дадут нативную SSH-поддержку без внешних утилит, с программным управлением таймаутами и known_hosts.
 
-### 4. Rate Limiter
+### 4. Покрытие per-network localconf в UI
 
-После исправления бага (п. 2) рассмотреть использование `governor` crate вместо самописного семафора — это зрелая реализация token bucket с поддержкой burst.
+`GET/PUT /api/local/networks/:id/localconf` реализованы на бэкенде, но не покрыты UI. Страница деталей сети с возможностью выставить `allowDefault`, `allowGlobal`, `allowManaged` напрямую из интерфейса была бы логичным следующим шагом.
 
-### 5. Мобильность UI
+### 5. Сборка фронтенда
 
-Структурный подход к мобильной адаптации:
-1. Сначала реализовать `@media (max-width: 768px)` в `layout.css` (скрыть sidebar).
-2. Добавить кнопку toggle и оверлей в `shell.html`.
-3. Проверить overflow для каждой страницы (особенно таблицы в controllers-networks, dashboard peers).
-
----
-
-## 26. ✅ RESOLVED — Cross-platform: unused params в cfg-гейтированных ndp-функциях
-
-**Приоритет:** 🔴 High (CI breakage)  
-**Файл:** `src/exitnode/ndp.rs`  
-**Коммит исправления:** `d39f17b` (2026-04-13)
-
-### Описание
-
-Функции `enable(cfg: &NdpConfig)` и `disable(remove_config: bool)` использовали паттерн с `#[cfg(not(target_os = "linux"))] return Err(...)` + `#[cfg(target_os = "linux")] { ... use params ... }`. На не-Linux (macOS, Windows) параметры `cfg` и `remove_config` оставались неиспользуемыми — `warning: unused variable` → ошибка компиляции из-за `RUSTFLAGS="-D warnings"`.
-
-Тот же баг был в `install()` — потенциальный `clippy::needless_return` когда linux-блок убирается.
-
-### Исправление
-
-Разделены на два отдельных `#[cfg]`-гейтированных определения функции:
-- `#[cfg(target_os = "linux")]` — полная реализация с правильными именами параметров.
-- `#[cfg(not(target_os = "linux"))]` — заглушка с `_cfg` / `_remove_config`.
-
-Паттерн соответствует уже существующему в `src/bridge/deps.rs` (`_prefer_remove_conflicts`).
+`build.rs` работает корректно после перемещения `log-panel.js` в `components/`. Для дальнейшей надёжности — явный именованный список всех JS-файлов вместо glob по директориям: «явное лучше неявного», и новый файл не может случайно выпасть из бандла.
 
 ---
 
 ## История исправлений
 
-Все 26 пунктов аудита закрыты. Ниже — коммиты по каждому блоку:
-
-| Коммиты | Исправленные пункты |
-|---------|---------------------|
-| `d53a1c2` | #1 (log-panel бандл), #2 (rate limiter), #3 (POST→PUT controller) |
-| `c474bb1` | #8 (getrandom), #9 (update_token UUID), #12 (PhysNetStateArc), #14 (zt_interface), #22 (Utils.esc), #24 (derive Default) |
-| `502a8aa` | #10 (Promise.allSettled), #13 (peers.js), #25 (network_id в enable) |
-| `85bc5a2` | #7 (мобильная адаптация @media), #11 (CSS vars log-panel), #15 (sidebar toggle), #21 (TLS is_loopback) |
-| `6d4c76f` | #4 (SSH accept-new), #5 (Docker pm install), #6 (password warning UI), #16 (metricstoken_file UI), #20 (CSP connect-src) |
-| `1760c78` | #23 (zt-status/install dashboard, logs/level LogPanel) |
-| `7b0e83e` + `d33bbdf` | #18 (runtime_state.rs — персистентность bridge/physnet/relay) |
-| `4ed5d12` + `6cfe9b8` | #19 (sshpass удалён, key-auth only; relay handler fix) |
-| `d39f17b` | #26 (cross-platform cfg-gated ndp функции) |
+| Коммит | Пункты |
+|---|---|
+| `d53a1c2` | #1, #2, #3 |
+| `c474bb1` | #8, #9, #12, #14, #22, #24 |
+| `502a8aa` | #10, #13, #25 |
+| `85bc5a2` | #7, #11, #15, #21 |
+| `6d4c76f` | #4, #5, #6, #16, #20 |
+| `1760c78` | #23 |
+| `7b0e83e` + `d33bbdf` | #18 |
+| `4ed5d12` + `6cfe9b8` | #19 |
+| `d39f17b` | #26 |
+| `55a3b51` | #27, #28 |
