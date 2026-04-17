@@ -13,6 +13,10 @@ pub struct TokenStore {
 struct TokenStoreInner {
     tokens: Vec<CentralToken>,
     active_token_id: String,
+    /// Cached client for the active token. Rebuilt only when the active token
+    /// changes (set_active / add / remove / update). This prevents spawning a
+    /// new RateLimiter refill task (tokio::spawn) on every incoming request.
+    cached_client: Option<(String, ZtCentralClient)>, // (token_id, client)
 }
 
 impl TokenStore {
@@ -22,6 +26,7 @@ impl TokenStore {
             inner: Arc::new(RwLock::new(TokenStoreInner {
                 tokens,
                 active_token_id,
+                cached_client: None,
             })),
         }
     }
@@ -31,18 +36,46 @@ impl TokenStore {
         self
     }
 
-    /// Возвращает клиент активного токена или None если нет активного.
+    /// Returns the client for the active token, reusing the cached instance
+    /// when the active token has not changed. This ensures the RateLimiter's
+    /// background refill task is created at most once per token, not once per
+    /// request.
     pub async fn active_client(&self) -> Option<ZtCentralClient> {
-        let inner = self.inner.read().await;
+        // Fast path: check cache under read lock
+        {
+            let inner = self.inner.read().await;
+            if let Some((ref cached_id, ref client)) = inner.cached_client {
+                if *cached_id == inner.active_token_id {
+                    return Some(client.clone());
+                }
+            }
+        }
+
+        // Slow path: rebuild under write lock
+        let mut inner = self.inner.write().await;
+        // Re-check after acquiring write lock (another task may have rebuilt it)
+        if let Some((ref cached_id, ref client)) = inner.cached_client {
+            if *cached_id == inner.active_token_id {
+                return Some(client.clone());
+            }
+        }
         let token = inner
             .tokens
             .iter()
             .find(|t| t.id == inner.active_token_id)?;
-        Some(ZtCentralClient::new(
+        let client = ZtCentralClient::new(
             self.base_url.clone(),
             token.token.clone(),
             &token.rate_limit,
-        ))
+        );
+        inner.cached_client = Some((token.id.clone(), client.clone()));
+        Some(client)
+    }
+
+    /// Invalidate the cached client so it is rebuilt on the next call to
+    /// `active_client`. Call after any mutation that changes the active token.
+    async fn invalidate_cache(inner: &mut TokenStoreInner) {
+        inner.cached_client = None;
     }
 
     pub async fn add(&self, name: String, token: String, rate_limit: RateLimit) -> CentralToken {
@@ -52,6 +85,7 @@ impl TokenStore {
             inner.active_token_id = t.id.clone();
         }
         inner.tokens.push(t.clone());
+        Self::invalidate_cache(&mut inner).await;
         t
     }
 
@@ -66,13 +100,18 @@ impl TokenStore {
                 .map(|t| t.id.clone())
                 .unwrap_or_default();
         }
-        inner.tokens.len() < before
+        let removed = inner.tokens.len() < before;
+        if removed {
+            Self::invalidate_cache(&mut inner).await;
+        }
+        removed
     }
 
     pub async fn set_active(&self, id: &str) -> bool {
         let mut inner = self.inner.write().await;
         if inner.tokens.iter().any(|t| t.id == id) {
             inner.active_token_id = id.to_string();
+            Self::invalidate_cache(&mut inner).await;
             true
         } else {
             false
@@ -116,6 +155,9 @@ impl TokenStore {
         t.name = name;
         t.token = token;
         t.rate_limit = rate_limit;
-        Some(t.clone())
+        let updated = t.clone();
+        // Token value or rate_limit may have changed — rebuild client
+        Self::invalidate_cache(&mut inner).await;
+        Some(updated)
     }
 }

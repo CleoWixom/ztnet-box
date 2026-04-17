@@ -48,6 +48,16 @@ impl SshClient {
             // This ensures key auth is required; password prompts are suppressed.
             "-o".into(),
             "BatchMode=yes".into(),
+            // Abort TCP handshake after 15 s so a firewalled host doesn't
+            // block the deploy handler indefinitely.
+            "-o".into(),
+            "ConnectTimeout=15".into(),
+            // Detect a silent mid-session disconnect: send a keepalive every
+            // 10 s and give up after 3 missed replies (30 s total).
+            "-o".into(),
+            "ServerAliveInterval=10".into(),
+            "-o".into(),
+            "ServerAliveCountMax=3".into(),
         ];
 
         if let Some(ref key) = self.key_path {
