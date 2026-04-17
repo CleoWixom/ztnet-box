@@ -13,7 +13,7 @@ const CtrlMembersPage = (() => {
   }
 
   function renderPanel(m) {
-    return `<div class="panel-overlay active" id="member-panel" onclick="e=>{if(e.target.id==='member-panel')CtrlMembersPage._closePanel()}">
+    return `<div class="panel-overlay active" id="member-panel" onclick="if(event.target.id==='member-panel')CtrlMembersPage._closePanel()">
       <div class="side-panel">
         <div class="panel-header">
           <div><div style="font-weight:600">${m.node_id||m.nodeId||m.address||'Member'}</div>

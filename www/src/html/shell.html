@@ -46,7 +46,7 @@
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="5" y="9" width="6" height="6" rx="1"/></svg>
           Networks
         </div>
-        <div class="nav-item" data-route="/controllers/members" onclick="Router.navigate('/controllers/networks')">
+        <div class="nav-item" data-route="/controllers/networks" onclick="Router.navigate('/controllers/networks')" title="Select a network to view members">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="5" r="3"/><path d="M1 14c0-3.3 3.1-6 7-6s7 2.7 7 6H1z"/></svg>
           Members
         </div>
@@ -57,18 +57,22 @@
         <div class="nav-item" data-route="/exitnode" onclick="Router.navigate('/exitnode')">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1L15 8l-7 7-1.5-1.5L11 9H1V7h10L6.5 2.5 8 1z"/></svg>
           Exit Node
+          <span id="nav-exitnode-badge" class="nav-badge" style="display:none"></span>
         </div>
         <div class="nav-item" data-route="/physnet" onclick="Router.navigate('/physnet')">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1 8h14M8 1v14" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="8" cy="8" r="3" fill="currentColor"/></svg>
           Phys Routing
+          <span id="nav-physnet-badge" class="nav-badge" style="display:none"></span>
         </div>
         <div class="nav-item" data-route="/bridge" onclick="Router.navigate('/bridge')">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1 10h3V6H1M12 6v4h3M4 8h8M4 6v4M12 6v4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
           L2 Bridge
+          <span id="nav-bridge-badge" class="nav-badge" style="display:none"></span>
         </div>
         <div class="nav-item" data-route="/relay" onclick="Router.navigate('/relay')">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2v12M2 8h12M5 5l6 6M11 5l-6 6" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
           TCP Relay
+          <span id="nav-relay-badge" class="nav-badge" style="display:none"></span>
         </div>
       </div>
 
@@ -94,6 +98,7 @@
     </nav>
 
     <div class="sidebar-footer">
+      <div id="sidebar-zt-status" class="sidebar-zt-dot" title="ZeroTier status"></div>
       <div id="sidebar-version">v{{VERSION}}</div>
     </div>
   </nav>
@@ -134,9 +139,34 @@ document.querySelectorAll('.nav-item').forEach(el => {
   el.addEventListener('click', () => { if (window.innerWidth <= 768) closeSidebar(); });
 });
 
+// ── Mobile bar title — updates on navigation ─────────────────────────────────
+const _routeTitles = {
+  '/dashboard':            'Dashboard',
+  '/peers':                'Peers',
+  '/networks':             'Networks',
+  '/controllers/networks': 'Controllers',
+  '/exitnode':             'Exit Node',
+  '/physnet':              'Phys Routing',
+  '/bridge':               'L2 Bridge',
+  '/relay':                'TCP Relay',
+  '/settings/global':      'Global Settings',
+  '/settings/ztnode':      'ZeroTier Node',
+  '/settings/roots':       'Root Servers',
+  '/settings/tokens':      'API Tokens',
+};
+function _updateMobileTitle(path) {
+  const el = document.querySelector('.mobile-bar-title');
+  if (!el) return;
+  const title = _routeTitles[path]
+    || Object.entries(_routeTitles).find(([k]) => path.startsWith(k + '/'))?.[1]
+    || 'ZeroBox';
+  el.textContent = title;
+}
+window.addEventListener('hashchange', () => _updateMobileTitle(location.hash.slice(1) || '/dashboard'));
+
 // Register all routes
 Router.on('/dashboard',                      () => { DashboardPage.init(); return DashboardPage; });
-Router.on('/peers',                          () => { PeersPage.init(); });
+Router.on('/peers',                          () => { PeersPage.init(); return PeersPage; });
 Router.on('/networks',                       () => { NetworksPage.init(); });
 Router.on('/networks/:id',                   (p) => NetworkDetailPage.init(p));
 Router.on('/controllers/networks',           () => { CtrlNetworksPage.init(); });
@@ -154,4 +184,31 @@ Router.on('/settings/tokens',              () => { SettingsTokensPage.init(); })
 
 Router.start();
 LogPanel.init();
+
+// ── Sidebar status indicators ─────────────────────────────────────────────────
+async function _refreshSidebarStatus() {
+  try {
+    const node = await api.get('/local/status');
+    const dot  = document.getElementById('sidebar-zt-status');
+    if (dot) { dot.className = 'sidebar-zt-dot ' + (node?.online ? 'online' : 'offline'); }
+  } catch(e) {
+    const dot = document.getElementById('sidebar-zt-status');
+    if (dot) dot.className = 'sidebar-zt-dot offline';
+  }
+  const checks = [
+    { id: 'nav-exitnode-badge', url: '/exitnode/status',  fn: s => s?.enabled },
+    { id: 'nav-physnet-badge',  url: '/physnet/status',   fn: s => s?.enabled },
+    { id: 'nav-bridge-badge',   url: '/bridge/status',    fn: s => s?.enabled },
+    { id: 'nav-relay-badge',    url: '/relay/status',     fn: s => s?.local?.force_tcp_relay || !!s?.remote },
+  ];
+  for (const c of checks) {
+    try {
+      const s  = await api.get(c.url);
+      const el = document.getElementById(c.id);
+      if (el) el.style.display = c.fn(s) ? 'block' : 'none';
+    } catch(e) {}
+  }
+}
+_refreshSidebarStatus();
+setInterval(_refreshSidebarStatus, 30000);
 </script>

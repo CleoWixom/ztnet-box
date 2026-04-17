@@ -1,19 +1,17 @@
 const SettingsRootsPage = (() => {
-  return {
-    async init() {
-      document.getElementById('content').innerHTML = '<div class="page"><div class="loading-row"><div class="spinner"></div> Loading...</div></div>';
-      let moons = [], peers = [];
-      try { moons = await api.get('/local/moons'); } catch(e){}
-      try { peers = await api.get('/local/peers'); } catch(e){}
-      const moonPeers = peers.filter(p => p.role === 'MOON');
-      const rows = moons.map(m => `<tr>
+  async function load() {
+    let moons = [], peers = [];
+    try { moons = await api.get('/local/moons'); } catch(e){}
+    try { peers = await api.get('/local/peers'); } catch(e){}
+    const moonPeers = peers.filter(p => p.role === 'MOON');
+    const rows = moons.map(m => `<tr>
         <td class="mono">${m.id}</td>
         <td class="text-sm">${new Date(m.timestamp).toLocaleDateString()}</td>
         <td class="text-sm">${(m.roots||[]).map(r=>r.identity?.slice(0,20)+'...').join('<br>')}</td>
         <td><button class="btn btn-danger btn-sm" onclick="SettingsRootsPage._remove('${m.id}')">Remove</button></td>
       </tr>`).join('');
 
-      document.getElementById('content').innerHTML = `<div class="page">
+    document.getElementById('content').innerHTML = `<div class="page">
         <div class="page-header">
           <h1 class="page-title">Root Servers (Moons)</h1>
         </div>
@@ -33,17 +31,24 @@ const SettingsRootsPage = (() => {
           </div>
         </div>
       </div>`;
+  }
+
+  return {
+    init() {
+      document.getElementById('content').innerHTML =
+        '<div class="page"><div class="loading-row"><div class="spinner"></div> Loading...</div></div>';
+      load();
     },
     async _orbit() {
       const worldId = document.getElementById('moon-world-id')?.value?.trim();
       const seed    = document.getElementById('moon-seed-id')?.value?.trim();
       if (!worldId) return Toast.error('World ID is required');
-      try { await api.post(`/local/moons/${worldId}`, { seed: seed || undefined }); Toast.success('Orbiting moon ' + worldId); this.init(); }
+      try { await api.post(`/local/moons/${worldId}`, { seed: seed || undefined }); Toast.success('Orbiting moon ' + worldId); load(); }
       catch(e) { Toast.error(e.message); }
     },
     async _remove(id) {
       if (!await Modal.confirm(`Remove moon ${id}?`, {danger:true})) return;
-      try { await api.delete(`/local/moons/${id}`); Toast.success('Moon removed'); this.init(); }
+      try { await api.delete(`/local/moons/${id}`); Toast.success('Moon removed'); load(); }
       catch(e) { Toast.error(e.message); }
     },
   };

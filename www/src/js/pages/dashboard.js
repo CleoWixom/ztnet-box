@@ -65,11 +65,11 @@ const DashboardPage = (() => {
       const roleClass = p.role === 'PLANET' ? 'badge-info' : p.role === 'MOON' ? 'badge-warn' : 'badge-muted';
       const latMs = p.latency >= 0 ? p.latency : '—';
       const latClass = p.latency >= 0 ? latencyClass(p.latency) : '';
-      return `<tr onclick="Router.navigate('/peers/${p.address}')" style="cursor:pointer">
+      return `<tr>
         <td><span class="mono">${p.address}</span></td>
         <td><span class="badge ${roleClass}">${p.role}</span></td>
         <td class="${latClass}">${latMs}${typeof latMs === 'number' ? ' ms' : ''}</td>
-        <td>${p.paths?.length || 0}</td>
+        <td>${p.paths?.filter(x=>x.active).length || 0}</td>
         <td>${p.version || '—'}</td>
       </tr>`;
     }).join('');
@@ -102,29 +102,40 @@ const DashboardPage = (() => {
               ⚠️ ZeroTier is not installed or not running on this host.
               <button class="btn btn-sm btn-primary ml-sm" onclick="DashboardPage._installZt(this)">Install ZeroTier</button>
             </div>`;
-          return; // no point loading node data
+          return;
         }
       } catch(e) {}
 
-      try {
-        const node = await api.get('/local/status');
-        State.set('nodeStatus', node);
-        document.getElementById('dash-status').innerHTML = renderStatus(node);
-      } catch(e) { document.getElementById('dash-status').innerHTML = `<div class="banner banner-danger">❌ Cannot reach ZeroTier: ${e.message}</div>`; }
+      // Fetch node status, metrics and peers in parallel
+      const [nodeRes, metricsRes, msRes, peersRes] = await Promise.allSettled([
+        api.get('/local/status'),
+        api.get('/metrics'),
+        api.get('/metrics/status'),
+        api.get('/local/peers'),
+      ]);
 
-      try {
-        const [m, ms] = await Promise.all([api.get('/metrics'), api.get('/metrics/status')]);
+      if (nodeRes.status === 'fulfilled') {
+        State.set('nodeStatus', nodeRes.value);
+        document.getElementById('dash-status').innerHTML = renderStatus(nodeRes.value);
+      } else {
+        document.getElementById('dash-status').innerHTML =
+          `<div class="banner banner-danger">❌ Cannot reach ZeroTier: ${nodeRes.reason?.message||'unknown'}</div>`;
+      }
+
+      if (metricsRes.status === 'fulfilled' || msRes.status === 'fulfilled') {
+        const m  = metricsRes.value  || null;
+        const ms = msRes.value || null;
         State.set('metrics', m); State.set('metricsStatus', ms);
         document.getElementById('dash-metrics').innerHTML = renderMetrics(m, ms);
-      } catch(e) {}
+      }
 
-      try {
-        const peers = await api.get('/local/peers');
+      if (peersRes.status === 'fulfilled') {
+        const peers = peersRes.value;
         State.set('peers', peers);
         document.getElementById('dash-peers').innerHTML = renderPeers(peers);
         const el = document.getElementById('peer-count');
         if (el) el.textContent = peers.length + ' peer' + (peers.length !== 1 ? 's' : '');
-      } catch(e) {}
+      }
     }
 
     refresh();

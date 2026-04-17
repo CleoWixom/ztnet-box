@@ -197,3 +197,21 @@ tbody tr:hover { background: rgba(255,255,255,.03); }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-row { display: flex; align-items: center; gap: var(--gap-sm); padding: var(--gap); color: var(--c-text-dim); }
+
+/* ── Nav status badges ────────────────────────────────────────────────────── */
+.nav-badge {
+  margin-left: auto;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--c-success); flex-shrink: 0;
+}
+.nav-badge.warn { background: var(--c-warn); }
+
+/* ── Sidebar footer ZT status dot ─────────────────────────────────────────── */
+.sidebar-footer { display: flex; align-items: center; gap: var(--gap-sm); }
+.sidebar-zt-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--c-text-mute); flex-shrink: 0;
+  transition: background var(--t-base);
+}
+.sidebar-zt-dot.online  { background: var(--c-success); }
+.sidebar-zt-dot.offline { background: var(--c-danger); }

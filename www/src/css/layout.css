@@ -179,4 +179,13 @@
 
   /* Page header wraps on small screens */
   .page-header { flex-wrap: wrap; }
+
+  /* IP pool: 2 columns instead of 4 on mobile */
+  .ip-pool-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Side panel: full width on mobile */
+  .side-panel { width: 100%; }
+
+  /* Modal: full width with margin */
+  .modal { min-width: unset; width: calc(100% - var(--gap) * 2); }
 }

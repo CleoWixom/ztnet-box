@@ -831,3 +831,53 @@ pub async fn active_client(&self) -> Option<ZtCentralClient> {
 | `4ed5d12` + `6cfe9b8` | #19 |
 | `d39f17b` | #26 |
 | `55a3b51` | #27, #28 |
+
+---
+
+## Аудит-2 (2026-04-18) — UI/UX, мобильность, контроли
+
+**Дата:** 2026-04-18  
+**Охват:** доступность элементов управления, мобильная адаптация, производительность, статусы
+
+### Итоговая таблица
+
+| # | Приоритет | Компонент | Проблема | Статус |
+|---|-----------|-----------|----------|--------|
+| 29 | 🔴 High | Frontend | Dashboard: `onclick` на пирах → несуществующий `/peers/:id` | ✅ |
+| 30 | 🔴 High | Frontend | `CtrlMembersPage` overlay: `onclick="e=>{...}"` — невалидный синтаксис, панель не закрывалась | ✅ |
+| 31 | 🔴 High | Frontend | `controllers-config.js`: ключ `plan6` → `'6plane'` для local controller — 6PLANE не сохранялся | ✅ |
+| 32 | 🟡 Medium | Frontend | Dashboard: 4 последовательных `await` → `Promise.allSettled` | ✅ |
+| 33 | 🟡 Medium | Frontend | `PeersPage`: нет latency-цветов, нет авто-обновления каждые 10 с | ✅ |
+| 34 | 🟡 Medium | Frontend | Members nav `data-route="/controllers/members"` никогда не подсвечивался | ✅ |
+| 35 | 🟡 Medium | Frontend | Mobile bar title статичный «ZeroBox», не менялся при навигации | ✅ |
+| 36 | 🟡 Medium | Frontend | `api.js`: нет timeout — `fetch` висит бесконечно при недоступном backend | ✅ |
+| 37 | 🟡 Medium | CSS | `.ip-pool-grid` 4 колонки не адаптируются; `.side-panel` и `.modal` выходят за экран на мобильных | ✅ |
+| 38 | 🟡 Medium | Frontend | Sidebar: нет статус-индикаторов (ZT online dot, active-feature badges) | ✅ |
+| 39 | 🟢 Low | Frontend | `SettingsRootsPage`: `this.init()` в async IIFE callback — ненадёжный контекст | ✅ |
+| 40 | 🟢 Low | Frontend | `controllers-config.js`: `n?.description` не существует для Central network | ✅ |
+
+### Детали изменений
+
+**#29** `dashboard.js` — убран `onclick` с несуществующим маршрутом `/peers/:id`. Исправлен подсчёт путей: `p.paths?.length` → `p.paths?.filter(x=>x.active).length`.
+
+**#30** `controllers-members.js` — `onclick="e=>{if(...)...}"` невалиден в HTML-атрибуте (arrow function как оператор присваивания). Заменено на `onclick="if(event.target.id===...)..."`.
+
+**#31** `controllers-config.js` — `v6AssignMode: { rfc4193, plan6 }` → `{ rfc4193, '6plane': plan6 }`. Ключ не совпадал с ZeroTier API, 6PLANE не применялся для локальных сетей.
+
+**#32** `dashboard.js` — `Promise.allSettled([node, metrics, metricsStatus, peers])` вместо 4 sequential `try/catch await`.
+
+**#33** `peers.js` — добавлены `latencyClass()`, `setInterval(load, 10000)`, peer count, `destroy()`.
+
+**#34** `shell.html` — `data-route` Members исправлен на `/controllers/networks`; добавлен `title`.
+
+**#35** `shell.html` — функция `_updateMobileTitle(path)` + `hashchange` listener. Маппинг 12 маршрутов → читаемых заголовков.
+
+**#36** `api.js` — `AbortController` + `setTimeout(15000)`. Ошибка → `'Request timed out'`.
+
+**#37** `layout.css` — в `@media (max-width: 768px)`: `.ip-pool-grid { grid-template-columns: repeat(2, 1fr) }`, `.side-panel { width: 100% }`, `.modal { min-width: unset; width: calc(100% - gap*2) }`.
+
+**#38** `shell.html` + `components.css` — `.nav-badge` (7px dot) на nav-items Exit/Phys/Bridge/Relay; `.sidebar-zt-dot` в footer. Фоновый поллинг `_refreshSidebarStatus()` каждые 30 с.
+
+**#39** `settings-roots.js` — внутренняя функция `load()` вместо `this.init()` после `await`.
+
+**#40** `controllers-config.js` — `n?.description` → `n?.config?.description` для Central network.

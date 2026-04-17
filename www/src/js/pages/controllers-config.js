@@ -42,7 +42,7 @@ const CtrlConfigPage = (() => {
         <div class="field"><label class="field-label">Name</label>
           <input class="input" id="cfg-name" value="${cfg.name||''}"></div>
         <div class="field"><label class="field-label">Description</label>
-          <textarea class="textarea" id="cfg-desc">${cfg.description||n?.description||''}</textarea></div>
+          <textarea class="textarea" id="cfg-desc">${cfg.description||n?.config?.description||''}</textarea></div>
       </div>
 
       <div class="settings-section">
@@ -181,7 +181,7 @@ const CtrlConfigPage = (() => {
       } : {
         name, private: private_, multicastLimit, enableBroadcast,
         v4AssignMode: { zt: v4 },
-        v6AssignMode: { rfc4193, plan6 },
+        v6AssignMode: { rfc4193, '6plane': plan6 },
         ipAssignmentPools: ipRange ? [ipRange] : undefined,
         dns: dnsDomain ? { domain: dnsDomain, servers: dnsServers } : undefined,
       };
