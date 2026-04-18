@@ -1,6 +1,7 @@
 // lib.rs — public API for integration tests
 pub mod bridge;
 pub mod config;
+pub mod deps;
 pub mod exitnode;
 pub mod metrics;
 pub mod physnet;

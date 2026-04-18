@@ -1,9 +1,9 @@
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use ztnet_box::{
-    config,
+    config, deps,
     metrics::{cache::MetricsCache, collector::MetricsCollector},
     server::{
         self,
@@ -23,6 +23,14 @@ async fn main() -> anyhow::Result<()> {
         )
         .with(CollectorLayer::new(log_collector.clone()))
         .init();
+
+    // ── Startup dependency check ──────────────────────────────────────────────
+    // Ensures zerotier-one is installed, service file has -U flag, daemon is up.
+    // Aborts with a clear error log if anything cannot be resolved automatically.
+    if let Err(e) = deps::ensure() {
+        error!(error = %e, "zerotier-one dependency check failed — ztnet-box cannot start");
+        std::process::exit(1);
+    }
 
     let config_path = config::Config::resolve_config_path(std::env::args().collect());
     info!(path = %config_path.display(), "loading config");
