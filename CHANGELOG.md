@@ -10,6 +10,12 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-04-18
+
+### Chores
+- Enhance manual-testing.yml with base_url input (eac411f)
+
+
 ## [0.9.0] — 2026-04-18
 
 ### Bug Fixes
