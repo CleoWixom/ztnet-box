@@ -10,6 +10,21 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-04-18
+
+### Bug Fixes
+- 6 root causes fixed — ZT daemon, wait logic, sudo, mobile, routing (44f452c)
+
+### Chores
+- Modify ZeroTier service management in workflow (41f8250)
+- Update workflow to install and start ZeroTier (c8574da)
+- Merge pull request #19 from CleoWixom/chore/screenshots-20260417-233429 (da0a1e4)
+- docs(screenshots): update WebUI screenshots [skip ci] (5b4b38e)
+- Disable cargo caching in screenshots workflow (9fa9c82)
+- Merge pull request #18 from CleoWixom/chore/screenshots-20260417-205959 (e13bae3)
+- docs(screenshots): update WebUI screenshots [skip ci] (079659d)
+
+
 ## [0.8.2] — 2026-04-17
 
 ### Chores
