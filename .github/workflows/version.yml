@@ -22,7 +22,7 @@ jobs:
       new_version: ${{ steps.bump.outputs.new_version }}
       bumped: ${{ steps.bump.outputs.bumped }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
