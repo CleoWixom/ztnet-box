@@ -71,6 +71,8 @@ jobs:
       - name: Start ZeroTier (userspace, no TUN needed)
         run: |
           sudo mkdir -p /var/lib/zerotier-one
+          sudo systemctl stop zerotier-one
+          sudo systemctl disable zerotier-one
           sudo zerotier-one -U -d
           # Ждём появления authtoken
           for i in $(seq 1 20); do
