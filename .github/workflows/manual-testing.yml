@@ -43,7 +43,7 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       # ── Build ztnet-box ──────────────────────────────────────────────────
 
@@ -51,7 +51,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry/index/
@@ -87,15 +87,34 @@ jobs:
         if: ${{ github.event.inputs.base_url == '' }}
         run: curl -s https://install.zerotier.com | sudo bash
         
-      - name: Start ztnet-box
+      - name: Start ZeroTier daemon
         run: |
-          # Stop systemd service if installed, we'll run in userspace mode
+          # Stop systemd-managed service so we can run in userspace mode
           sudo systemctl stop zerotier-one 2>/dev/null || true
           sudo systemctl disable zerotier-one 2>/dev/null || true
           sudo mkdir -p /var/lib/zerotier-one
-          # Start in userspace mode (no TUN/TAP required)
+          # Start ZeroTier in userspace mode (no TUN/TAP required in CI)
           sudo zerotier-one -U -d
-          # Wait for authtoken and API to be ready
+          # Wait up to 20s for the authtoken to appear (daemon ready signal)
+          for i in $(seq 1 20); do
+            if [ -f /var/lib/zerotier-one/authtoken.secret ]; then
+              echo "ZeroTier daemon ready after ${i}s"
+              break
+            fi
+            if [ "$i" -eq 20 ]; then
+              echo "ERROR: zerotier-one authtoken not found after 20s"
+              sudo journalctl -u zerotier-one --no-pager -n 30 2>/dev/null || true
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Start ztnet-box
+        env:
+          # Skip the built-in deps::ensure() check — ZT daemon is managed
+          # by the previous step, not by ztnet-box's startup logic.
+          ZTNET_SKIP_DEPS: "1"
+        run: |
           PORT="${{ inputs.port }}"
           ./target/release/ztnet-box --config /tmp/ztnet-box-manual.yml \
             > /tmp/ztnet-box.log 2>&1 &
@@ -118,7 +137,7 @@ jobs:
 
       - name: Install Node.js
         if: inputs.tunnel == 'localtunnel'
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
 

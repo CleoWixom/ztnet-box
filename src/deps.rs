@@ -48,7 +48,15 @@ pub enum DepsError {
 
 /// Run at startup. Returns `Ok(())` when zerotier-one is installed and running.
 /// Returns `Err(DepsError)` if something could not be fixed automatically.
+///
+/// Set `ZTNET_SKIP_DEPS=1` to skip all checks (useful in CI / manual-testing
+/// environments where zerotier-one is managed externally by the workflow).
 pub fn ensure() -> Result<(), DepsError> {
+    if std::env::var("ZTNET_SKIP_DEPS").as_deref() == Ok("1") {
+        info!("deps: ZTNET_SKIP_DEPS=1 — skipping zerotier-one dependency check");
+        return Ok(());
+    }
+
     info!("deps: checking zerotier-one…");
 
     if !is_supported_platform() {
@@ -378,6 +386,16 @@ fn capture_stderr(cmd: &str, args: &[&str]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn skip_deps_env_var() {
+        // ZTNET_SKIP_DEPS=1 must make ensure() return Ok immediately
+        // (safe to call in any environment, even without zerotier-one installed)
+        std::env::set_var("ZTNET_SKIP_DEPS", "1");
+        let result = ensure();
+        std::env::remove_var("ZTNET_SKIP_DEPS");
+        assert!(result.is_ok(), "ZTNET_SKIP_DEPS=1 must bypass all checks");
+    }
 
     #[test]
     fn patch_idempotent() {
