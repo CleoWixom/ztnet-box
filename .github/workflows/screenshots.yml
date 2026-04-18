@@ -1,14 +1,13 @@
 name: Screenshots
 
 # Captures WebUI screenshots with Playwright and opens a PR to update docs/.
-# Trigger manually via workflow_dispatch, or automatically on pushes to main
-# that touch the frontend source.
+# Trigger manually via workflow_dispatch only.
 
 on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: "ztnet-box URL to screenshot (default: starts a local instance)"
+        description: "ztnet-box URL (leave empty to build and start a local instance)"
         required: false
         default: ""
 
@@ -33,25 +32,62 @@ jobs:
       # ── Build ztnet-box ────────────────────────────────────────────────────
 
       - name: Install Rust stable
+        if: ${{ github.event.inputs.base_url == '' }}
         uses: dtolnay/rust-toolchain@stable
 
-     # - name: Cache cargo
-     #   uses: actions/cache@v5
-     #   with:
-     #     path: |
-     #       ~/.cargo/registry/index/
-     #       ~/.cargo/registry/cache/
-     #       ~/.cargo/git/db/
-     #       target/
-     #     key: screenshots-${{ hashFiles('**/Cargo.lock') }}
-     #     restore-keys: screenshots-
+      - name: Cache cargo
+        if: ${{ github.event.inputs.base_url == '' }}
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: screenshots-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: screenshots-
 
       - name: Build release binary
+        if: ${{ github.event.inputs.base_url == '' }}
         run: cargo build --release
+
+      # ── Install & start ZeroTier daemon ───────────────────────────────────
+      # Without a running zerotier-one all /api/local/* calls return errors
+      # and every page stays in "Loading…" — screenshots are useless.
+      # -U flag = userspace networking, no TUN device required in CI.
+
+      - name: Install ZeroTier
+        if: ${{ github.event.inputs.base_url == '' }}
+        run: curl -s https://install.zerotier.com | sudo bash
+
+      - name: Start ZeroTier (userspace, no TUN needed)
+        if: ${{ github.event.inputs.base_url == '' }}
+        run: |
+          # Stop systemd service if installed, we'll run in userspace mode
+          sudo systemctl stop zerotier-one 2>/dev/null || true
+          sudo systemctl disable zerotier-one 2>/dev/null || true
+          sudo mkdir -p /var/lib/zerotier-one
+          # Start in userspace mode (no TUN/TAP required)
+          sudo zerotier-one -U -d
+          # Wait for authtoken and API to be ready
+          echo "Waiting for ZeroTier daemon…"
+          for i in $(seq 1 30); do
+            if [ -f /var/lib/zerotier-one/authtoken.secret ]; then
+              TOKEN=$(sudo cat /var/lib/zerotier-one/authtoken.secret)
+              if curl -sf http://127.0.0.1:9993/status \
+                   -H "X-ZT1-Auth: ${TOKEN}" >/dev/null 2>&1; then
+                echo "ZeroTier ready after ${i}s"
+                break
+              fi
+            fi
+            sleep 1
+          done
+          echo "ZT_TOKEN=$(sudo cat /var/lib/zerotier-one/authtoken.secret)" >> "$GITHUB_ENV"
 
       # ── Start ztnet-box ────────────────────────────────────────────────────
 
-      - name: Write minimal config
+      - name: Write config
+        if: ${{ github.event.inputs.base_url == '' }}
         run: |
           cat > /tmp/ztnet-box-screenshot.yml << 'EOF'
           server:
@@ -64,38 +100,28 @@ jobs:
             central:
               base_url: "https://my.zerotier.com"
           EOF
-          
-      - name: Install ZeroTier
-        run: curl -s https://install.zerotier.com | sudo bash
-      
-      - name: Start ZeroTier (userspace, no TUN needed)
+
+      - name: Start ztnet-box
+        if: ${{ github.event.inputs.base_url == '' }}
         run: |
-          sudo mkdir -p /var/lib/zerotier-one
-          sudo systemctl stop zerotier-one
-          sudo systemctl disable zerotier-one
-          sudo zerotier-one -U -d
-          # Ждём появления authtoken
-          for i in $(seq 1 20); do
-             [ -f /var/lib/zerotier-one/authtoken.secret ] && \
-             curl -sf http://127.0.0.1:9993/status \
-          -H "X-ZT1-Auth: $(sudo cat /var/lib/zerotier-one/authtoken.secret)" \
-          >/dev/null 2>&1 && break
-          sleep 1
+          # sudo required: reads /var/lib/zerotier-one/authtoken.secret (root-owned)
+          sudo ./target/release/ztnet-box \
+            --config /tmp/ztnet-box-screenshot.yml &
+          echo "ZTNET_PID=$!" >> "$GITHUB_ENV"
+          echo "ZTNET_URL=http://127.0.0.1:7979" >> "$GITHUB_ENV"
+          # Wait for health endpoint
+          echo "Waiting for ztnet-box…"
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:7979/api/health >/dev/null 2>&1; then
+              echo "ztnet-box ready after ${i}s"
+              break
+            fi
+            sleep 1
           done
-          echo "ZT_TOKEN=$(sudo cat /var/lib/zerotier-one/authtoken.secret)" >> "$GITHUB_ENV"
-  
-     # - name: Start ztnet-box
-     #   run: |
-     #     ./target/release/ztnet-box --config /tmp/ztnet-box-screenshot.yml &
-     #     echo "ZTNET_PID=$!" >> "$GITHUB_ENV"
-     #     # Wait for server to be ready
-     #     for i in $(seq 1 20); do
-     #       if curl -sf http://127.0.0.1:7979/api/health >/dev/null 2>&1; then
-     #         echo "ztnet-box ready after ${i}s"
-     #         break
-     #       fi
-     #       sleep 1
-     #     done
+
+      - name: Use external base_url
+        if: ${{ github.event.inputs.base_url != '' }}
+        run: echo "ZTNET_URL=${{ github.event.inputs.base_url }}" >> "$GITHUB_ENV"
 
       # ── Playwright ────────────────────────────────────────────────────────
 
@@ -116,7 +142,7 @@ jobs:
           const { defineConfig } = require('@playwright/test');
           module.exports = defineConfig({
             testDir: './playwright',
-            timeout: 30000,
+            timeout: 60000,
             use: {
               baseURL: process.env.ZTNET_URL || 'http://127.0.0.1:7979',
               headless: true,
@@ -124,29 +150,32 @@ jobs:
           });
           EOF
 
-      - name: Create screenshot test
+      - name: Create screenshot spec
         run: |
           mkdir -p playwright
           cat > playwright/screenshots.spec.js << 'SPEC'
           const { test } = require('@playwright/test');
           const path = require('path');
-          const fs = require('fs');
+          const fs   = require('fs');
 
-          const BASE = process.env.ZTNET_URL || 'http://127.0.0.1:7979';
+          const BASE    = process.env.ZTNET_URL || 'http://127.0.0.1:7979';
+          const OUT_DIR = path.join(__dirname, '..', 'docs', 'screenshots');
+          fs.mkdirSync(OUT_DIR, { recursive: true });
 
-          // Pages to capture: [route, filename_prefix]
+          // [hash-route, file-prefix]
+          // '/' omitted — SPA redirects to #/dashboard, screenshot would be identical.
           const PAGES = [
-            ['/',                      'root'],
-            ['/#/dashboard',           'dashboard'],
-            ['/#/networks',            'networks'],
-            ['/#/exitnode',            'exitnode'],
-            ['/#/physnet',             'physnet'],
-            ['/#/bridge',              'bridge'],
-            ['/#/relay',               'relay'],
-            ['/#/controllers/networks','controllers'],
-            ['/#/settings/global',     'settings-global'],
-            ['/#/settings/ztnode',     'settings-ztnode'],
-            ['/#/settings/tokens',     'settings-tokens'],
+            ['/#/dashboard',            'dashboard'],
+            ['/#/networks',             'networks'],
+            ['/#/exitnode',             'exitnode'],
+            ['/#/physnet',              'physnet'],
+            ['/#/bridge',               'bridge'],
+            ['/#/relay',                'relay'],
+            ['/#/controllers/networks', 'controllers'],
+            ['/#/settings/global',      'settings-global'],
+            ['/#/settings/ztnode',      'settings-ztnode'],
+            ['/#/settings/tokens',      'settings-tokens'],
+            ['/#/settings/roots',       'root'],
           ];
 
           const VIEWPORTS = [
@@ -154,25 +183,43 @@ jobs:
             { name: 'mobile',  width: 390,  height: 844 },
           ];
 
-          const OUT_DIR = path.join(__dirname, '..', 'docs', 'screenshots');
-          fs.mkdirSync(OUT_DIR, { recursive: true });
-
           for (const [route, prefix] of PAGES) {
             for (const vp of VIEWPORTS) {
               test(`${prefix} — ${vp.name}`, async ({ page }) => {
                 await page.setViewportSize({ width: vp.width, height: vp.height });
-                await page.goto(`${BASE}${route}`);
-                // 1. Дождаться появления корневого контейнера страницы
-                await page.waitForSelector('.page', { timeout: 8000 }).catch(() => {});
-                // 2. Дождаться сетевой тишины (все API-запросы завершены)
-                await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
-                // 3. Дождаться исчезновения спиннеров/скелетонов
-                await page.waitForSelector(
-                  '.loading, .spinner, [data-loading="true"], .skeleton',
-                  { state: 'hidden', timeout: 5000 }
-                ).catch(() => {});
-                // 4. Страховочная пауза — даёт React время завершить рендер после данных
-                await page.waitForTimeout(800);
+
+                // Load page — wait only for HTML parse, JS will run after
+                await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
+
+                // Wait until the SPA router has replaced the initial loading shell.
+                // The initial <div class="page"> contains a <div class="loading-row">.
+                // Once the router renders the real page, loading-row is removed.
+                // This is more reliable than waitForSelector('.page') which fires
+                // immediately on the shell's initial loading div.
+                await page.waitForFunction(() => {
+                  const content = document.getElementById('content');
+                  if (!content) return false;
+                  const row = content.querySelector('.loading-row');
+                  // True when loading-row is gone OR invisible
+                  return !row || row.offsetParent === null;
+                }, { timeout: 15000 }).catch(() => {});
+
+                // Wait for any API XHRs triggered by the page to complete
+                await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+
+                // Buffer: allow async DOM updates after data arrives
+                await page.waitForTimeout(1200);
+
+                // Mobile: ensure sidebar is closed (remove .open if present)
+                if (vp.name === 'mobile') {
+                  await page.evaluate(() => {
+                    document.getElementById('sidebar')?.classList.remove('open');
+                    document.getElementById('sidebar-overlay')?.classList.remove('visible');
+                  });
+                  // Wait for CSS slide-out transition (200ms) to finish
+                  await page.waitForTimeout(300);
+                }
+
                 await page.screenshot({
                   path: path.join(OUT_DIR, `${prefix}-${vp.name}.png`),
                   fullPage: false,
@@ -184,15 +231,16 @@ jobs:
 
       - name: Run Playwright screenshots
         run: |
-          BASE_URL="${{ github.event.inputs.base_url || 'http://127.0.0.1:7979' }}"
-          ZTNET_URL="$BASE_URL" npx playwright test playwright/screenshots.spec.js \
-            --reporter=line || true
+          ZTNET_URL="${{ env.ZTNET_URL }}" \
+          npx playwright test playwright/screenshots.spec.js \
+            --reporter=line \
+            --workers=1 || true
         env:
           CI: "true"
 
       - name: Stop ztnet-box
-        if: always()
-        run: kill "$ZTNET_PID" 2>/dev/null || true
+        if: always() && env.ZTNET_PID != ''
+        run: sudo kill "${{ env.ZTNET_PID }}" 2>/dev/null || true
 
       # ── Commit & PR ───────────────────────────────────────────────────────
 
@@ -204,7 +252,7 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            COUNT=$(git diff --cached --name-only | wc -l)
+            COUNT=$(git diff --cached --name-only | wc -l | tr -d ' ')
             echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
           fi
 
@@ -223,7 +271,7 @@ jobs:
 
           Captured ${{ steps.diff.outputs.count }} screenshot(s) via Playwright.
           Pages: dashboard, networks, exitnode, physnet, bridge, relay,
-                 controllers, settings-global, settings-ztnode, settings-tokens
+                 controllers, settings-global, settings-ztnode, settings-tokens, root
           Viewports: desktop (1440×900) + mobile (390×844)"
           git push origin "$BRANCH"
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
@@ -234,6 +282,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const pages = [
+              'dashboard','networks','exitnode','physnet','bridge','relay',
+              'controllers','settings-global','settings-ztnode','settings-tokens','root'
+            ];
             const body = [
               '## Updated screenshots',
               '',
@@ -241,8 +293,7 @@ jobs:
               '',
               '| Page | Desktop | Mobile |',
               '|------|---------|--------|',
-              ...['dashboard','networks','exitnode','physnet','bridge','relay',
-                  'controllers','settings-global','settings-ztnode','settings-tokens'].map(p =>
+              ...pages.map(p =>
                 `| ${p} | ![](docs/screenshots/${p}-desktop.png) | ![](docs/screenshots/${p}-mobile.png) |`
               ),
               '',
