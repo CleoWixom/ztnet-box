@@ -142,7 +142,7 @@ jobs:
           const { defineConfig } = require('@playwright/test');
           module.exports = defineConfig({
             testDir: './playwright',
-            timeout: 60000,
+            timeout: 45000,
             use: {
               baseURL: process.env.ZTNET_URL || 'http://127.0.0.1:7979',
               headless: true,
@@ -188,36 +188,35 @@ jobs:
               test(`${prefix} — ${vp.name}`, async ({ page }) => {
                 await page.setViewportSize({ width: vp.width, height: vp.height });
 
-                // Load page — wait only for HTML parse, JS will run after
+                // Navigate; domcontentloaded fires as soon as HTML is parsed,
+                // before JS runs — correct for SPAs.
                 await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
 
-                // Wait until the SPA router has replaced the initial loading shell.
-                // The initial <div class="page"> contains a <div class="loading-row">.
-                // Once the router renders the real page, loading-row is removed.
-                // This is more reliable than waitForSelector('.page') which fires
-                // immediately on the shell's initial loading div.
+                // Wait for the SPA router to replace the initial loading shell.
+                // The shell contains <div class="page"><div class="loading-row">.
+                // Once the router runs and renders real content, loading-row is gone.
+                // Timeout 8 s — resolves immediately on fast API, degrades gracefully.
                 await page.waitForFunction(() => {
                   const content = document.getElementById('content');
                   if (!content) return false;
                   const row = content.querySelector('.loading-row');
-                  // True when loading-row is gone OR invisible
                   return !row || row.offsetParent === null;
-                }, { timeout: 15000 }).catch(() => {});
+                }, { timeout: 8000 }).catch(() => {});
 
-                // Wait for any API XHRs triggered by the page to complete
-                await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+                // DO NOT use networkidle here — the dashboard runs setInterval(10s)
+                // which keeps the network perpetually "busy" and networkidle never
+                // resolves, causing the test to hang until the 60 s timeout.
+                // Instead: fixed 2 s pause — enough for initial XHRs to complete
+                // and DOM to repaint after data arrives.
+                await page.waitForTimeout(2000);
 
-                // Buffer: allow async DOM updates after data arrives
-                await page.waitForTimeout(1200);
-
-                // Mobile: ensure sidebar is closed (remove .open if present)
+                // Mobile: ensure sidebar is closed before screenshot.
                 if (vp.name === 'mobile') {
                   await page.evaluate(() => {
                     document.getElementById('sidebar')?.classList.remove('open');
                     document.getElementById('sidebar-overlay')?.classList.remove('visible');
                   });
-                  // Wait for CSS slide-out transition (200ms) to finish
-                  await page.waitForTimeout(300);
+                  await page.waitForTimeout(300); // CSS transition 200 ms + margin
                 }
 
                 await page.screenshot({
