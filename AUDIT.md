@@ -915,3 +915,40 @@ impl Default for MetricsConfig {
 ---
 
 *Аудит проведён на основе статического анализа кода версии 0.9.1. Все выводы основаны на фактах, подтверждённых конкретными строками кода.*
+---
+
+## Аудит-3 (2026-04-18) — Screenshots workflow
+
+**Дата:** 2026-04-18  
+**Файл:** `.github/workflows/screenshots.yml`  
+**Проблема:** Все 22 скриншота показывали только «Loading…» — реальный UI не отображался ни на одном снимке. Все desktop-скриншоты байтово идентичны (MD5 `04b928773b6a9808b19f4fcfd7f91fbc`), все mobile — по 2-3 идентичных.
+
+### Итоговая таблица
+
+| # | Приоритет | Проблема | Статус |
+|---|-----------|----------|--------|
+| SCR-1 | 🔴 Critical | Шаг «Start ztnet-box» был закомментирован — Playwright подключался к порту 7979 где ничего не слушало | ✅ |
+| SCR-2 | 🔴 Critical | Нет ZeroTier daemon в CI — все `/api/local/*` возвращали ошибку, страницы зависали в Loading | ✅ |
+| SCR-3 | 🔴 Critical | `waitForSelector('.page')` срабатывал на начальный shell-div ДО запуска роутера | ✅ |
+| SCR-4 | 🔴 High | `networkidle` срабатывал в паузе между загрузкой HTML и выполнением JS — до первых XHR | ✅ |
+| SCR-5 | 🟡 Medium | Mobile: sidebar не закрывался перед скриншотом (класс `.open` не снимался) | ✅ |
+| SCR-6 | 🟡 Medium | Маршрут `'/'` дублировал dashboard (SPA редирект), 2 одинаковых скриншота | ✅ |
+| SCR-7 | 🟢 Low | `cargo cache` был закомментирован — каждый run компилировал с нуля (~10 мин) | ✅ |
+
+### Детали
+
+**SCR-1** `screenshots.yml` — шаг `Start ztnet-box` был закомментирован (`#`). Playwright обращался к `http://127.0.0.1:7979`, где ничего не слушало. Все навигации падали с Connection Refused, но `|| true` скрывал ошибку. Итог: Playwright снимал пустую страницу браузера с сайдбаром из предыдущего состояния. Исправление: шаг восстановлен с `sudo` (обязательно — `authtoken.secret` принадлежит root).
+
+**SCR-2** ZeroTier `zerotier-one` был установлен но не запускался в нужном режиме. Шаг `Start ZeroTier` использовал `systemctl start`, что в GitHub Actions CI-среде (без systemd) не работало корректно. Добавлена проверка через `curl http://127.0.0.1:9993/status -H "X-ZT1-Auth: ..."` после `zerotier-one -U -d` (userspace mode, без TUN/TAP).
+
+**SCR-3** `waitForSelector('.page')` — shell.html уже содержит `<div class="page"><div class="loading-row">` ещё до запуска JS роутера. Playwright находил `.page` немедленно, страница оставалась в Loading. Заменено на `waitForFunction()` который проверяет что `.loading-row` больше не присутствует в `#content` — это гарантирует что роутер заменил shell реальным контентом.
+
+**SCR-4** `page.goto() + waitForLoadState('networkidle')` — `networkidle` срабатывал в 500мс тишине между загрузкой HTML и первым XHR от JS. `page.goto()` переключён на `waitUntil: 'domcontentloaded'`; `networkidle` перенесён на после проверки загрузки.
+
+**SCR-5** `page.evaluate()` теперь снимает `.open` с sidebar и `.visible` с overlay перед мобильным скриншотом + 300мс пауза для завершения CSS-перехода.
+
+**SCR-6** `'/'` → `'root'` заменено на `'/#/settings/roots'` → `'root'`. 11 уникальных страниц вместо 10 + дубликата.
+
+**SCR-7** Cargo cache восстановлен (был закомментирован вместе со `Start ztnet-box`).
+
+**Коммит:** `44f452c`
