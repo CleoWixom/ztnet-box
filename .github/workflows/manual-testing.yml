@@ -7,6 +7,10 @@ name: Manual WebUI Testing
 on:
   workflow_dispatch:
     inputs:
+      base_url:
+        description: "ztnet-box URL (leave empty to build and start a local instance)"
+        required: false
+        default: ""
       tunnel:
         description: "Tunnel provider"
         required: true
@@ -59,7 +63,7 @@ jobs:
 
       - name: Build release binary
         run: cargo build --release
-
+        
       # ── Config & start ──────────────────────────────────────────────────
 
       - name: Write config
@@ -78,9 +82,20 @@ jobs:
           metrics:
             enabled: false
           EOF
-
+          
+      - name: Install ZeroTier
+        if: ${{ github.event.inputs.base_url == '' }}
+        run: curl -s https://install.zerotier.com | sudo bash
+        
       - name: Start ztnet-box
         run: |
+          # Stop systemd service if installed, we'll run in userspace mode
+          sudo systemctl stop zerotier-one 2>/dev/null || true
+          sudo systemctl disable zerotier-one 2>/dev/null || true
+          sudo mkdir -p /var/lib/zerotier-one
+          # Start in userspace mode (no TUN/TAP required)
+          sudo zerotier-one -U -d
+          # Wait for authtoken and API to be ready
           PORT="${{ inputs.port }}"
           ./target/release/ztnet-box --config /tmp/ztnet-box-manual.yml \
             > /tmp/ztnet-box.log 2>&1 &
