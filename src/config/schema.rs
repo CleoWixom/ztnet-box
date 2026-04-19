@@ -113,7 +113,7 @@ impl Default for CentralConfig {
 impl Default for MetricsConfig {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false, // opt-in: avoids log spam on systems without ZT metrics
             prometheus_url: "http://127.0.0.1:9993/metrics".into(),
             poll_interval_seconds: 15,
             metricstoken_file: std::path::PathBuf::from(

@@ -142,6 +142,7 @@ tbody tr:hover { background: rgba(255,255,255,.03); }
 .toast-success { border-left: 3px solid var(--c-success); }
 .toast-error   { border-left: 3px solid var(--c-danger); }
 .toast-info    { border-left: 3px solid var(--c-info); }
+.toast-warn    { border-left: 3px solid var(--c-warn); }
 .toast-msg { flex: 1; font-size: var(--fs-base); }
 .toast-close { cursor: pointer; opacity: .5; }
 .toast-close:hover { opacity: 1; }

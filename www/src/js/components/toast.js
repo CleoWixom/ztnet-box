@@ -16,5 +16,6 @@ const Toast = (() => {
     success: m => show(m, 'success'),
     error:   m => show(m, 'error'),
     info:    m => show(m, 'info'),
+    warn:    m => show(m, 'warn'),
   };
 })();

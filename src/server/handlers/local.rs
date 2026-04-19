@@ -10,8 +10,16 @@ use axum::{
 };
 
 async fn client(state: &AppState) -> Result<ZtLocalClient, ApiError> {
+    // Use the cached client; fall back to re-creating from config if cache is empty
+    // (e.g. authtoken.secret wasn't available at startup)
+    if let Some(c) = state.zt_local.read().await.clone() {
+        return Ok(c);
+    }
     let cfg = state.config.read().await;
-    ZtLocalClient::from_config(&cfg.zerotier.local)
+    let c = ZtLocalClient::from_config(&cfg.zerotier.local)?;
+    drop(cfg);
+    *state.zt_local.write().await = Some(c.clone());
+    Ok(c)
 }
 
 pub async fn node_status(State(s): State<AppState>) -> Result<impl IntoResponse, ApiError> {

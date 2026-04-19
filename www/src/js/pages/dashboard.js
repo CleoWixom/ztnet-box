@@ -92,7 +92,12 @@ const DashboardPage = (() => {
       </div>
     </div>`;
 
-    async function refresh() {
+    refresh();
+    _intervals.push(setInterval(refresh, 10000));
+  }
+
+  // Lifted to IIFE scope so _installZt() can call it after install completes
+  async function refresh() {
       // Check ZeroTier installation first — show setup banner if not found
       try {
         const zt = await api.get('/system/zt-status');
@@ -137,10 +142,6 @@ const DashboardPage = (() => {
         if (el) el.textContent = peers.length + ' peer' + (peers.length !== 1 ? 's' : '');
       }
     }
-
-    refresh();
-    _intervals.push(setInterval(refresh, 10000));
-  }
 
   return {
     init() { render(); },

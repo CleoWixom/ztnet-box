@@ -3,15 +3,20 @@ use crate::{config::schema::RateLimit, server::error::ApiError};
 use reqwest::{Client, Method, StatusCode};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{sync::Arc, time::Duration};
-use tokio::sync::Semaphore;
+use tokio::{sync::Semaphore, task::JoinHandle};
 
 // ── Rate limiter ──────────────────────────────────────────────────────────────
 
 /// Простой rate limiter через семафор + периодический release.
 /// Free: 20 req/s, Paid: 100 req/s.
+///
+/// The refill task is stored as a `JoinHandle` and aborted on `Drop`
+/// so clients created during e.g. `probe_token()` don't leak background tasks.
 #[derive(Clone)]
 struct RateLimiter {
     semaphore: Arc<Semaphore>,
+    /// Refill task handle — aborted on Drop to prevent resource leaks.
+    _refill_task: Arc<JoinHandle<()>>,
 }
 
 impl RateLimiter {
@@ -23,7 +28,7 @@ impl RateLimiter {
         let semaphore = Arc::new(Semaphore::new(max));
         let sem2 = Arc::clone(&semaphore);
         // Каждую секунду возвращаем разрешения обратно
-        tokio::spawn(async move {
+        let handle = tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(1));
             loop {
                 interval.tick().await;
@@ -34,7 +39,10 @@ impl RateLimiter {
                 }
             }
         });
-        Self { semaphore }
+        Self {
+            semaphore,
+            _refill_task: Arc::new(handle),
+        }
     }
 
     async fn acquire(&self) {
@@ -298,7 +306,10 @@ mod tests {
     async fn rate_limiter_blocks_when_exhausted() {
         // Create a limiter with only 2 permits so exhaustion is fast
         let semaphore = Arc::new(Semaphore::new(2));
-        let rl = RateLimiter { semaphore };
+        let rl = RateLimiter {
+            semaphore,
+            _refill_task: Arc::new(tokio::spawn(async {})),
+        };
         // Drain all permits
         rl.acquire().await;
         rl.acquire().await;

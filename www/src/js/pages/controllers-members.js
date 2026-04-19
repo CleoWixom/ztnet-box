@@ -86,14 +86,14 @@ const CtrlMembersPage = (() => {
       const auth = m.authorized
         ? '<span class="badge badge-success">Authorized</span>'
         : '<span class="badge badge-muted">Unauthorized</span>';
-      return `<tr style="cursor:pointer" onclick="CtrlMembersPage._openPanel('${id}')">
+      return `<tr style="cursor:pointer" onclick="CtrlMembersPage._openPanel('${Utils.esc(id)}')">
         <td>${auth}</td>
-        <td><span class="mono">${id}</span></td>
-        <td>${m.name||'—'}</td>
-        <td class="mono text-sm">${(m.ip_assignments||m.ipAssignments||[]).join(', ')||'—'}</td>
+        <td><span class="mono">${Utils.esc(id)}</span></td>
+        <td>${Utils.esc(m.name||'—')}</td>
+        <td class="mono text-sm">${Utils.esc((m.ip_assignments||m.ipAssignments||[]).join(', ')||'—')}</td>
         <td class="text-sm">${timeAgo(m.lastOnline||m.last_online||m.lastSeen)}</td>
-        <td class="mono text-sm">${m.clientVersion||m.client_version||'—'}</td>
-        <td class="mono text-sm">${m.physicalAddress||m.physical_address||'—'}</td>
+        <td class="mono text-sm">${Utils.esc(m.clientVersion||m.client_version||'—')}</td>
+        <td class="mono text-sm">${Utils.esc(m.physicalAddress||m.physical_address||'—')}</td>
       </tr>`;
     }).join('');
   }

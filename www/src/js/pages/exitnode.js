@@ -56,6 +56,10 @@ const ExitnodePage = (() => {
     const nets = State.get('networks') || [];
     const netOpts = nets.filter(n=>n.status==='OK'||n._src).map(n=>`<option value="${n.id}">${n.id} ${n.name?('('+n.name+')'):''}  </option>`).join('');
 
+    // ZeroTier interfaces (zt*) for the zt_interface field — separate from network ID
+    const ztIfaces = (ifaces||[]).filter(i=>i.is_zerotier);
+    const ztIfaceOpts = ztIfaces.map(i=>`<option value="${i.name}">${i.name}</option>`).join('');
+
     const wanIfaces = (ifaces||[]).filter(i=>!i.is_zerotier&&i.name!=='lo');
     const wanOpts = wanIfaces.map(i=>`<option value="${i.name}">${i.name} ${i.addresses?.[0]?('— '+i.addresses[0]):''}  </option>`).join('');
 
@@ -130,7 +134,10 @@ const ExitnodePage = (() => {
       </div>
       <div class="section"><div class="section-title">Configuration</div>
         <div class="card">
-          <div class="field"><label class="field-label">ZeroTier Network</label>
+          <div class="field"><label class="field-label">ZeroTier Interface</label>
+            <select class="select" id="en-zt-iface">${ztIfaceOpts||'<option value="">No ZT interfaces detected</option>'}</select>
+            <div class="text-dim text-sm">Interface name (zt…), not the network ID</div></div>
+          <div class="field"><label class="field-label">ZeroTier Network ID <span class="text-dim">(optional — for allowDefault check)</span></label>
             <select class="select" id="en-net">${netOpts||'<option value="">No networks available</option>'}</select></div>
           <div class="field"><label class="field-label">WAN Interface</label>
             <select class="select" id="en-wan">${wanOpts||'<option value="">No interfaces detected</option>'}</select></div>
@@ -157,21 +164,22 @@ const ExitnodePage = (() => {
       if (row) row.style.display = checked ? 'block' : 'none';
     },
     async _installDeps() {
-      try { await api.post('/exitnode/deps/install'); Toast.success('Dependencies installed'); load(); }
+      try { await api.post('/exitnode/deps'); Toast.success('Dependencies installed'); load(); }
       catch(e) { Toast.error(e.message); }
     },
     async _enable() {
-      const zt  = document.getElementById('en-net')?.value;
-      const wan = document.getElementById('en-wan')?.value;
-      const ipv6 = document.getElementById('en-ipv6')?.checked || false;
+      const ztIface = document.getElementById('en-zt-iface')?.value;
+      const netId   = document.getElementById('en-net')?.value || null;
+      const wan     = document.getElementById('en-wan')?.value;
+      const ipv6    = document.getElementById('en-ipv6')?.checked || false;
       const ipv6_prefix = document.getElementById('en-ipv6-prefix')?.value.trim() || null;
-      if (!zt)  return Toast.error('Select a ZeroTier network');
-      if (!wan) return Toast.error('Select a WAN interface');
+      if (!ztIface) return Toast.error('Select a ZeroTier interface (zt…)');
+      if (!wan)     return Toast.error('Select a WAN interface');
       const ipv6note = ipv6 ? '<br><small>IPv6 ip6tables rules will also be applied.</small>' : '';
-      if (!await Modal.confirm(`Enable Exit Node?<br><small>All traffic on <b>${zt}</b> will route through <b>${wan}</b>.</small>${ipv6note}`)) return;
+      if (!await Modal.confirm(`Enable Exit Node?<br><small>Route traffic on <b>${ztIface}</b> through <b>${wan}</b>.</small>${ipv6note}`)) return;
       try {
         const res = await api.post('/exitnode/enable', {
-          zt_interface: zt, wan_interface: wan, network_id: zt,
+          zt_interface: ztIface, wan_interface: wan, network_id: netId,
           enable_ipv6: ipv6, ipv6_prefix,
         });
         if (res.warnings?.length) res.warnings.forEach(w => Toast.warn(w));

@@ -4,13 +4,13 @@ const CtrlNetworksPage = (() => {
   function render() {
     const rows = _nets.map(n => `<tr>
       <td><span class="badge ${n._src==='central'?'badge-info':'badge-primary'}">${n._src==='central'?'Central':'Local'}</span></td>
-      <td><span class="mono">${n.id}</span></td>
-      <td>${n.name||n.config?.name||'—'}</td>
+      <td><span class="mono">${Utils.esc(n.id)}</span></td>
+      <td>${Utils.esc(n.name||n.config?.name||'—')}</td>
       <td>${n.totalMemberCount||n.member_count||'—'}</td>
       <td><div style="display:flex;gap:4px">
-        <button class="btn btn-sm btn-ghost" onclick="Router.navigate('/controllers/members/${n.id}')">Members</button>
-        <button class="btn btn-sm btn-ghost" onclick="Router.navigate('/controllers/config/${n.id}')">Config</button>
-        <button class="btn btn-sm btn-danger" onclick="CtrlNetworksPage._delete('${n.id}','${n._src}')">Delete</button>
+        <button class="btn btn-sm btn-ghost" onclick="Router.navigate('/controllers/members/${Utils.esc(n.id)}')">Members</button>
+        <button class="btn btn-sm btn-ghost" onclick="Router.navigate('/controllers/config/${Utils.esc(n.id)}')">Config</button>
+        <button class="btn btn-sm btn-danger" onclick="CtrlNetworksPage._delete('${Utils.esc(n.id)}','${Utils.esc(n._src)}')">Delete</button>
       </div></td>
     </tr>`).join('');
 

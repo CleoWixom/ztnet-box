@@ -7,7 +7,7 @@ use crate::{
     relay::RemoteRelayInfo,
     runtime_state,
     server::log_collector::LogCollector,
-    zerotier::central::token_store::TokenStore,
+    zerotier::{central::token_store::TokenStore, local::client::ZtLocalClient},
 };
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
@@ -25,6 +25,9 @@ pub struct AppState {
     pub log_collector: LogCollector,
     /// Path where bridge/physnet/relay state is persisted across restarts.
     pub runtime_state_path: PathBuf,
+    /// Cached ZeroTier local client — avoids reading authtoken.secret on every request.
+    /// Wrapped in RwLock so it can be refreshed when the config changes.
+    pub zt_local: Arc<RwLock<Option<ZtLocalClient>>>,
 }
 
 impl AppState {
@@ -59,6 +62,12 @@ impl AppState {
         let saved = runtime_state::load(&runtime_state_path);
         tracing::debug!(path = %runtime_state_path.display(), "loaded runtime state");
 
+        // Eagerly initialise the ZT local client cache — reads authtoken.secret once
+        let zt_local = ZtLocalClient::from_config(&config.zerotier.local)
+            .ok()
+            .map(|c| Arc::new(RwLock::new(Some(c))))
+            .unwrap_or_else(|| Arc::new(RwLock::new(None)));
+
         Ok(Self {
             config: Arc::new(RwLock::new(config)),
             config_path,
@@ -70,6 +79,7 @@ impl AppState {
             relay_remote: Arc::new(RwLock::new(saved.relay_remote)),
             log_collector,
             runtime_state_path,
+            zt_local,
         })
     }
 }

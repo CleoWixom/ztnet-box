@@ -1,13 +1,14 @@
 use crate::{
     config::schema::{ExitNodeConfig, MetricsConfig, ServerConfig},
-    server::{error::ApiError, state::AppState},
+    server::{error::ApiError, handlers::tokens::TokenView, state::AppState},
 };
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 
 // ── GET /api/settings/config ──────────────────────────────────────────────────
 
-/// Config view — токены маскируются (первые 4 символа + ***)
+/// Config view — токены маскируются (первые 4 символа + ***).
+/// Reuses the canonical `TokenView` from `handlers::tokens` to avoid duplication.
 #[derive(Debug, Serialize)]
 pub struct ConfigView {
     pub server: ServerConfig,
@@ -29,15 +30,6 @@ pub struct CentralConfigView {
     pub active_token_id: String,
 }
 
-#[derive(Debug, Serialize)]
-pub struct TokenView {
-    pub id: String,
-    pub name: String,
-    pub token: String, // masked
-    pub rate_limit: crate::config::schema::RateLimit,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-}
-
 pub async fn get_config(State(state): State<AppState>) -> Result<Json<ConfigView>, ApiError> {
     let cfg = state.config.read().await;
 
@@ -46,12 +38,16 @@ pub async fn get_config(State(state): State<AppState>) -> Result<Json<ConfigView
         .central
         .tokens
         .iter()
-        .map(|t| TokenView {
-            id: t.id.clone(),
-            name: t.name.clone(),
-            token: t.masked_token(),
-            rate_limit: t.rate_limit.clone(),
-            created_at: t.created_at,
+        .map(|t| {
+            let is_active = t.id == cfg.zerotier.central.active_token_id;
+            TokenView {
+                id: t.id.clone(),
+                name: t.name.clone(),
+                masked_token: t.masked_token(),
+                rate_limit: t.rate_limit.clone(),
+                created_at: t.created_at,
+                is_active,
+            }
         })
         .collect();
 

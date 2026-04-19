@@ -29,11 +29,20 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
     let origin_lo = format!("http://localhost:{port}")
         .parse::<HeaderValue>()
         .expect("origin");
+    // Also allow IPv6 loopback origin (::1) — fixes #18
+    let origin_lo6 = format!("http://[::1]:{port}")
+        .parse::<HeaderValue>()
+        .expect("origin ipv6");
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
-        .allow_headers(tower_http::cors::Any)
-        .allow_origin([origin_host, origin_lo]);
+        // Restrict to the headers actually used by the frontend — fixes #7
+        .allow_headers([
+            HeaderName::from_static("content-type"),
+            HeaderName::from_static("authorization"),
+            HeaderName::from_static("x-requested-with"),
+        ])
+        .allow_origin([origin_host, origin_lo, origin_lo6]);
 
     // /api/local/*
     let local = Router::new()
