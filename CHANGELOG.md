@@ -10,6 +10,17 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.9.2] — 2026-04-20
+
+### Bug Fixes
+- replace networkidle with fixed 2s wait — prevents hang (2f63be4)
+
+### Chores
+- docs(audit): audit-3 — screenshots workflow root causes documented (SCR-1..7) (e2fb0a0)
+- Updated New tasks (6a67a03)
+- chore(ci): update actions/checkout, cache, setup-node v4→v5 (893aa93)
+
+
 ## [0.9.1] — 2026-04-18
 
 ### Chores
