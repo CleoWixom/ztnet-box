@@ -89,17 +89,18 @@ jobs:
       - name: Write config
         if: ${{ github.event.inputs.base_url == '' }}
         run: |
-          cat > /tmp/ztnet-box-screenshot.yml << 'EOF'
-          server:
-            host: "127.0.0.1"
-            port: 7979
-          zerotier:
-            local:
-              api_url: "http://127.0.0.1:9993"
-              token_file: "/var/lib/zerotier-one/authtoken.secret"
-            central:
-              base_url: "https://my.zerotier.com"
-          EOF
+          # Write config without leading spaces (heredoc strips only the delimiter's indent)
+          cat > /tmp/ztnet-box-screenshot.yml << 'ZTCONFIG'
+server:
+  host: "127.0.0.1"
+  port: 7979
+zerotier:
+  local:
+    api_url: "http://127.0.0.1:9993"
+    token_file: "/var/lib/zerotier-one/authtoken.secret"
+  central:
+    base_url: "https://my.zerotier.com"
+ZTCONFIG
 
       - name: Start ztnet-box
         if: ${{ github.event.inputs.base_url == '' }}

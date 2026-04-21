@@ -22,6 +22,10 @@ impl ZtLocalClient {
             || api_url.contains("[::1]");
         let http = Client::builder()
             .danger_accept_invalid_certs(is_loopback)
+            // Hard timeout: if ZeroTier daemon is not running or unreachable,
+            // fail fast instead of hanging the browser with infinite spinners.
+            .timeout(std::time::Duration::from_secs(5))
+            .connect_timeout(std::time::Duration::from_secs(3))
             .build()
             .expect("reqwest client");
         Self {

@@ -121,11 +121,31 @@ pub fn install(pm: PackageManager) -> anyhow::Result<InstallResult> {
 /// Читает версию из stdout `zerotier-cli info`:
 /// "200 info <node-id> <version> ONLINE"  →  "<version>"
 fn read_zt_version() -> Option<String> {
-    let out = std::process::Command::new("zerotier-cli")
+    // Use a child process with a timeout: if the ZT daemon socket is
+    // unresponsive, zerotier-cli hangs indefinitely. We kill it after 3s.
+    let mut child = std::process::Command::new("zerotier-cli")
         .arg("info")
-        .output()
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
         .ok()?;
 
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) => {
+                if std::time::Instant::now() > deadline {
+                    let _ = child.kill();
+                    return None;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            Err(_) => return None,
+        }
+    }
+
+    let out = child.wait_with_output().ok()?;
     if !out.status.success() {
         return None;
     }
