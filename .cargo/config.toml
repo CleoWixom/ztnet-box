@@ -1,0 +1,3 @@
+# Run tests single-threaded to avoid ZTNET_SKIP_DEPS env-var data race (AUDIT #16)
+[env]
+RUST_TEST_THREADS = "1"

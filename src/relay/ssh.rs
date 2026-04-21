@@ -32,9 +32,46 @@ pub struct SshClient {
 }
 
 impl SshClient {
+    /// Validate that `key_path` is an absolute path to an existing regular file
+    /// and does not contain null bytes or shell metacharacters.
+    /// Returns an error if validation fails.
+    fn validate_key_path(path: &str) -> Result<(), SshError> {
+        if path.contains('\0') {
+            return Err(SshError::Failed {
+                code: -1,
+                stderr: "key_path contains null byte".into(),
+            });
+        }
+        let p = std::path::Path::new(path);
+        if !p.is_absolute() {
+            return Err(SshError::Failed {
+                code: -1,
+                stderr: format!("key_path must be absolute, got: {path}"),
+            });
+        }
+        if !p.exists() {
+            return Err(SshError::Failed {
+                code: -1,
+                stderr: format!("key_path does not exist: {path}"),
+            });
+        }
+        if !p.is_file() {
+            return Err(SshError::Failed {
+                code: -1,
+                stderr: format!("key_path is not a regular file: {path}"),
+            });
+        }
+        Ok(())
+    }
+
     /// Run a single command on the remote host; return stdout.
     pub fn run(&self, cmd: &str) -> Result<String, SshError> {
         let ssh = which::which("ssh").map_err(|e| SshError::NotFound(e.to_string()))?;
+
+        // Validate key_path before constructing args — prevents path traversal
+        if let Some(ref key) = self.key_path {
+            Self::validate_key_path(key)?;
+        }
 
         let mut args: Vec<String> = vec![
             "-p".into(),

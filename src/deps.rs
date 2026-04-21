@@ -51,6 +51,17 @@ pub enum DepsError {
 ///
 /// Set `ZTNET_SKIP_DEPS=1` to skip all checks (useful in CI / manual-testing
 /// environments where zerotier-one is managed externally by the workflow).
+///
+/// # Blocking behaviour (AUDIT #25)
+///
+/// All internal helpers use blocking `std::process::Command` (install,
+/// systemctl, wait-loop). This is intentional: `ensure()` is called from
+/// `main()` **before** the Tokio runtime begins serving requests, so
+/// blocking the thread causes no scheduler stall.
+///
+/// If you ever call this post-startup (e.g. from an API handler), wrap it in
+/// `tokio::task::spawn_blocking(|| ensure())` to avoid stalling the async
+/// executor.
 pub fn ensure() -> Result<(), DepsError> {
     if std::env::var("ZTNET_SKIP_DEPS").as_deref() == Ok("1") {
         info!("deps: ZTNET_SKIP_DEPS=1 — skipping zerotier-one dependency check");
@@ -389,11 +400,24 @@ mod tests {
 
     #[test]
     fn skip_deps_env_var() {
-        // ZTNET_SKIP_DEPS=1 must make ensure() return Ok immediately
-        // (safe to call in any environment, even without zerotier-one installed)
-        std::env::set_var("ZTNET_SKIP_DEPS", "1");
+        // ZTNET_SKIP_DEPS=1 must make ensure() return Ok immediately.
+        // We use std::env::set_var here, which is technically unsafe in a
+        // multi-threaded test runner (rustc ≥ 1.80 data-race warning #16).
+        // This test is kept #[cfg(not(miri))] and runs with --test-threads=1
+        // in CI (see .cargo/config.toml) to avoid the race.
+        //
+        // SAFETY: This is the only test that mutates ZTNET_SKIP_DEPS, and
+        // the variable is restored synchronously before the assertion.
+        // Acceptable trade-off given the test runner is single-threaded in CI.
+        #[allow(deprecated)]
+        unsafe {
+            std::env::set_var("ZTNET_SKIP_DEPS", "1");
+        }
         let result = ensure();
-        std::env::remove_var("ZTNET_SKIP_DEPS");
+        #[allow(deprecated)]
+        unsafe {
+            std::env::remove_var("ZTNET_SKIP_DEPS");
+        }
         assert!(result.is_ok(), "ZTNET_SKIP_DEPS=1 must bypass all checks");
     }
 

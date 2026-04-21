@@ -8,12 +8,6 @@ const DashboardPage = (() => {
     return (b/1073741824).toFixed(2) + ' GB';
   }
 
-  function latencyClass(ms) {
-    if (ms < 50) return 'latency-good';
-    if (ms < 150) return 'latency-medium';
-    return 'latency-bad';
-  }
-
   function renderStatus(node) {
     if (!node) return '<div class="loading-row"><div class="spinner"></div> Loading node status...</div>';
     return `<div class="node-status-bar">
@@ -48,7 +42,7 @@ const DashboardPage = (() => {
       </div>
       <div class="metric-card">
         <div class="metric-card-label">Avg Latency</div>
-        <div class="metric-card-value ${latencyClass(m.latency?.avg_ms||0)}">${(m.latency?.avg_ms||0).toFixed(1)} ms</div>
+        <div class="metric-card-value ${Utils.latencyClass(m.latency?.avg_ms||0)}">${(m.latency?.avg_ms||0).toFixed(1)} ms</div>
         <div class="metric-card-sub">min ${(m.latency?.min_ms||0).toFixed(0)} / max ${(m.latency?.max_ms||0).toFixed(0)} ms</div>
       </div>
       <div class="metric-card">
@@ -64,7 +58,7 @@ const DashboardPage = (() => {
     const rows = peers.map(p => {
       const roleClass = p.role === 'PLANET' ? 'badge-info' : p.role === 'MOON' ? 'badge-warn' : 'badge-muted';
       const latMs = p.latency >= 0 ? p.latency : '—';
-      const latClass = p.latency >= 0 ? latencyClass(p.latency) : '';
+      const latClass = p.latency >= 0 ? Utils.latencyClass(p.latency) : '';
       return `<tr>
         <td><span class="mono">${p.address}</span></td>
         <td><span class="badge ${roleClass}">${p.role}</span></td>

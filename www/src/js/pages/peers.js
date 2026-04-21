@@ -1,12 +1,6 @@
 const PeersPage = (() => {
   let _interval = null;
 
-  function latencyClass(ms) {
-    if (ms < 50) return 'latency-good';
-    if (ms < 150) return 'latency-medium';
-    return 'latency-bad';
-  }
-
   async function load() {
     try {
       const peers = await api.get('/local/peers');
@@ -29,7 +23,7 @@ const PeersPage = (() => {
     const rows = (peers || []).map(p => {
       const latMs  = p.latency >= 0 ? p.latency : null;
       const latTxt = latMs !== null ? latMs + ' ms' : '—';
-      const latCls = latMs !== null ? latencyClass(latMs) : '';
+      const latCls = latMs !== null ? Utils.latencyClass(latMs) : '';
       return `<tr>
       <td class="mono">${Utils.esc(p.address)}</td>
       <td><span class="badge ${p.role==='PLANET'?'badge-info':p.role==='MOON'?'badge-warn':'badge-muted'}">${Utils.esc(p.role)}</span></td>

@@ -41,5 +41,12 @@ const Utils = (() => {
       .replace(/"/g, '&quot;');
   }
 
-  return { esc };
+  /** CSS class for peer latency colouring. */
+  function latencyClass(ms) {
+    if (ms < 50)  return 'latency-good';
+    if (ms < 150) return 'latency-medium';
+    return 'latency-bad';
+  }
+
+  return { esc, latencyClass };
 })();

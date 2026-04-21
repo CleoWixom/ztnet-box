@@ -1,0 +1,37 @@
+name: Close Stale PRs
+on:
+  workflow_dispatch:
+permissions:
+  pull-requests: write
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close stale PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const stale = [1,2,3,4,5,6,7,8,9,10,11,13,14,16];
+            const reasons = {
+              1:'Initial scaffold — in main', 2:'Config REST — in main',
+              3:'ZT detection — in main', 4:'HTTP server — in main',
+              5:'Local API — in main', 6:'Central API — in main',
+              7:'Token store — in main', 8:'Metrics — in main',
+              9:'Exit node — in main', 10:'Frontend — in main',
+              11:'Integration tests — in main', 13:'Part4 security — in main',
+              14:'PhysNet — in main', 16:'Outdated screenshots'
+            };
+            for (const pr of stale) {
+              try {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  issue_number: pr,
+                  body: `Closing: ${reasons[pr]}. All changes are already present in \`main\` via direct commits. This PR is stale.`
+                });
+                await github.rest.pulls.update({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  pull_number: pr, state: 'closed'
+                });
+                console.log(`Closed PR #${pr}`);
+              } catch(e) { console.log(`PR #${pr}: ${e.message}`); }
+            }
