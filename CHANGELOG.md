@@ -10,6 +10,13 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.9.4] — 2026-04-21
+
+### Bug Fixes
+- add diagnostics to find crash root cause (2c38c07)
+- ZTNET_SKIP_DEPS=1 + health-check exit-1 + goto timeout (8fb2dbe)
+
+
 ## [0.9.3] — 2026-04-21
 
 
