@@ -105,19 +105,31 @@ jobs:
         if: ${{ github.event.inputs.base_url == '' }}
         run: |
           # sudo required: reads /var/lib/zerotier-one/authtoken.secret (root-owned)
-          sudo ./target/release/ztnet-box \
+          # ZTNET_SKIP_DEPS=1: ZeroTier is already running (started above);
+          # skip the startup dep-check so deps::ensure() doesn't restart the daemon.
+          sudo ZTNET_SKIP_DEPS=1 ./target/release/ztnet-box \
             --config /tmp/ztnet-box-screenshot.yml &
           echo "ZTNET_PID=$!" >> "$GITHUB_ENV"
           echo "ZTNET_URL=http://127.0.0.1:7979" >> "$GITHUB_ENV"
-          # Wait for health endpoint
+          # Wait for health endpoint — fail loudly if server never starts
           echo "Waiting for ztnet-box…"
-          for i in $(seq 1 30); do
+          READY=0
+          for i in $(seq 1 60); do
             if curl -sf http://127.0.0.1:7979/api/health >/dev/null 2>&1; then
               echo "ztnet-box ready after ${i}s"
+              READY=1
               break
             fi
             sleep 1
           done
+          if [ "$READY" = "0" ]; then
+            echo "ERROR: ztnet-box did not start within 60s"
+            echo "--- ztnet-box stderr ---"
+            sudo journalctl -u ztnet-box 2>/dev/null | tail -20 || true
+            echo "--- process list ---"
+            ps aux | grep ztnet || true
+            exit 1
+          fi
 
       - name: Use external base_url
         if: ${{ github.event.inputs.base_url != '' }}
@@ -190,7 +202,10 @@ jobs:
 
                 // Navigate; domcontentloaded fires as soon as HTML is parsed,
                 // before JS runs — correct for SPAs.
-                await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
+                await page.goto(`${BASE}${route}`, {
+                  waitUntil: 'domcontentloaded',
+                  timeout: 15000,  // fail fast if server unreachable
+                });
 
                 // Wait for the SPA router to replace the initial loading shell.
                 // The shell contains <div class="page"><div class="loading-row">.
