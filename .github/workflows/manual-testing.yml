@@ -69,19 +69,19 @@ jobs:
       - name: Write config
         run: |
           PORT="${{ inputs.port }}"
-          cat > /tmp/ztnet-box-manual.yml << EOF
-          server:
-            host: "127.0.0.1"
-            port: ${PORT}
-          zerotier:
-            local:
-              api_url: "http://127.0.0.1:9993"
-              token_file: "/var/lib/zerotier-one/authtoken.secret"
-            central:
-              base_url: "https://my.zerotier.com"
-          metrics:
-            enabled: false
-          EOF
+          cat > /tmp/ztnet-box-manual.yml << ZTCONFIG
+server:
+  host: "127.0.0.1"
+  port: ${PORT}
+zerotier:
+  local:
+    api_url: "http://127.0.0.1:9993"
+    token_file: "/tmp/zt-authtoken.secret"
+  central:
+    base_url: "https://my.zerotier.com"
+metrics:
+  enabled: false
+ZTCONFIG
           
       - name: Install ZeroTier
         if: ${{ github.event.inputs.base_url == '' }}
@@ -95,14 +95,23 @@ jobs:
           sudo mkdir -p /var/lib/zerotier-one
           # Start ZeroTier in userspace mode (no TUN/TAP required in CI)
           sudo zerotier-one -U -d
-          # Wait up to 20s for the authtoken to appear (daemon ready signal)
-          for i in $(seq 1 20); do
+          # Wait up to 30s for the authtoken and API to be ready
+          for i in $(seq 1 30); do
             if [ -f /var/lib/zerotier-one/authtoken.secret ]; then
-              echo "ZeroTier daemon ready after ${i}s"
-              break
+              TOKEN=$(sudo cat /var/lib/zerotier-one/authtoken.secret)
+              if curl -sf http://127.0.0.1:9993/status \
+                   -H "X-ZT1-Auth: ${TOKEN}" >/dev/null 2>&1; then
+                echo "ZeroTier daemon ready after ${i}s"
+                # Make socket and authtoken readable by runner user
+                sudo chmod 666 /var/lib/zerotier-one/zerotier-one.sock 2>/dev/null || true
+                sudo chmod 644 /var/lib/zerotier-one/authtoken.secret || true
+                # Also copy to /tmp for the config token_file path
+                cp /var/lib/zerotier-one/authtoken.secret /tmp/zt-authtoken.secret
+                break
+              fi
             fi
-            if [ "$i" -eq 20 ]; then
-              echo "ERROR: zerotier-one authtoken not found after 20s"
+            if [ "$i" -eq 30 ]; then
+              echo "ERROR: zerotier-one not ready after 30s"
               sudo journalctl -u zerotier-one --no-pager -n 30 2>/dev/null || true
               exit 1
             fi
@@ -167,7 +176,7 @@ jobs:
             echo "TUNNEL_PID=$TUNNEL_PID" >> "$GITHUB_ENV"
 
             for i in $(seq 1 20); do
-              URL=$(grep -oP 'https://[a-z0-9\-]+\.loca\.lt' /tmp/tunnel.log | head -1)
+              URL=$(grep -oP 'https://[a-zA-Z0-9\-]+\.loca\.lt' /tmp/tunnel.log | head -1)
               if [ -n "$URL" ]; then break; fi
               sleep 1
             done
@@ -178,7 +187,9 @@ jobs:
             TUNNEL_PID=$!
             echo "TUNNEL_PID=$TUNNEL_PID" >> "$GITHUB_ENV"
 
-            for i in $(seq 1 30); do
+            for i in $(seq 1 60); do
+              # cloudflared logs the URL in different formats depending on version:
+              # "https://xxx.trycloudflare.com" or "| https://xxx.trycloudflare.com |"
               URL=$(grep -oP 'https://[a-zA-Z0-9\-]+\.trycloudflare\.com' /tmp/tunnel.log | head -1)
               if [ -n "$URL" ]; then break; fi
               sleep 1
