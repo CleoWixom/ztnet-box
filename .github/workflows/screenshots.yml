@@ -108,7 +108,7 @@ jobs:
           # ZTNET_SKIP_DEPS=1: ZeroTier is already running (started above);
           # skip the startup dep-check so deps::ensure() doesn't restart the daemon.
           sudo ZTNET_SKIP_DEPS=1 ./target/release/ztnet-box \
-            --config /tmp/ztnet-box-screenshot.yml &
+            --config /tmp/ztnet-box-screenshot.yml > /tmp/ztnet-box.log 2>&1 &
           echo "ZTNET_PID=$!" >> "$GITHUB_ENV"
           echo "ZTNET_URL=http://127.0.0.1:7979" >> "$GITHUB_ENV"
           # Wait for health endpoint — fail loudly if server never starts
@@ -243,6 +243,18 @@ jobs:
           }
           SPEC
 
+      - name: Verify server before Playwright
+        if: ${{ github.event.inputs.base_url == '' }}
+        run: |
+          echo "=== ztnet-box health check ==="
+          curl -sv http://127.0.0.1:7979/api/health 2>&1 | head -30
+          echo ""
+          echo "=== ztnet-box process ==="
+          ps aux | grep ztnet || echo "ztnet-box not in ps!"
+          echo ""
+          echo "=== ztnet-box log (last 30 lines) ==="
+          tail -30 /tmp/ztnet-box.log 2>/dev/null || echo "(no log file)"
+
       - name: Run Playwright screenshots
         run: |
           ZTNET_URL="${{ env.ZTNET_URL }}" \
@@ -251,6 +263,12 @@ jobs:
             --workers=1 || true
         env:
           CI: "true"
+
+      - name: Show ztnet-box log on failure
+        if: failure()
+        run: |
+          echo "=== ztnet-box stdout/stderr ==="
+          cat /tmp/ztnet-box.log 2>/dev/null || echo "(no log)"
 
       - name: Stop ztnet-box
         if: always() && env.ZTNET_PID != ''
