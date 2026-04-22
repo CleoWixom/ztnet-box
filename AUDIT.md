@@ -952,3 +952,206 @@ impl Default for MetricsConfig {
 **SCR-7** Cargo cache восстановлен (был закомментирован вместе со `Start ztnet-box`).
 
 **Коммит:** `44f452c`
+
+---
+
+## Roadmap-1 (2026-04-18) — UX/Architecture backlog
+
+Задачи по результатам product review. Статус: **открыты**, реализация не начата.
+
+---
+
+### RD-1 🔴 HIGH — Удалить страницу Peers из навигации
+
+**Файлы:** `www/src/html/shell.html`, `www/src/js/pages/dashboard.js`, `www/src/js/pages/peers.js`
+
+Страница `/peers` дублирует таблицу пиров на Dashboard (раздел «Peers» уже присутствует). Самостоятельной ценности страница не несёт: она показывает те же поля, что и Dashboard, но без автообновления метрик и без контекста node status.
+
+**Что сделать:**
+- Убрать nav-item `Peers` из sidebar (`shell.html`)
+- Убрать регистрацию маршрута `/peers` из `Router.on`
+- Убрать секцию NODE из sidebar — останется только `Dashboard`
+- Файл `peers.js` оставить или удалить (логика переезжает в `dashboard.js`)
+- Таблицу пиров на Dashboard расширить: добавить поля Version и Physical IP, которые сейчас есть только на отдельной странице
+
+---
+
+### RD-2 🔴 HIGH — Dashboard: подключение к сети + статус подключённых сетей + участники
+
+**Файлы:** `www/src/js/pages/dashboard.js`, `www/src/css/pages.css`
+
+**Текущее состояние:** Dashboard показывает node status, метрики и таблицу пиров. Подключённые сети и их участники — на отдельных страницах `/networks` и `/controllers/members/:id`.
+
+**Что сделать:**
+
+1. **Join-виджет прямо на Dashboard** — поле ввода Network ID (16 hex) + кнопка «Join» рядом со статусом ноды. Вызывает `POST /api/local/networks/:id`. При успехе список сетей ниже обновляется.
+
+2. **Карточки подключённых сетей** — под метриками отображать каждую активную сеть как карточку:
+   ```
+   ┌─────────────────────────────────────┐
+   │ [badge: OK]  8056c2e21c000001       │  ← ID + статус
+   │ mynet.example.com  172.27.0.5/16    │  ← имя + assigned IP
+   │ Members online: 3/12  [Details →]  │  ← участники + переход
+   └─────────────────────────────────────┘
+   ```
+
+3. **Участники online/offline** — для каждой сети запрашивать `GET /api/local/controller/networks/:id/members` (если локальный контроллер) или `GET /api/central/networks/:id/members` (если есть токен). Считать online тех у кого `lastOnline > (now - 5min)`. Показывать счётчик `N/Total` и dot-индикаторы для первых 8 участников.
+
+4. **Автообновление** — включить в существующий `setInterval(10s)` refresh.
+
+**API:** уже реализованы `GET /api/local/networks`, `GET /api/local/controller/networks/:id/members`, `GET /api/central/networks/:id/members`. Дополнительный backend не нужен.
+
+---
+
+### RD-3 🔴 HIGH — Реструктуризация меню: CLIENT / SERVER разделение
+
+**Файлы:** `www/src/html/shell.html`, `www/src/css/layout.css`, возможно новые JS-модули
+
+#### Анализ текущей структуры
+
+```
+NODE          → Dashboard, Peers
+MY NETWORKS   → Networks
+CONTROLLERS   → Networks, Members
+NETWORK       → Exit Node, Phys Routing, L2 Bridge, TCP Relay
+SETTINGS      → Global, ZeroTier Node, Root Servers, API Tokens
+```
+
+Проблема: секция **NETWORK** содержит 4 несвязанных с точки зрения пользователя страницы — это разные режимы работы ноды как шлюза. Пользователь, который просто подключается к чужим сетям (CLIENT), никогда не заходит на эти страницы. Пользователь, который управляет контроллером (SERVER), заходит редко. Обе группы видят перегруженное меню.
+
+NDP Proxy вообще отсутствует в sidebar, хотя его страница существует как часть Exit Node.
+
+#### Предлагаемая структура
+
+```
+УЗЕЛ
+  Dashboard          ← node status + join + сети + пиры (после RD-2)
+
+МОИ СЕТИ
+  Сети               ← список + join + настройки per-network
+
+КОНТРОЛЛЕР           ← секция видна всегда, но с hint "нужен токен/локальный контроллер"
+  Сети               ← управление контроллером
+  Участники          ← открывается из контекста сети
+
+ШЛЮЗ ▾              ← КОЛЛАПСИРУЕМАЯ секция, по умолчанию свёрнута
+  Exit Node          ← с NDP Proxy внутри страницы (уже реализовано)
+  Physical Routing   
+  L2 Bridge          
+  TCP Relay          
+
+НАСТРОЙКИ
+  Глобальные
+  ZeroTier Node
+  Root Servers
+  API Токены
+```
+
+#### Ключевые решения
+
+**Секция ШЛЮЗ — коллапсируемая:**
+- По умолчанию свёрнута если ни одна из функций не активна (`nav-exitnode-badge` / `nav-bridge-badge` / `nav-physnet-badge` = не активны)
+- Раскрывается автоматически если хотя бы одна функция активна (badge показывает dot)
+- На мобильных: всегда свёрнута по умолчанию
+- Реализация: CSS `.nav-group.collapsed > .nav-group-items { display: none }` + toggle по клику на заголовок
+
+**Почему НЕ полное CLIENT/SERVER разделение с двумя режимами:**
+- Пользователь может одновременно быть клиентом чужой сети и хостом своей
+- Переключение режима добавляет шаг навигации и ломает прямые ссылки
+- Статус (есть ли локальный контроллер / есть ли API токен) меняется динамически
+- Достаточно: визуально отделить "шлюзовые" фичи через коллапс + сохранить всё в одном sidebar
+
+**NDP Proxy:**
+- Остаётся на странице Exit Node как подсекция (уже реализовано через `#exitnode/ndp`)
+- В sidebar отдельный пункт не нужен
+
+**Мобильная адаптация:**
+- Секция ШЛЮЗ свёрнута по умолчанию — сокращает мобильный sidebar с 13 пунктов до 9
+- Раскрывается тапом по заголовку секции
+
+**Реализация заголовка секции:**
+```html
+<div class="nav-section nav-group" id="gateway-group">
+  <div class="nav-section-label nav-group-toggle" onclick="toggleNavGroup('gateway-group')">
+    Шлюз
+    <svg class="nav-group-chevron">…</svg>
+  </div>
+  <div class="nav-group-items">
+    <!-- Exit Node, Phys Routing, L2 Bridge, TCP Relay -->
+  </div>
+</div>
+```
+
+---
+
+### RD-4 🟡 MEDIUM — Расширение тестового покрытия
+
+**Файлы:** `tests/api_health.rs` (новые файлы: `tests/api_networks.rs`, `tests/api_tokens.rs`, ...)
+
+**Текущее состояние:** один тест — `GET /api/health` возвращает 200.
+
+**Что добавить:**
+
+#### Группа: Tokens (без моков, только валидация)
+```rust
+// tests/api_tokens.rs
+POST /api/settings/tokens          → 201 Created, UUID в ответе
+GET  /api/settings/tokens          → 200, массив
+PUT  /api/settings/tokens/:id      → 200, имя изменилось
+POST /api/settings/tokens/:id/activate → 200
+DELETE /api/settings/tokens/:id    → 204
+```
+
+#### Группа: Networks — join/leave (мок ZT daemon)
+```rust
+// Нужен мок-сервер zerotier-one на localhost:PORT
+POST /api/local/networks/:id       → 200 (join)
+DELETE /api/local/networks/:id     → 200 (leave)
+GET  /api/local/networks           → 200, массив
+GET  /api/local/networks/:id       → 200, объект
+```
+
+#### Группа: Controller — create/list/delete network
+```rust
+POST /api/local/controller/networks          → 200
+GET  /api/local/controller/networks          → 200, содержит созданную сеть
+GET  /api/local/controller/networks/:id      → 200
+PUT  /api/local/controller/networks/:id      → 200, изменения применились
+DELETE /api/local/controller/networks/:id    → 200
+```
+
+#### Группа: Members — add/authorize/delete
+```rust
+PUT  /api/local/controller/networks/:net/members/:node  → 200
+GET  /api/local/controller/networks/:net/members        → 200
+DELETE /api/local/controller/networks/:net/members/:node → 200
+```
+
+#### Группа: Feature routes — smoke (без реальной ОС)
+```rust
+// Проверяем что маршруты существуют и возвращают корректный JSON, не 404/500
+GET /api/exitnode/platform   → 200, { supported: bool }
+GET /api/exitnode/deps       → 200
+GET /api/physnet/platform    → 200
+GET /api/bridge/platform     → 200
+GET /api/relay/status        → 200
+GET /api/metrics/status      → 200
+```
+
+**Инфраструктура для мок-ZT:**
+- Запустить `axum` сервер на случайном порту в `#[tokio::test]`
+- Передать его URL через `AppState` с кастомным `api_url` в конфиге
+- Не требует прав root, не зависит от ОС
+
+**Оценка объёма:** ~400–600 строк Rust, ~3–4 новых test-файла.
+
+---
+
+### Итоговая таблица Roadmap-1
+
+| # | Приоритет | Компонент | Задача | Статус |
+|---|-----------|-----------|--------|--------|
+| RD-1 | 🔴 High | Frontend | Удалить страницу Peers (дублирует Dashboard) | 🔲 Открыта |
+| RD-2 | 🔴 High | Frontend | Dashboard: join-виджет + карточки сетей + участники online | 🔲 Открыта |
+| RD-3 | 🔴 High | Frontend | Реструктуризация sidebar: коллапс секции ШЛЮЗ + убрать Peers из NODE | 🔲 Открыта |
+| RD-4 | 🟡 Medium | Rust/Tests | Интеграционные тесты: tokens, join/leave, controller CRUD, members, smoke routes | 🔲 Открыта |
