@@ -1,8 +1,8 @@
 name: Manual WebUI Testing
 
-# Поднимает ztnet-box на runner-е и пробрасывает его наружу через туннель.
-# После запуска публичная ссылка на WebUI появляется в логах шага "Tunnel URL".
-# Runner держится живым до таймаута (по умолчанию 60 мин) или ручной отмены.
+# Starts ztnet-box on the runner and exposes it via tunnel.
+# The public URL appears in the "Start tunnel" step logs.
+# Runner stays alive until timeout (default 60 min) or manual cancellation.
 
 on:
   workflow_dispatch:
@@ -14,11 +14,11 @@ on:
       tunnel:
         description: "Tunnel provider"
         required: true
-        default: "localtunnel"
+        default: "cloudflared"
         type: choice
         options:
-          - localtunnel
           - cloudflared
+          - localtunnel
       port:
         description: "Port for ztnet-box (default: 7979)"
         required: false
@@ -33,8 +33,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  CARGO_HOME: /home/runner/.cargo
-  CARGO_INCREMENTAL: 0
+  CARGO_INCREMENTAL: "0"
 
 jobs:
   manual-testing:
@@ -43,15 +42,17 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-      # ── Build ztnet-box ──────────────────────────────────────────────────
+      # ── Build ztnet-box (skipped when base_url is provided) ──────────────
 
       - name: Install Rust stable
+        if: ${{ github.event.inputs.base_url == '' }}
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
-        uses: actions/cache@v5
+        if: ${{ github.event.inputs.base_url == '' }}
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry/index/
@@ -62,13 +63,57 @@ jobs:
           restore-keys: manual-testing-
 
       - name: Build release binary
+        if: ${{ github.event.inputs.base_url == '' }}
         run: cargo build --release
-        
-      # ── Config & start ──────────────────────────────────────────────────
+
+      # ── ZeroTier (skipped when base_url is provided) ─────────────────────
+
+      - name: Install ZeroTier
+        if: ${{ github.event.inputs.base_url == '' }}
+        run: curl -s https://install.zerotier.com | sudo bash
+
+      - name: Start ZeroTier daemon
+        if: ${{ github.event.inputs.base_url == '' }}
+        run: |
+          sudo systemctl stop zerotier-one 2>/dev/null || true
+          sudo systemctl disable zerotier-one 2>/dev/null || true
+          sudo mkdir -p /var/lib/zerotier-one
+          # Userspace mode: no TUN/TAP device needed in CI
+          sudo zerotier-one -U -d
+
+          echo "Waiting for ZeroTier daemon…"
+          READY=0
+          for i in $(seq 1 30); do
+            if [ -f /var/lib/zerotier-one/authtoken.secret ]; then
+              TOKEN=$(sudo cat /var/lib/zerotier-one/authtoken.secret)
+              if curl -sf http://127.0.0.1:9993/status \
+                   -H "X-ZT1-Auth: ${TOKEN}" >/dev/null 2>&1; then
+                echo "ZeroTier ready after ${i}s"
+                # Make authtoken readable by runner user (non-root)
+                sudo chmod 644 /var/lib/zerotier-one/authtoken.secret
+                # Make ZT socket accessible for zerotier-cli
+                sudo chmod 666 /var/lib/zerotier-one/zerotier-one.sock 2>/dev/null || true
+                # Copy token to /tmp so ztnet-box config can reference it without sudo
+                cp /var/lib/zerotier-one/authtoken.secret /tmp/zt-authtoken.secret
+                READY=1
+                break
+              fi
+            fi
+            sleep 1
+          done
+          if [ "$READY" = "0" ]; then
+            echo "ERROR: ZeroTier not ready after 30s"
+            sudo journalctl -u zerotier-one --no-pager -n 30 2>/dev/null || true
+            exit 1
+          fi
+
+      # ── Config & start ztnet-box (skipped when base_url is provided) ─────
 
       - name: Write config
+        if: ${{ github.event.inputs.base_url == '' }}
         run: |
           PORT="${{ inputs.port }}"
+          # Unquoted ZTCONFIG: ${PORT} is expanded by the shell
           cat > /tmp/ztnet-box-manual.yml << ZTCONFIG
 server:
   host: "127.0.0.1"
@@ -82,71 +127,48 @@ zerotier:
 metrics:
   enabled: false
 ZTCONFIG
-          
-      - name: Install ZeroTier
-        if: ${{ github.event.inputs.base_url == '' }}
-        run: curl -s https://install.zerotier.com | sudo bash
-        
-      - name: Start ZeroTier daemon
-        run: |
-          # Stop systemd-managed service so we can run in userspace mode
-          sudo systemctl stop zerotier-one 2>/dev/null || true
-          sudo systemctl disable zerotier-one 2>/dev/null || true
-          sudo mkdir -p /var/lib/zerotier-one
-          # Start ZeroTier in userspace mode (no TUN/TAP required in CI)
-          sudo zerotier-one -U -d
-          # Wait up to 30s for the authtoken and API to be ready
-          for i in $(seq 1 30); do
-            if [ -f /var/lib/zerotier-one/authtoken.secret ]; then
-              TOKEN=$(sudo cat /var/lib/zerotier-one/authtoken.secret)
-              if curl -sf http://127.0.0.1:9993/status \
-                   -H "X-ZT1-Auth: ${TOKEN}" >/dev/null 2>&1; then
-                echo "ZeroTier daemon ready after ${i}s"
-                # Make socket and authtoken readable by runner user
-                sudo chmod 666 /var/lib/zerotier-one/zerotier-one.sock 2>/dev/null || true
-                sudo chmod 644 /var/lib/zerotier-one/authtoken.secret || true
-                # Also copy to /tmp for the config token_file path
-                cp /var/lib/zerotier-one/authtoken.secret /tmp/zt-authtoken.secret
-                break
-              fi
-            fi
-            if [ "$i" -eq 30 ]; then
-              echo "ERROR: zerotier-one not ready after 30s"
-              sudo journalctl -u zerotier-one --no-pager -n 30 2>/dev/null || true
-              exit 1
-            fi
-            sleep 1
-          done
+          echo "Config written:"
+          cat /tmp/ztnet-box-manual.yml
 
       - name: Start ztnet-box
+        if: ${{ github.event.inputs.base_url == '' }}
         env:
-          # Skip the built-in deps::ensure() check — ZT daemon is managed
-          # by the previous step, not by ztnet-box's startup logic.
+          # Skip built-in deps::ensure() — ZT daemon managed by previous step
           ZTNET_SKIP_DEPS: "1"
         run: |
           PORT="${{ inputs.port }}"
           ./target/release/ztnet-box --config /tmp/ztnet-box-manual.yml \
             > /tmp/ztnet-box.log 2>&1 &
-          echo "ZTNET_PID=$!" >> "$GITHUB_ENV"
+          ZTNET_PID=$!
+          echo "ZTNET_PID=${ZTNET_PID}" >> "$GITHUB_ENV"
+          echo "ZTNET_URL=http://127.0.0.1:${PORT}" >> "$GITHUB_ENV"
 
+          echo "Waiting for ztnet-box…"
+          READY=0
           for i in $(seq 1 30); do
             if curl -sf "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
               echo "ztnet-box ready after ${i}s"
+              READY=1
               break
-            fi
-            if [ "$i" -eq 30 ]; then
-              echo "ERROR: ztnet-box did not start in 30s"
-              cat /tmp/ztnet-box.log
-              exit 1
             fi
             sleep 1
           done
+          if [ "$READY" = "0" ]; then
+            echo "ERROR: ztnet-box did not start within 30s"
+            echo "--- ztnet-box log ---"
+            cat /tmp/ztnet-box.log
+            exit 1
+          fi
+
+      - name: Use external base_url
+        if: ${{ github.event.inputs.base_url != '' }}
+        run: echo "ZTNET_URL=${{ github.event.inputs.base_url }}" >> "$GITHUB_ENV"
 
       # ── Tunnel ──────────────────────────────────────────────────────────
 
-      - name: Install Node.js
+      - name: Install Node.js (localtunnel)
         if: inputs.tunnel == 'localtunnel'
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
 
@@ -157,11 +179,13 @@ ZTCONFIG
       - name: Install cloudflared
         if: inputs.tunnel == 'cloudflared'
         run: |
-          curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb \
+          curl -fsSL \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb \
             -o /tmp/cloudflared.deb
           sudo dpkg -i /tmp/cloudflared.deb
+          cloudflared version
 
-      - name: Start tunnel & print URL
+      - name: Start tunnel & keep session alive
         id: tunnel
         run: |
           PORT="${{ inputs.port }}"
@@ -169,15 +193,15 @@ ZTCONFIG
           TIMEOUT_MIN="${{ inputs.timeout_minutes }}"
           TIMEOUT_SEC=$(( TIMEOUT_MIN * 60 ))
 
+          # ── Start tunnel ────────────────────────────────────────────────
           if [ "$TUNNEL" = "localtunnel" ]; then
-            # Запускаем lt, ждём строки с URL
             lt --port "$PORT" > /tmp/tunnel.log 2>&1 &
             TUNNEL_PID=$!
-            echo "TUNNEL_PID=$TUNNEL_PID" >> "$GITHUB_ENV"
 
-            for i in $(seq 1 20); do
+            echo "Waiting for localtunnel URL…"
+            for i in $(seq 1 30); do
               URL=$(grep -oP 'https://[a-zA-Z0-9\-]+\.loca\.lt' /tmp/tunnel.log | head -1)
-              if [ -n "$URL" ]; then break; fi
+              [ -n "$URL" ] && break
               sleep 1
             done
 
@@ -185,48 +209,50 @@ ZTCONFIG
             cloudflared tunnel --url "http://127.0.0.1:$PORT" \
               --no-autoupdate > /tmp/tunnel.log 2>&1 &
             TUNNEL_PID=$!
-            echo "TUNNEL_PID=$TUNNEL_PID" >> "$GITHUB_ENV"
 
+            echo "Waiting for cloudflared URL…"
             for i in $(seq 1 60); do
-              # cloudflared logs the URL in different formats depending on version:
-              # "https://xxx.trycloudflare.com" or "| https://xxx.trycloudflare.com |"
               URL=$(grep -oP 'https://[a-zA-Z0-9\-]+\.trycloudflare\.com' /tmp/tunnel.log | head -1)
-              if [ -n "$URL" ]; then break; fi
+              [ -n "$URL" ] && break
               sleep 1
             done
           fi
 
+          echo "TUNNEL_PID=${TUNNEL_PID}" >> "$GITHUB_ENV"
+
           if [ -z "$URL" ]; then
-            echo "ERROR: could not get tunnel URL. Tunnel log:"
+            echo "ERROR: could not get tunnel URL after 60s"
+            echo "--- Tunnel log ---"
             cat /tmp/tunnel.log
             exit 1
           fi
 
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
 
           echo ""
-          echo "════════════════════════════════════════════════════"
+          echo "════════════════════════════════════════════════════════"
           echo "  ztnet-box WebUI is live:"
           echo ""
-          echo "  $URL"
+          echo "  ${URL}"
           echo ""
-          echo "  Session timeout: ${TIMEOUT_MIN} min"
-          echo "  Cancel this workflow run to stop early."
-          echo "════════════════════════════════════════════════════"
+          echo "  Session timeout : ${TIMEOUT_MIN} min"
+          echo "  Stop early      : Cancel this workflow run"
+          echo "════════════════════════════════════════════════════════"
           echo ""
 
-          # Держим runner живым до таймаута
+          # ── Keep runner alive ───────────────────────────────────────────
           ELAPSED=0
           INTERVAL=30
           while [ "$ELAPSED" -lt "$TIMEOUT_SEC" ]; do
             sleep "$INTERVAL"
             ELAPSED=$(( ELAPSED + INTERVAL ))
             REMAINING=$(( (TIMEOUT_SEC - ELAPSED) / 60 ))
-            echo "[$(date -u '+%H:%M:%S')] Session alive — ${REMAINING} min remaining | URL: $URL"
+            echo "[$(date -u '+%H:%M:%S')] Alive — ${REMAINING} min remaining | ${URL}"
 
-            # Проверяем что ztnet-box ещё жив
-            if ! kill -0 "$ZTNET_PID" 2>/dev/null; then
-              echo "ERROR: ztnet-box process died. Log:"
+            # Verify ztnet-box is still running (only when we started it)
+            if [ -n "$ZTNET_PID" ] && ! kill -0 "$ZTNET_PID" 2>/dev/null; then
+              echo "ERROR: ztnet-box process died"
+              echo "--- ztnet-box log ---"
               cat /tmp/ztnet-box.log
               exit 1
             fi
@@ -239,13 +265,13 @@ ZTCONFIG
       - name: Stop tunnel & ztnet-box
         if: always()
         run: |
-          kill "$TUNNEL_PID" 2>/dev/null || true
-          kill "$ZTNET_PID"  2>/dev/null || true
+          [ -n "$TUNNEL_PID" ] && kill "$TUNNEL_PID" 2>/dev/null || true
+          [ -n "$ZTNET_PID"  ] && kill "$ZTNET_PID"  2>/dev/null || true
 
       - name: Dump ztnet-box log
         if: always()
-        run: cat /tmp/ztnet-box.log || true
+        run: cat /tmp/ztnet-box.log 2>/dev/null || true
 
       - name: Dump tunnel log
         if: always()
-        run: cat /tmp/tunnel.log || true
+        run: cat /tmp/tunnel.log 2>/dev/null || true
