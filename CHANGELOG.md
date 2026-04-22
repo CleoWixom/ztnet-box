@@ -10,6 +10,12 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.9.5] — 2026-04-22
+
+### Bug Fixes
+- config YAML, authtoken access, tunnel wait (78dbcf6)
+
+
 ## [0.9.4] — 2026-04-21
 
 ### Bug Fixes
