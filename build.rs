@@ -95,6 +95,13 @@ fn main() {
         js.push_str(&read(&f));
         js.push('\n');
     }
+    // 4. App init — MUST be last: registers routes and calls Router.start()
+    //    Extracted from shell.html so it runs after all page modules are defined.
+    let init_path = js_dir.join("z-init.js");
+    if init_path.exists() {
+        js.push_str(&read(&init_path));
+        js.push('\n');
+    }
 
     // ── Shell HTML ─────────────────────────────────────────────────────────
     let shell_path = src.join("html").join("shell.html");
