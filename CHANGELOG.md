@@ -10,6 +10,15 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-04-23
+
+### Bug Fixes
+- rewrite screenshots + manual-testing cleanly (f9492a0)
+
+### Chores
+- docs(roadmap): RD-1..4 — UX/architecture backlog (1fa5e39)
+
+
 ## [0.9.5] — 2026-04-22
 
 ### Bug Fixes
