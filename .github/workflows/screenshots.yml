@@ -148,88 +148,89 @@ jobs:
           npx playwright install chromium --with-deps
 
       - name: Write Playwright config
-        run: cat > playwright.config.js << 'EOF'
-const { defineConfig } = require('@playwright/test');
-module.exports = defineConfig({
-  testDir: './playwright',
-  timeout: 30000,
-  use: {
-    baseURL: process.env.ZTNET_URL || 'http://127.0.0.1:7979',
-    headless: true,
-  },
-});
-EOF
+        run: |
+          cat > playwright.config.js << 'EOF'
+          const { defineConfig } = require('@playwright/test');
+          module.exports = defineConfig({
+            testDir: './playwright',
+            timeout: 30000,
+            use: {
+              baseURL: process.env.ZTNET_URL || 'http://127.0.0.1:7979',
+              headless: true,
+            },
+          });
+          EOF
 
       - name: Write screenshot spec
         run: |
           mkdir -p playwright
           cat > playwright/screenshots.spec.js << 'EOF'
-const { test } = require('@playwright/test');
-const path = require('path');
-const fs = require('fs');
+          const { test } = require('@playwright/test');
+          const path = require('path');
+          const fs = require('fs');
 
-const BASE    = process.env.ZTNET_URL || 'http://127.0.0.1:7979';
-const OUT_DIR = path.join(__dirname, '..', 'docs', 'screenshots');
-fs.mkdirSync(OUT_DIR, { recursive: true });
+          const BASE    = process.env.ZTNET_URL || 'http://127.0.0.1:7979';
+          const OUT_DIR = path.join(__dirname, '..', 'docs', 'screenshots');
+          fs.mkdirSync(OUT_DIR, { recursive: true });
 
-const PAGES = [
-  ['/#/dashboard',            'dashboard'],
-  ['/#/networks',             'networks'],
-  ['/#/exitnode',             'exitnode'],
-  ['/#/physnet',              'physnet'],
-  ['/#/bridge',               'bridge'],
-  ['/#/relay',                'relay'],
-  ['/#/controllers/networks', 'controllers'],
-  ['/#/settings/global',      'settings-global'],
-  ['/#/settings/ztnode',      'settings-ztnode'],
-  ['/#/settings/tokens',      'settings-tokens'],
-  ['/#/settings/roots',       'root'],
-];
+          const PAGES = [
+            ['/#/dashboard',            'dashboard'],
+            ['/#/networks',             'networks'],
+            ['/#/exitnode',             'exitnode'],
+            ['/#/physnet',              'physnet'],
+            ['/#/bridge',               'bridge'],
+            ['/#/relay',                'relay'],
+            ['/#/controllers/networks', 'controllers'],
+            ['/#/settings/global',      'settings-global'],
+            ['/#/settings/ztnode',      'settings-ztnode'],
+            ['/#/settings/tokens',      'settings-tokens'],
+            ['/#/settings/roots',       'root'],
+          ];
 
-const VIEWPORTS = [
-  { name: 'desktop', width: 1440, height: 900 },
-  { name: 'mobile',  width: 390,  height: 844 },
-];
+          const VIEWPORTS = [
+            { name: 'desktop', width: 1440, height: 900 },
+            { name: 'mobile',  width: 390,  height: 844 },
+          ];
 
-for (const [route, prefix] of PAGES) {
-  for (const vp of VIEWPORTS) {
-    test(`${prefix} — ${vp.name}`, async ({ page }) => {
-      await page.setViewportSize({ width: vp.width, height: vp.height });
+          for (const [route, prefix] of PAGES) {
+            for (const vp of VIEWPORTS) {
+              test(`${prefix} — ${vp.name}`, async ({ page }) => {
+                await page.setViewportSize({ width: vp.width, height: vp.height });
 
-      await page.goto(`${BASE}${route}`, {
-        waitUntil: 'domcontentloaded',
-        timeout: 15000,
-      });
+                await page.goto(`${BASE}${route}`, {
+                  waitUntil: 'domcontentloaded',
+                  timeout: 15000,
+                });
 
-      // Wait for SPA router to render page content (loading-row disappears)
-      await page.waitForFunction(() => {
-        const content = document.getElementById('content');
-        if (!content) return false;
-        const row = content.querySelector('.loading-row');
-        return !row || row.offsetParent === null;
-      }, { timeout: 8000 }).catch(() => {});
+                // Wait for SPA router to render page content (loading-row disappears)
+                await page.waitForFunction(() => {
+                  const content = document.getElementById('content');
+                  if (!content) return false;
+                  const row = content.querySelector('.loading-row');
+                  return !row || row.offsetParent === null;
+                }, { timeout: 8000 }).catch(() => {});
 
-      // Fixed pause: let initial XHRs complete and DOM repaint.
-      // Do NOT use networkidle — dashboard setInterval keeps network busy forever.
-      await page.waitForTimeout(2000);
+                // Fixed pause: let initial XHRs complete and DOM repaint.
+                // Do NOT use networkidle — dashboard setInterval keeps network busy forever.
+                await page.waitForTimeout(2000);
 
-      // Mobile: close sidebar before screenshot
-      if (vp.name === 'mobile') {
-        await page.evaluate(() => {
-          document.getElementById('sidebar')?.classList.remove('open');
-          document.getElementById('sidebar-overlay')?.classList.remove('visible');
-        });
-        await page.waitForTimeout(300);
-      }
+                // Mobile: close sidebar before screenshot
+                if (vp.name === 'mobile') {
+                  await page.evaluate(() => {
+                    document.getElementById('sidebar')?.classList.remove('open');
+                    document.getElementById('sidebar-overlay')?.classList.remove('visible');
+                  });
+                  await page.waitForTimeout(300);
+                }
 
-      await page.screenshot({
-        path: path.join(OUT_DIR, `${prefix}-${vp.name}.png`),
-        fullPage: false,
-      });
-    });
-  }
-}
-EOF
+                await page.screenshot({
+                  path: path.join(OUT_DIR, `${prefix}-${vp.name}.png`),
+                  fullPage: false,
+                });
+              });
+            }
+          }
+          EOF
 
       - name: Verify server before tests
         if: ${{ github.event.inputs.base_url == '' }}
