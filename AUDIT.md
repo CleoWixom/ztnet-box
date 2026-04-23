@@ -1151,7 +1151,43 @@ GET /api/metrics/status      → 200
 
 | # | Приоритет | Компонент | Задача | Статус |
 |---|-----------|-----------|--------|--------|
-| RD-1 | 🔴 High | Frontend | Удалить страницу Peers (дублирует Dashboard) | 🔲 Открыта |
-| RD-2 | 🔴 High | Frontend | Dashboard: join-виджет + карточки сетей + участники online | 🔲 Открыта |
-| RD-3 | 🔴 High | Frontend | Реструктуризация sidebar: коллапс секции ШЛЮЗ + убрать Peers из NODE | 🔲 Открыта |
-| RD-4 | 🟡 Medium | Rust/Tests | Интеграционные тесты: tokens, join/leave, controller CRUD, members, smoke routes | 🔲 Открыта |
+| RD-1 | 🔴 High | Frontend | Удалить страницу Peers (дублирует Dashboard) | ✅ `afaab91` |
+| RD-2 | 🔴 High | Frontend | Dashboard: join-виджет + карточки сетей + участники online | ✅ `afaab91` |
+| RD-3 | 🔴 High | Frontend | Реструктуризация sidebar: коллапс секции ШЛЮЗ + убрать Peers из NODE | ✅ `afaab91` |
+| RD-4 | 🟡 Medium | Rust/Tests | Интеграционные тесты: tokens, join/leave, controller CRUD, members, smoke routes | ✅ (этот коммит) |
+
+#### Реализация RD-4
+
+**Добавлены два новых тест-файла:**
+
+`tests/api_local.rs` — 9 тестов против реального ZT daemon:
+- `local_node_status_returns_address` — `/api/local/status`
+- `local_peers_returns_array` / `local_peer_invalid_id_returns_422`
+- `local_networks_list_returns_array`
+- `local_network_join_and_leave` — join → verify in list → get → leave → verify gone (использует `ZT_TEST_NETWORK` env или Earth network `8056c2e21c000001`)
+- `controller_network_crud` — create → get → list → update (rename) → delete → verify gone
+- `controller_members_crud` — create net → authorize member → list → get → deauthorize → delete member → cleanup net
+- `local_moons_list_returns_array`
+- `local_config_roundtrip`
+
+`tests/api_central.rs` — 9 тестов против реального ZeroTier Central API:
+- `central_status_returns_structure` / `central_user_returns_account_info`
+- `settings_tokens_list_includes_injected_token` — проверяет masked_token, отсутствие raw token
+- `settings_token_add_invalid_token_returns_error` / `settings_token_empty_name_returns_422`
+- `settings_token_validate_real_token` — реальная валидация токена через Central API
+- `central_network_list_returns_array`
+- `central_network_crud` — create → get → update → list members → delete → verify gone
+
+**Skip-стратегия:** тесты автоматически пропускаются (не падают) при недоступном daemon или отсутствующем токене. Никаких мок-серверов.
+
+**Запуск:**
+```bash
+# Локальные тесты (требует ZT daemon)
+sudo ZT_RUNNING=1 cargo test --test api_local
+
+# Central тесты (требует токен)
+ZT_CENTRAL_TOKEN=<token> cargo test --test api_central
+
+# С конкретной тестовой сетью
+ZT_TEST_NETWORK=8056c2e21c000001 sudo cargo test --test api_local local_network_join_and_leave
+```
