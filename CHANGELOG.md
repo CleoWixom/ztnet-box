@@ -10,6 +10,15 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-04-23
+
+### Bug Fixes
+- correct YAML syntax error in git commit message (f0e2787)
+- remove YAML line continuation issue in commit message (cec695f)
+- YAML heredoc indentation - indent heredoc content properly (6af6f3c)
+- correct YAML heredoc syntax for playwright.config.js (a1b6f04)
+
+
 ## [0.10.0] — 2026-04-23
 
 ### Bug Fixes
