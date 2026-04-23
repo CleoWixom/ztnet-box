@@ -148,8 +148,7 @@ jobs:
           npx playwright install chromium --with-deps
 
       - name: Write Playwright config
-        run: |
-          cat > playwright.config.js << 'EOF'
+        run: cat > playwright.config.js << 'EOF'
 const { defineConfig } = require('@playwright/test');
 module.exports = defineConfig({
   testDir: './playwright',
