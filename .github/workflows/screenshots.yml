@@ -289,10 +289,10 @@ jobs:
           git checkout -b "$BRANCH"
           git commit -m "docs(screenshots): update WebUI screenshots [skip ci]
 
-Captured ${{ steps.diff.outputs.count }} screenshot(s) via Playwright.
-Pages: dashboard, networks, exitnode, physnet, bridge, relay,
-       controllers, settings-global, settings-ztnode, settings-tokens, root
-Viewports: desktop (1440×900) + mobile (390×844)"
+          Captured ${{ steps.diff.outputs.count }} screenshot(s) via Playwright.
+          Pages: dashboard, networks, exitnode, physnet, bridge, relay,
+                 controllers, settings-global, settings-ztnode, settings-tokens, root
+          Viewports: desktop (1440×900) + mobile (390×844)"
           git push origin "$BRANCH"
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
 
