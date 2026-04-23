@@ -100,3 +100,55 @@
 }
 .panel-body { padding: var(--gap); flex: 1; }
 .panel-footer { padding: var(--gap); border-top: 1px solid var(--c-border); display: flex; gap: var(--gap-sm); justify-content: flex-end; }
+
+/* ── Dashboard: join inline ────────────────────────────────────────────────── */
+.join-inline {
+  display: flex; gap: var(--gap-sm); align-items: center;
+  margin-left: auto; flex-shrink: 0;
+}
+.join-inline .input-sm {
+  width: 200px; padding: 5px 8px; font-family: var(--font-mono); font-size: var(--fs-sm);
+}
+@media (max-width: 768px) {
+  .join-inline { margin-left: 0; width: 100%; }
+  .join-inline .input-sm { flex: 1; width: auto; }
+}
+
+/* ── Dashboard: network cards grid ────────────────────────────────────────── */
+.net-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--gap);
+}
+@media (max-width: 768px) { .net-cards-grid { grid-template-columns: 1fr; } }
+
+.net-card {
+  background: var(--c-surface); border: 1px solid var(--c-border);
+  border-radius: var(--radius); padding: var(--gap);
+  cursor: pointer; transition: border-color var(--t-fast), box-shadow var(--t-fast);
+  display: flex; flex-direction: column; gap: var(--gap-sm);
+}
+.net-card:hover { border-color: var(--c-primary); box-shadow: 0 0 0 1px var(--c-primary); }
+.net-card:focus { outline: 2px solid var(--c-primary); outline-offset: 2px; }
+
+.net-card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-sm); }
+.net-card-id   { font-size: var(--fs-sm); letter-spacing: .05em; }
+.net-card-name { font-weight: var(--fw-medium); }
+.net-card-ip   { word-break: break-all; }
+
+.net-card-members {
+  display: flex; align-items: center; gap: var(--gap-sm);
+  flex-wrap: wrap;
+}
+.net-card-members-count { font-size: var(--fs-sm); font-weight: var(--fw-medium); white-space: nowrap; }
+.member-dots { display: flex; gap: 3px; flex-wrap: wrap; }
+.member-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--c-border); flex-shrink: 0;
+}
+.member-dot.online { background: var(--c-success); }
+
+.net-card-footer {
+  display: flex; gap: var(--gap-sm); margin-top: var(--gap-xs);
+  border-top: 1px solid var(--c-border); padding-top: var(--gap-sm);
+}

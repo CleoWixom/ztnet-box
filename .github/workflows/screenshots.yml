@@ -93,19 +93,13 @@ jobs:
       - name: Write config
         if: ${{ github.event.inputs.base_url == '' }}
         run: |
-          cat > /tmp/ztnet-box-screenshot.yml << 'ZTCONFIG'
-server:
-  host: "127.0.0.1"
-  port: 7979
-zerotier:
-  local:
-    api_url: "http://127.0.0.1:9993"
-    token_file: "/var/lib/zerotier-one/authtoken.secret"
-  central:
-    base_url: "https://my.zerotier.com"
-metrics:
-  enabled: false
-ZTCONFIG
+          # Use the repo's example config as the base — stays in sync with the schema.
+          cp config.yml.example /tmp/ztnet-box-screenshot.yml
+          # Override only the values that differ from defaults for CI use.
+          sed -i 's/port: 3000/port: 7979/'                                           /tmp/ztnet-box-screenshot.yml
+          sed -i 's|token_file:.*authtoken.*|token_file: "/var/lib/zerotier-one/authtoken.secret"|' /tmp/ztnet-box-screenshot.yml
+          sed -i 's/enabled: true/enabled: false/'                                     /tmp/ztnet-box-screenshot.yml
+          echo "Config written:"; cat /tmp/ztnet-box-screenshot.yml
 
       - name: Start ztnet-box
         if: ${{ github.event.inputs.base_url == '' }}

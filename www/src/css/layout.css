@@ -189,3 +189,23 @@
   /* Modal: full width with margin */
   .modal { min-width: unset; width: calc(100% - var(--gap) * 2); }
 }
+
+/* ── Collapsible nav group ─────────────────────────────────────────────────── */
+.nav-group-toggle {
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  padding-right: var(--gap);
+  user-select: none;
+}
+.nav-group-toggle:hover { color: var(--c-text-dim); }
+.nav-group-chevron {
+  flex-shrink: 0; opacity: .5;
+  transition: transform var(--t-base);
+}
+.nav-group.collapsed .nav-group-chevron { transform: rotate(-90deg); }
+.nav-group-items {
+  overflow: hidden;
+  transition: max-height var(--t-base);
+  max-height: 200px; /* enough for 4 items */
+}
+.nav-group.collapsed .nav-group-items { max-height: 0; }
