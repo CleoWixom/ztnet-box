@@ -39,17 +39,17 @@ jobs:
         if: ${{ github.event.inputs.base_url == '' }}
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo
-        if: ${{ github.event.inputs.base_url == '' }}
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: screenshots-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: screenshots-
+    #  - name: Cache cargo
+    #    if: ${{ github.event.inputs.base_url == '' }}
+    #    uses: actions/cache@v4
+    #    with:
+    #      path: |
+    #        ~/.cargo/registry/index/
+    #        ~/.cargo/registry/cache/
+    #        ~/.cargo/git/db/
+    #        target/
+    #      key: screenshots-${{ hashFiles('**/Cargo.lock') }}
+    #      restore-keys: screenshots-
 
       - name: Build release binary
         if: ${{ github.event.inputs.base_url == '' }}
