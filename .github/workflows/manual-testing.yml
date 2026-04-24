@@ -197,13 +197,20 @@ jobs:
             done
 
           elif [ "$TUNNEL" = "cloudflared" ]; then
+            # --protocol http2: avoids QUIC probe failures on cold CI runners.
+            # Separate log files: JSON to tunnel.log, human-readable to tunnel-stderr.log.
             cloudflared tunnel --url "http://127.0.0.1:$PORT" \
-              --no-autoupdate > /tmp/tunnel.log 2>&1 &
+              --no-autoupdate \
+              --protocol http2 \
+              --logfile /tmp/tunnel.log \
+              --loglevel info >/dev/null 2>/tmp/tunnel-stderr.log &
             TUNNEL_PID=$!
 
             echo "Waiting for cloudflared URL…"
-            for i in $(seq 1 60); do
-              URL=$(grep -oP 'https://[a-zA-Z0-9\-]+\.trycloudflare\.com' /tmp/tunnel.log | head -1)
+            # trycloudflare.com tunnels can take up to 90s on a cold runner
+            for i in $(seq 1 90); do
+              URL=$(grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' \
+                      /tmp/tunnel.log /tmp/tunnel-stderr.log 2>/dev/null | head -1)
               [ -n "$URL" ] && break
               sleep 1
             done
@@ -212,7 +219,7 @@ jobs:
           echo "TUNNEL_PID=${TUNNEL_PID}" >> "$GITHUB_ENV"
 
           if [ -z "$URL" ]; then
-            echo "ERROR: could not get tunnel URL after 60s"
+            echo "ERROR: could not get tunnel URL after 90s"
             echo "--- Tunnel log ---"
             cat /tmp/tunnel.log
             exit 1
@@ -265,4 +272,6 @@ jobs:
 
       - name: Dump tunnel log
         if: always()
-        run: cat /tmp/tunnel.log 2>/dev/null || true
+        run: |
+          echo "=== tunnel.log ===" && cat /tmp/tunnel.log 2>/dev/null || true
+          echo "=== tunnel-stderr.log ===" && cat /tmp/tunnel-stderr.log 2>/dev/null || true
