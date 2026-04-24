@@ -10,6 +10,15 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.11.2] — 2026-04-24
+
+### Bug Fixes
+- timeout 30s→20s + smarter waitForFunction + reduce pause (9bcd763)
+
+### Chores
+- Update screenshots.yml (63ac9ea)
+
+
 ## [0.11.1] — 2026-04-24
 
 
