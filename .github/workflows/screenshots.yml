@@ -153,7 +153,9 @@ jobs:
           const { defineConfig } = require('@playwright/test');
           module.exports = defineConfig({
             testDir: './playwright',
-            timeout: 30000,
+            // Per-test budget: goto(≤10s) + pause(1.5s) + screenshot(≤1s) ≈ 13s
+            // 20s gives comfortable headroom on slow CI runners.
+            timeout: 20000,
             use: {
               baseURL: process.env.ZTNET_URL || 'http://127.0.0.1:7979',
               headless: true,
@@ -197,30 +199,37 @@ jobs:
               test(`${prefix} — ${vp.name}`, async ({ page }) => {
                 await page.setViewportSize({ width: vp.width, height: vp.height });
 
-                await page.goto(`${BASE}${route}`, {
-                  waitUntil: 'domcontentloaded',
-                  timeout: 15000,
-                });
+                // domcontentloaded fires as soon as HTML is parsed — correct for SPA.
+                // No explicit timeout: inherits the 20s per-test budget.
+                await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
 
-                // Wait for SPA router to render page content (loading-row disappears)
+                // Wait for the SPA router to swap out the initial loading shell.
+                // Strategy: poll until #content has a .page child that is NOT .loading-row,
+                // OR until #content has any child that isn't a loading state.
+                // Falls back gracefully after 6s (page may show an error banner — still worth screenshotting).
                 await page.waitForFunction(() => {
-                  const content = document.getElementById('content');
-                  if (!content) return false;
-                  const row = content.querySelector('.loading-row');
-                  return !row || row.offsetParent === null;
-                }, { timeout: 8000 }).catch(() => {});
+                  const el = document.getElementById('content');
+                  if (!el) return false;
+                  // Router has run if content has children beyond the bare loading shell
+                  const loading = el.querySelector('.loading-row');
+                  if (!loading) return true;               // no spinner → router rendered
+                  if (loading.offsetParent === null) return true; // spinner hidden
+                  // Also accept: any named section rendered (dash-status, dash-metrics, etc.)
+                  return !!(el.querySelector('.page-header, .card, .banner, .empty-state, [id^="dash-"]'));
+                }, { timeout: 6000 }).catch(() => {});
 
-                // Fixed pause: let initial XHRs complete and DOM repaint.
-                // Do NOT use networkidle — dashboard setInterval keeps network busy forever.
-                await page.waitForTimeout(2000);
+                // Fixed 1.5 s pause — lets initial API XHRs complete and DOM repaint.
+                // Do NOT use networkidle: dashboard runs setInterval(10s) which keeps
+                // the connection pool non-idle permanently.
+                await page.waitForTimeout(1500);
 
-                // Mobile: close sidebar before screenshot
+                // Mobile: ensure sidebar is collapsed before capturing
                 if (vp.name === 'mobile') {
                   await page.evaluate(() => {
                     document.getElementById('sidebar')?.classList.remove('open');
                     document.getElementById('sidebar-overlay')?.classList.remove('visible');
                   });
-                  await page.waitForTimeout(300);
+                  await page.waitForTimeout(250); // CSS transition 200ms + margin
                 }
 
                 await page.screenshot({
