@@ -352,7 +352,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn central_no_token_returns_502() {
+    async fn central_no_token_returns_428() {
         let resp = test_router()
             .oneshot(
                 Request::builder()
@@ -362,7 +362,7 @@ mod tests {
             )
             .await
             .unwrap();
-        // No token configured → ApiError::ZtCentral → 502
-        assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
+        // No token configured → ApiError::NoActiveToken → 428 PRECONDITION_REQUIRED
+        assert_eq!(resp.status(), StatusCode::PRECONDITION_REQUIRED);
     }
 }
