@@ -16,7 +16,7 @@ async fn client(
         .token_store
         .active_client()
         .await
-        .ok_or_else(|| ApiError::NoActiveToken)
+        .ok_or(ApiError::NoActiveToken)
 }
 
 pub async fn list_networks(State(s): State<AppState>) -> Result<impl IntoResponse, ApiError> {
