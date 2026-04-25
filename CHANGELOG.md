@@ -10,6 +10,16 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.11.3] — 2026-04-25
+
+### Bug Fixes
+- cloudflared — http2 protocol, separate log files, 90s wait (5f64392)
+
+### Chores
+- Merge pull request #20 from CleoWixom/chore/screenshots-20260424-043712 (b470141)
+- docs(screenshots): update WebUI screenshots [skip ci] (cea5bba)
+
+
 ## [0.11.2] — 2026-04-24
 
 ### Bug Fixes
