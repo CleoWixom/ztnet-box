@@ -40,8 +40,8 @@ fn main() {
         let _ = fs::create_dir_all(out);
         let _ = fs::write(
             &dest,
-            "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>ZeroBox</title></head>\
-             <body><h1>ZeroBox</h1><p>Frontend building...</p></body></html>",
+            "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>ZTNetwork Panel</title></head>\
+             <body><h1>ZTNetwork Panel</h1><p>Frontend building...</p></body></html>",
         );
         return;
     }
@@ -122,7 +122,7 @@ fn main() {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>ZeroBox — ZeroTier Web UI</title>
+<title>ZTNetwork Panel — ZeroTier Web UI</title>
 <style>
 {css}
 </style>

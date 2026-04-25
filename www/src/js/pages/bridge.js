@@ -90,7 +90,30 @@ const BridgePage = (() => {
     </div>`;
 
     el.innerHTML = `<div class="page">
-      <div class="page-header"><h1 class="page-title">L2 Bridge</h1></div>
+      <div class="page-header">
+        <h1 class="page-title">L2 Bridge</h1>
+        <button class="btn btn-ghost btn-sm" onclick="this.closest('.page').querySelector('.help-box').classList.toggle('hidden')" title="Show/hide help">? Help</button>
+      </div>
+      <div class="help-box hidden card mb">
+        <div class="card-title mb-sm">What is L2 Bridge?</div>
+        <p class="text-sm text-dim mb-sm">L2 Bridge connects a ZeroTier virtual network to a physical LAN at Layer 2. Devices on your local network become directly reachable from ZeroTier without needing ZeroTier installed — as if the ZT network and your LAN were the same switch.</p>
+        <div class="card-title mb-sm mt">Requirements</div>
+        <ul class="text-sm text-dim mb-sm" style="padding-left:1.2rem;line-height:1.8">
+          <li>Linux only (systemd-networkd + iproute2)</li>
+          <li>No conflicting tools: <code>dhcpcd</code> and <code>ifupdown</code> must not manage the bridge interface</li>
+          <li>Running as root — bridge interface creation requires elevated privileges</li>
+          <li>A separate physical NIC or VLAN to bridge onto</li>
+        </ul>
+        <div class="card-title mb-sm mt">How to set up</div>
+        <ol class="text-sm text-dim" style="padding-left:1.2rem;line-height:1.8">
+          <li>Resolve any dependency conflicts shown below</li>
+          <li>Select the ZeroTier interface (<code>zt…</code>) and the physical interface to bridge</li>
+          <li>Name the bridge interface (default: <code>br0</code>)</li>
+          <li>Optionally assign a static IP/gateway to the bridge</li>
+          <li>Click <strong>Enable Bridge</strong></li>
+          <li>In your controller, enable <strong>Allow Bridging</strong> for this member</li>
+        </ol>
+      </div>
       ${infoBox}
       <div class="section"><div class="section-title">Dependencies</div>
         <div class="card"><div class="step-list">${depsList}</div></div>

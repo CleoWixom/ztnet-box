@@ -85,10 +85,28 @@ const RelayPage = (() => {
       </div>`;
 
     el.innerHTML = `<div class="page">
-      <div class="page-header"><h1 class="page-title">TCP Relay</h1></div>
-      <div class="banner banner-info mb">
-        ℹ️ TCP relay is a fallback when UDP is blocked. Use a custom relay only when ZeroTier's
-        built-in roots cannot reach your nodes. Deploy pylon on a VPS with a public IP.
+      <div class="page-header">
+        <h1 class="page-title">TCP Relay (Pylon)</h1>
+        <button class="btn btn-ghost btn-sm" onclick="this.closest('.page').querySelector('.help-box').classList.toggle('hidden')" title="Show/hide help">? Help</button>
+      </div>
+      <div class="help-box hidden card mb">
+        <div class="card-title mb-sm">What is TCP Relay?</div>
+        <p class="text-sm text-dim mb-sm">ZeroTier normally uses UDP for peer-to-peer traffic. When UDP is blocked (strict firewalls, corporate networks, CGNATs), nodes can fall back to TCP relay through a <strong>Pylon</strong> — a lightweight relay server. Traffic is encrypted end-to-end; the relay cannot read it.</p>
+        <div class="card-title mb-sm mt">When do you need it?</div>
+        <ul class="text-sm text-dim mb-sm" style="padding-left:1.2rem;line-height:1.8">
+          <li>Nodes show high latency or "RELAY" status in peer list</li>
+          <li>Behind firewalls that block all UDP outbound</li>
+          <li>On networks where only port 443/TCP is allowed</li>
+        </ul>
+        <div class="card-title mb-sm mt">How to set up</div>
+        <ol class="text-sm text-dim" style="padding-left:1.2rem;line-height:1.8">
+          <li>Deploy <strong>Pylon</strong> on a VPS with a public IP and open TCP port (e.g. 443)</li>
+          <li>In <em>Local Configuration</em> below: optionally force TCP for testing</li>
+          <li>Enter the Pylon endpoint (<code>ip/port</code>) as <em>TCP Fallback Relay</em></li>
+          <li>Save — ZeroTier will use this relay when direct UDP paths fail</li>
+          <li>Or use <em>Deploy Pylon</em> to install and manage Pylon on this machine via SSH</li>
+        </ol>
+        <div class="text-sm text-dim mt-sm">⚠️ <em>Force TCP Relay</em> routes ALL traffic through TCP — only enable for debugging, it degrades performance.</div>
       </div>
       ${localCard}
       ${deployCard}

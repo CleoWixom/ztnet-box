@@ -63,7 +63,7 @@ function _updateMobileTitle(path) {
   if (!el) return;
   const title = _routeTitles[path]
     || Object.entries(_routeTitles).find(([k]) => path.startsWith(k + '/'))?.[1]
-    || 'ZeroBox';
+    || 'ZTNetwork Panel';
   el.textContent = title;
 }
 window.addEventListener('hashchange', () => _updateMobileTitle(location.hash.slice(1) || '/dashboard'));

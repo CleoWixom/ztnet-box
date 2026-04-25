@@ -61,11 +61,14 @@ const LogPanel = (() => {
         if (badge) badge.textContent = _level;
       }
     } catch (e) { /* best-effort */ }
-    try {
-      const data = await api.get('/logs?limit=200');
-      _entries = data || [];
-      _rerender();
-    } catch (e) { /* server may not have logs yet */ }
+    // Only load log history when panel is open — don't hit the API unnecessarily
+    if (_open) {
+      try {
+        const data = await api.get('/logs?limit=200');
+        _entries = data || [];
+        _rerender();
+      } catch (e) { /* server may not have logs yet */ }
+    }
   }
 
   function _addEntry(entry) {
@@ -207,7 +210,20 @@ const LogPanel = (() => {
       const label = document.getElementById('log-bar-label');
       if (body) body.style.display = _open ? 'flex' : 'none';
       if (label) label.textContent = _open ? '▼ Logs' : '▲ Logs';
-      if (_open) _rerender();
+      if (_open) {
+        // Lazy-load history the first time the panel is opened
+        if (_entries.length === 0) {
+          api.get('/logs?limit=200').then(data => {
+            _entries = data || [];
+            _rerender();
+          }).catch(() => {});
+        } else {
+          _rerender();
+        }
+      } else {
+        // Stop streaming when panel is closed to avoid idle SSE connections
+        _stopStream();
+      }
     },
     _toggleStream() {
       _streaming ? _stopStream() : _startStream();

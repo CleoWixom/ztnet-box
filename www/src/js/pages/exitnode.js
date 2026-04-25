@@ -128,7 +128,29 @@ const ExitnodePage = (() => {
       </div>`;
 
     el.innerHTML = `<div class="page">
-      <div class="page-header"><h1 class="page-title">Exit Node</h1></div>
+      <div class="page-header">
+        <h1 class="page-title">Exit Node</h1>
+        <button class="btn btn-ghost btn-sm" onclick="this.closest('.page').querySelector('.help-box').classList.toggle('hidden')" title="Show/hide help">? Help</button>
+      </div>
+      <div class="help-box hidden card mb">
+        <div class="card-title mb-sm">What is an Exit Node?</div>
+        <p class="text-sm text-dim mb-sm">An Exit Node routes all internet traffic from other ZeroTier members through this machine — similar to a self-hosted VPN server. Members that enable <em>Default Route</em> on the shared network will send all traffic here.</p>
+        <div class="card-title mb-sm mt">Requirements</div>
+        <ul class="text-sm text-dim mb-sm" style="padding-left:1.2rem;line-height:1.8">
+          <li>Linux only (nftables or iptables must be installed)</li>
+          <li>Running as root (sudo) — required for firewall rule management</li>
+          <li>IP forwarding enabled (set automatically)</li>
+          <li>A WAN interface with internet access (eth0, ens3, …)</li>
+        </ul>
+        <div class="card-title mb-sm mt">How to set up</div>
+        <ol class="text-sm text-dim" style="padding-left:1.2rem;line-height:1.8">
+          <li>Install missing dependencies (iptables / nftables) if shown below</li>
+          <li>Select the ZeroTier interface (<code>zt…</code>) and your WAN interface</li>
+          <li>Click <strong>Enable Exit Node</strong></li>
+          <li>In ZeroTier Central or your local controller: set <strong>Allow Default Route</strong> for the network</li>
+          <li>On member devices: enable the <em>Default Route</em> option for that network</li>
+        </ol>
+      </div>
       <div class="section"><div class="section-title">Dependencies</div>
         <div class="card"><div class="step-list">${depsList}</div></div>
       </div>

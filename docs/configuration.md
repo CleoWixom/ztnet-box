@@ -1,48 +1,43 @@
 # Configuration Reference
 
-`config.yml` is loaded from the **first existing** path:
+ztnet-box reads `config.yml` on startup. All fields have defaults; the file is optional.
 
-1. `$ZTNET_BOX_CONFIG` env var
-2. `./config.yml`
-3. `~/.config/ztnet-box/config.yml`
-4. `/etc/ztnet-box/config.yml`
-
-All settings are editable through **Settings → Global** in the UI.
-
-## Full reference
-
-```yaml
-server:
-  host: "127.0.0.1"   # bind address — keep loopback unless behind a reverse proxy
-  port: 3000
-
-zerotier:
-  local:
-    api_url: "http://127.0.0.1:9993"
-    token_file: "/var/lib/zerotier-one/authtoken.secret"
-  central:
-    base_url: "https://api.zerotier.com/api/v1"
-    tokens: []           # managed via Settings → API Tokens
-    active_token_id: ""  # set automatically when a token is added
-
-metrics:
-  enabled: false         # opt-in — enable if ZeroTier ≥ 1.14 is running
-  prometheus_url: "http://127.0.0.1:9993/metrics"
-  poll_interval_seconds: 15
-  metricstoken_file: "/var/lib/zerotier-one/metricstoken.secret"
-
-exitnode:
-  nftables_preferred: true   # true = nftables, false = iptables
+```bash
+./ztnet-box --config /path/to/config.yml
 ```
 
-## Environment variable overrides
+## Full Example
 
-| Variable | Config key | Default |
-|---|---|---|
-| `ZT_SERVER_HOST` | `server.host` | `127.0.0.1` |
-| `ZT_SERVER_PORT` | `server.port` | `3000` |
-| `ZT_LOCAL_API_URL` | `zerotier.local.api_url` | `http://127.0.0.1:9993` |
-| `ZT_LOCAL_TOKEN_FILE` | `zerotier.local.token_file` | `/var/lib/zerotier-one/authtoken.secret` |
-| `ZT_CENTRAL_BASE_URL` | `zerotier.central.base_url` | `https://api.zerotier.com/api/v1` |
-| `ZTNET_SKIP_DEPS` | — | Bypass startup ZeroTier dependency check (useful in CI) |
-| `ZTNET_STATE_FILE` | — | Override path for `state.json` |
+See [`config.yml.example`](../config.yml.example) in the repository root — it is the authoritative reference and always up to date.
+
+## Key Fields
+
+### `server`
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `host` | `127.0.0.1` | Bind address. Change to `0.0.0.0` to expose on the network (no auth — use a firewall) |
+| `port` | `3000` | HTTP port |
+
+### `zerotier.local`
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `api_url` | `http://127.0.0.1:9993` | ZeroTier daemon API URL |
+| `token_file` | `/var/lib/zerotier-one/authtoken.secret` | Path to the ZeroTier auth token |
+
+### `zerotier.central`
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `base_url` | `https://api.zerotier.com/api/v1` | Central API base URL (change for self-hosted) |
+| `tokens` | `[]` | Managed via Settings → API Tokens in the UI |
+
+### `metrics`
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `enabled` | `true` | Enable Prometheus metrics collection |
+| `prometheus_url` | `http://127.0.0.1:9993/metrics` | ZeroTier metrics endpoint (ZT 1.14+) |
+| `poll_interval_seconds` | `15` | How often to scrape |
+| `metricstoken_file` | `/var/lib/zerotier-one/metricstoken.secret` | Separate metrics auth token (ZT 1.16.1+) |
