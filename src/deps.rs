@@ -406,15 +406,12 @@ mod tests {
         // This test is kept #[cfg(not(miri))] and runs with --test-threads=1
         // in CI (see .cargo/config.toml) to avoid the race.
         //
-        // SAFETY: This is the only test that mutates ZTNET_SKIP_DEPS, and
-        // the variable is restored synchronously before the assertion.
-        // Acceptable trade-off given the test runner is single-threaded in CI.
-        #[allow(deprecated)]
+        // SAFETY: single-threaded test runner (RUST_TEST_THREADS=1 in .cargo/config.toml).
+        // Only this test mutates ZTNET_SKIP_DEPS; it is restored before the assertion.
         unsafe {
             std::env::set_var("ZTNET_SKIP_DEPS", "1");
         }
         let result = ensure();
-        #[allow(deprecated)]
         unsafe {
             std::env::remove_var("ZTNET_SKIP_DEPS");
         }
