@@ -52,9 +52,12 @@ pub struct CentralIpRange {
     pub end: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)] // ZT Central returns "dns":{} when unconfigured
 pub struct CentralDns {
+    #[serde(default)]
     pub domain: String,
+    #[serde(default)]
     pub servers: Vec<String>,
 }
 
@@ -66,20 +69,24 @@ pub struct NetworkCreateOrUpdate {
 
 // ── Members ───────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct CentralMember {
     #[serde(rename = "nodeId")]
     pub node_id: String,
     pub name: Option<String>,
     pub description: Option<String>,
+    #[serde(default)]
     pub authorized: bool,
-    #[serde(rename = "activeBridge")]
+    #[serde(rename = "activeBridge", default)]
     pub active_bridge: bool,
-    #[serde(rename = "noAutoAssignIps")]
+    #[serde(rename = "noAutoAssignIps", default)]
     pub no_auto_assign_ips: bool,
-    #[serde(rename = "ipAssignments")]
+    #[serde(rename = "ipAssignments", default)]
     pub ip_assignments: Vec<String>,
+    #[serde(default)]
     pub capabilities: Vec<i64>,
+    #[serde(default)]
     pub tags: Vec<Vec<i64>>,
     #[serde(rename = "networkId")]
     pub network_id: Option<String>,
@@ -93,7 +100,7 @@ pub struct CentralMember {
     pub protocol_version: Option<i32>,
     #[serde(rename = "supportsRulesEngine")]
     pub supports_rules_engine: Option<bool>,
-    #[serde(rename = "ssoExempt")]
+    #[serde(rename = "ssoExempt", default)]
     pub sso_exempt: bool,
     pub identity: Option<String>,
 }
