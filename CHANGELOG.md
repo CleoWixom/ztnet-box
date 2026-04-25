@@ -10,6 +10,9 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-04-25
+
+
 ## [0.11.7] — 2026-04-25
 
 
