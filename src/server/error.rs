@@ -12,6 +12,8 @@ pub enum ApiError {
     ZtLocal(String),
     #[error("ZeroTier Central API error: {0}")]
     ZtCentral(String),
+    #[error("No active Central API token")]
+    NoActiveToken,
     #[error("Config error: {0}")]
     Config(String),
     #[error("Exit node error: {0}")]
@@ -29,6 +31,11 @@ impl IntoResponse for ApiError {
         let (status, code, msg) = match &self {
             ApiError::ZtLocal(m) => (StatusCode::BAD_GATEWAY, "ERR_ZT_LOCAL", m.as_str()),
             ApiError::ZtCentral(m) => (StatusCode::BAD_GATEWAY, "ERR_ZT_CENTRAL", m.as_str()),
+            ApiError::NoActiveToken => (
+                StatusCode::PRECONDITION_REQUIRED,
+                "ERR_NO_ACTIVE_TOKEN",
+                "No active Central API token — add one in Settings → Tokens",
+            ),
             ApiError::Config(m) => (StatusCode::INTERNAL_SERVER_ERROR, "ERR_CONFIG", m.as_str()),
             ApiError::ExitNode(m) => (
                 StatusCode::INTERNAL_SERVER_ERROR,

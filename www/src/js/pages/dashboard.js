@@ -259,13 +259,13 @@ const DashboardPage = (() => {
         Toast.success('Joined ' + id);
         if (input) input.value = '';
         refresh();
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
 
     async _leave(id) {
       if (!await Modal.confirm(`Leave network ${id}?`, { danger: true })) return;
       try { await api.delete(`/local/networks/${id}`); Toast.success('Left ' + id); refresh(); }
-      catch(e) { Toast.error(e.message); }
+      catch(e) { errToast(e); }
     },
 
     async _installZt(btn) {
@@ -280,7 +280,7 @@ const DashboardPage = (() => {
           if (btn) { btn.disabled = false; btn.textContent = 'Install ZeroTier'; }
         }
       } catch(e) {
-        Toast.error(e.message);
+        errToast(e);
         if (btn) { btn.disabled = false; btn.textContent = 'Install ZeroTier'; }
       }
     },

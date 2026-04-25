@@ -15,7 +15,17 @@ const api = (() => {
       clearTimeout(timer);
       if (res.status === 204) return null;
       const json = await res.json().catch(() => ({ error: res.statusText }));
-      if (!res.ok) throw Object.assign(new Error(json.error || 'Request failed'), { code: json.code, status: res.status });
+      if (!res.ok) {
+        // ERR_NO_ACTIVE_TOKEN gets an actionable message with a Settings link
+        if (json.code === 'ERR_NO_ACTIVE_TOKEN') {
+          const err = new Error('No Central API token configured');
+          err.code = json.code;
+          err.status = res.status;
+          err.actionHtml = 'No Central API token — <a href="#" onclick="Router.navigate(\'/settings/tokens\');return false;">add one in Settings → Tokens</a>';
+          throw err;
+        }
+        throw Object.assign(new Error(json.error || 'Request failed'), { code: json.code, status: res.status });
+      }
       return json;
     } catch (err) {
       clearTimeout(timer);
@@ -31,3 +41,12 @@ const api = (() => {
     delete: (path)        => request('DELETE', path),
   };
 })();
+
+/** Show an error toast — uses actionHtml (HTML, warn style) when available. */
+function errToast(e) {
+  if (e && e.actionHtml) {
+    Toast.warn(e.actionHtml);
+  } else {
+    Toast.error(e ? e.message : 'Unknown error');
+  }
+}

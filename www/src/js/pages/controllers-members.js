@@ -103,7 +103,7 @@ const CtrlMembersPage = (() => {
     try {
       if (_src === 'local') _members = await api.get(`/local/controller/networks/${_netId}/members`);
       else _members = await api.get(`/central/networks/${_netId}/members`);
-    } catch(e) { _members = []; Toast.error(e.message); }
+    } catch(e) { _members = []; errToast(e); }
     renderTable();
   }
 
@@ -136,7 +136,7 @@ const CtrlMembersPage = (() => {
         if (_src==='local') await api.put(`/local/controller/networks/${_netId}/members/${id}`, update);
         else await api.put(`/central/networks/${_netId}/members/${id}`, update);
         Toast.success('Updated'); load();
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
     async _save(id) {
       const name = document.getElementById('m-name')?.value||'';
@@ -162,7 +162,7 @@ const CtrlMembersPage = (() => {
         if (_src==='local') await api.delete(`/local/controller/networks/${_netId}/members/${id}`);
         else await api.delete(`/central/networks/${_netId}/members/${id}`);
         this._closePanel(); Toast.success('Deleted'); load();
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
   };
 })();

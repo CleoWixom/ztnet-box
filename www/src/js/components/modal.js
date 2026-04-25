@@ -13,7 +13,7 @@ const Modal = (() => {
   }
 
   overlay()?.addEventListener('click', e => {
-    if (e.target === overlay()) { close(); if (_resolve) { _resolve(false); _resolve = null; } }
+    if (e.target === overlay()) { close(); if (_resolve) { _resolve(null); _resolve = null; } }
   });
 
   return {
@@ -50,6 +50,37 @@ const Modal = (() => {
         document.getElementById('modal-cancel').onclick = () => { close(); res(null); _resolve = null; };
         input.onkeydown = e => { if (e.key === 'Enter') document.getElementById('modal-ok').click(); };
       });
+    },
+
+    /**
+     * Show a two-option choice dialog. Returns the chosen option's value or null if cancelled.
+     * options: [{ value, label, description, icon? }]
+     */
+    choice(title, options) {
+      return new Promise(res => {
+        _resolve = res;
+        const cards = options.map(o => `
+          <button class="choice-card" onclick="Modal._pickChoice('${o.value}')">
+            <div class="choice-card-label">${o.icon ? o.icon + ' ' : ''}${o.label}</div>
+            <div class="choice-card-desc">${o.description}</div>
+          </button>`).join('');
+        open(`
+          <div class="modal-title">${title}</div>
+          <div class="modal-body">
+            <div class="choice-grid">${cards}</div>
+          </div>
+          <div class="modal-foot">
+            <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+          </div>`);
+        document.getElementById('modal-cancel').onclick = () => { close(); res(null); _resolve = null; };
+      });
+    },
+
+    _pickChoice(value) {
+      const res = _resolve;
+      _resolve = null;
+      close();
+      if (res) res(value);
     },
 
     close,

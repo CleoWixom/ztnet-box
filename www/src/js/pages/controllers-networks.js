@@ -48,20 +48,47 @@ const CtrlNetworksPage = (() => {
 
   return {
     init() { load(); },
+
     async _create() {
-      const type = await Modal.confirm('Create on local controller?<br><small>Cancel = create on Central API</small>');
+      const choice = await Modal.choice('New Network — choose controller', [
+        {
+          value: 'local',
+          label: '🖥  ZT Local',
+          description: 'Created on this device\'s built-in ZeroTier controller (zerotier-one). ' +
+                       'No internet required. Ideal for private/offline networks.',
+        },
+        {
+          value: 'central',
+          label: '☁️  ZT Central',
+          description: 'Created on ZeroTier Central (my.zerotier.com). ' +
+                       'Requires a valid Central API token in Settings → Tokens.',
+        },
+      ]);
+      if (!choice) return;
       try {
-        if (type) { await api.post('/local/controller/networks', {name:'New Network',private:true}); }
-        else { await api.post('/central/networks', {config:{name:'New Network',private:true}}); }
-        Toast.success('Network created'); load();
-      } catch(e) { Toast.error(e.message); }
+        if (choice === 'local') {
+          await api.post('/local/controller/networks', { name: 'New Network', private: true });
+        } else {
+          await api.post('/central/networks', { config: { name: 'New Network', private: true } });
+        }
+        Toast.success('Network created');
+        load();
+      } catch(e) {
+        if (e.actionHtml) {
+          Toast.warn('⚠️ ' + e.actionHtml);
+        } else {
+          Toast.error(e.message);
+        }
+      }
     },
+
     async _delete(id, src) {
-      if (!await Modal.confirm(`Delete network ${id}? This cannot be undone.`, {danger:true})) return;
+      if (!await Modal.confirm(`Delete network ${Utils.esc(id)}?<br><small>This cannot be undone.</small>`, { danger: true })) return;
       try {
-        if (src==='local') await api.delete(`/local/controller/networks/${id}`);
+        if (src === 'local') await api.delete(`/local/controller/networks/${id}`);
         else await api.delete(`/central/networks/${id}`);
-        Toast.success('Deleted'); load();
+        Toast.success('Deleted');
+        load();
       } catch(e) { Toast.error(e.message); }
     },
   };

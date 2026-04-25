@@ -12,9 +12,11 @@ use axum::{
 async fn client(
     state: &AppState,
 ) -> Result<crate::zerotier::central::client::ZtCentralClient, ApiError> {
-    state.token_store.active_client().await.ok_or_else(|| {
-        ApiError::ZtCentral("NO_ACTIVE_TOKEN: configure a Central API token in Settings".into())
-    })
+    state
+        .token_store
+        .active_client()
+        .await
+        .ok_or_else(|| ApiError::NoActiveToken)
 }
 
 pub async fn list_networks(State(s): State<AppState>) -> Result<impl IntoResponse, ApiError> {

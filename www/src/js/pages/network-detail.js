@@ -86,16 +86,16 @@ const NetworkDetailPage = (() => {
     },
     async _tab(id, tab) {
       try { const n = await api.get(`/local/networks/${id}`); renderDetail(n, tab); }
-      catch(e) { Toast.error(e.message); }
+      catch(e) { errToast(e); }
     },
     async _saveConfig(id, update) {
       try { await api.post(`/local/networks/${id}`, update); Toast.success('Saved'); }
-      catch(e) { Toast.error(e.message); }
+      catch(e) { errToast(e); }
     },
     async _leave(id) {
       if (!await Modal.confirm(`Leave network ${id}?`, {danger:true})) return;
       try { await api.delete(`/local/networks/${id}`); Toast.success('Left'); Router.navigate('/networks'); }
-      catch(e) { Toast.error(e.message); }
+      catch(e) { errToast(e); }
     },
   };
 })();

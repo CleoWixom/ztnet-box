@@ -1191,3 +1191,373 @@ ZT_CENTRAL_TOKEN=<token> cargo test --test api_central
 # С конкретной тестовой сетью
 ZT_TEST_NETWORK=8056c2e21c000001 sudo cargo test --test api_local local_network_join_and_leave
 ```
+
+
+---
+
+## Roadmap-2 (2026-04-24) — Branding, UX, Docs
+
+### RD-5 🔴 HIGH — Переименование: ZeroBox → ZTNetwork Panel
+
+| Компонент | Текущее значение | Новое значение |
+|-----------|-----------------|----------------|
+| `sidebar-logo-text` в `shell.html` | `ZeroBox` | `ZTNetwork Panel` |
+| `mobile-bar-title` в `shell.html` | `ZeroBox` | `ZTNetwork Panel` |
+| `<title>` в `build.rs` HTML template | `ztnet-box` | `ZTNetwork Panel` |
+| `package.json` / README title | `ztnet-box` | `ZTNetwork Panel` |
+| Tab/window title при навигации | нет | `{Page} — ZTNetwork Panel` |
+
+**Цель:** единое брендирование. Бинарный файл остаётся `ztnet-box`, репозиторий не переименовывается — меняется только UI-название.
+
+---
+
+### RD-6 🔴 HIGH — Help-панели для Exit Node / L2 Bridge / TCP Relay
+
+На каждой из страниц добавить сворачиваемый блок **«How it works»** с:
+- Принцип работы (1-2 абзаца, схема потока трафика)
+- Требования к системе (ОС, привилегии, пакеты)
+- Шаги настройки
+- Диагностика / частые ошибки
+
+#### Exit Node — требования и принципы
+
+**Требования:**
+- Linux, root (`sudo`)
+- `iptables` ≥ 1.8 **или** `nftables` ≥ 0.9
+- `ip_forward` (ztnet-box включает автоматически)
+- ZeroTier сеть с `allowDefault=1` + `allowGlobal=1` на клиентских нодах
+
+**Принцип:**
+```
+ZT peer → [zerotier interface] → MASQUERADE → [WAN interface] → Internet
+```
+ztnet-box применяет правила: `iptables -t nat -A POSTROUTING -o <wan> -j MASQUERADE`
+и `FORWARD ACCEPT` для трафика из ZT. Состояние сохраняется в `state.json`.
+
+**Диагностика:**
+- `curl https://ipinfo.io` с клиента должен показывать IP exit-ноды
+- `sudo iptables -t nat -L -v` — проверить MASQUERADE правило
+- Если не работает: `cat /proc/sys/net/ipv4/ip_forward` должен быть `1`
+
+#### L2 Bridge — требования и принципы
+
+**Требования:**
+- Linux, root
+- `iproute2` (команда `ip`)
+- `bridge-utils` (опционально, для `brctl`)
+- `systemd-networkd` (для persistence) **или** manual `ip link`
+
+**Принцип:**
+```
+Physical LAN ──[eth0]──┐
+                        ├── [br0 bridge] ── ZT peers видят физическую сеть L2
+ZeroTier ──[zt*]───────┘
+```
+ZeroTier пиры получают адреса из физического DHCP-сервера и видны на LAN как реальные устройства.
+
+**Требования в ZeroTier Central:** для bridge-ноды включить `Bridging` в настройках участника.
+
+**Диагностика:**
+- `ip link show br0` — bridge должен быть UP
+- `bridge fdb show` — таблица MAC-адресов
+- `brctl showstp br0` — состояние Spanning Tree
+
+#### TCP Relay — требования и принципы
+
+**Требования:**
+- SSH-ключ (key-based auth, без пароля)
+- Docker на удалённом хосте (ztnet-box установит автоматически)
+- Открытый порт на удалённом хосте (по умолчанию 443)
+- `ssh` в PATH на локальной машине
+
+**Принцип:**
+```
+ZT node ──TCP──► [relay server:443] ──── другие ZT ноды
+                  (pylon reflect container)
+```
+Используется когда прямое UDP соединение невозможно (строгий NAT, firewall).
+ztnet-box деплоит `zerotier/pylon:latest reflect` через SSH, прописывает endpoint в `local.conf`.
+
+**Диагностика:**
+- `ssh user@host docker ps | grep pylon` — контейнер должен работать
+- ZeroTier: `zerotier-cli info` — проверить latency после подключения через relay
+
+---
+
+### RD-7 🟡 MEDIUM — Log Panel: кнопка очистки + zero-request по умолчанию
+
+**Текущее поведение:** LogPanel делает запросы к `/api/logs` и открывает SSE `/api/logs/stream` при инициализации страницы, даже если панель закрыта.
+
+**Требуемое поведение:**
+1. При закрытой панели (`collapsed`) — **ноль запросов** к `/api/logs*`
+2. SSE-соединение открывается **только** после нажатия ▶ (Play/Start)
+3. При паузе (⏸) — SSE закрывается (`EventSource.close()`)
+4. Кнопка **«Clear»** (🗑) — очищает буфер через `DELETE /api/logs`
+5. Состояние (open/closed, level) сохраняется в `localStorage`
+
+**Backend:** `DELETE /api/logs` уже реализован. Нужно только подключить во frontend.
+
+---
+
+### RD-8 🟡 MEDIUM — Реструктуризация README.md
+
+**Текущая проблема:** README.md — 412 строк, содержит всё: конфиг, API-справочник, примеры, security, troubleshooting. Сложно поддерживать, тяжело читать.
+
+**Цель:** README.md — компактный (~80 строк), ссылается на `docs/`.
+
+**Новая структура docs/:**
+```
+docs/
+├── screenshots/          # (уже существует)
+├── configuration.md      # Полный config.yml reference + env vars
+├── exit-node.md          # Детальная документация Exit Node
+├── l2-bridge.md          # Детальная документация L2 Bridge
+├── tcp-relay.md          # Детальная документация TCP Relay
+├── api-reference.md      # Полный API reference (все эндпоинты)
+├── security.md           # Security model, reverse proxy setup
+└── development.md        # Build, test, project structure
+```
+
+**README.md содержит только:**
+- Название + 1 строка описания
+- Badges (CI, version)
+- Скриншот
+- Ключевые фичи (таблица 1-строчных описаний)
+- Quick Start (3 команды)
+- Install (ссылка на releases + 2-строчный пример)
+- Ссылки на docs/
+
+---
+
+### Итоговая таблица Roadmap-2
+
+| ID | Приоритет | Статус | Описание |
+|----|-----------|--------|----------|
+| RD-5 | 🔴 HIGH | ❌ Открыт | Переименование ZeroBox → ZTNetwork Panel |
+| RD-6 | 🔴 HIGH | ❌ Открыт | Help-панели: Exit Node / L2 Bridge / TCP Relay |
+| RD-7 | 🟡 MEDIUM | ❌ Открыт | Log Panel: zero-request при закрытой панели + Clear |
+| RD-8 | 🟡 MEDIUM | ❌ Открыт | README.md compact + docs/ структура |
+
+---
+
+## Roadmap-2 (2026-04-24) — Branding, Help, Logs UX, Docs
+
+### Сводная таблица
+
+| # | Приоритет | Тип | Компонент | Задача | Статус |
+|---|-----------|-----|-----------|--------|--------|
+| RD2-1 | 🔴 HIGH | Branding | Frontend | Переименовать «ZeroBox» → «ZTNetwork Panel» везде в UI | 🔲 Открыта |
+| RD2-2 | 🔴 HIGH | UX/Docs | Frontend | Справка Exit Node: принцип работы, требования, пошаговая настройка | 🔲 Открыта |
+| RD2-3 | 🔴 HIGH | UX/Docs | Frontend | Справка L2 Bridge: принцип работы, требования, пошаговая настройка | 🔲 Открыта |
+| RD2-4 | 🔴 HIGH | UX/Docs | Frontend | Справка TCP Relay: принцип работы, требования, пошаговая настройка | 🔲 Открыта |
+| RD2-5 | 🔴 HIGH | UX | Frontend | Log Panel: кнопка очистки + не опрашивать API пока панель закрыта/логи выкл | 🔲 Открыта |
+| RD2-6 | 🟡 MEDIUM | Docs | README + docs/ | Переработать README.md: компактно, только общее описание + ссылки на docs/ | 🔲 Открыта |
+| RD2-7 | 🟡 MEDIUM | Docs | docs/ | Создать docs/: installation.md, configuration.md, features/, development.md | 🔲 Открыта |
+
+---
+
+### RD2-1 🔴 HIGH — Переименование «ZeroBox» → «ZTNetwork Panel»
+
+**Проблема:** название «ZeroBox» не отражает назначение продукта и конфликтует с другими проектами.
+
+**Затронутые места:**
+```
+www/src/html/shell.html   — sidebar logo text, mobile-bar-title
+www/src/js/z-init.js      — fallback title в _updateMobileTitle()
+build.rs                  — <title> в HTML-шаблоне (если есть)
+README.md                 — везде
+docs/                     — везде
+```
+
+**Что заменить:**
+- `ZeroBox` → `ZTNetwork Panel`
+- `ZeroTier UI` (подзаголовок) → `ZeroTier Management Panel`
+- HTML `<title>` тега → `ZTNetwork Panel`
+
+---
+
+### RD2-2 🔴 HIGH — Справка Exit Node
+
+**Требование:** кнопка «?» или сворачиваемая секция «Help» на странице Exit Node  
+с объяснением принципа работы и требований перед включением.
+
+**Содержание справки:**
+
+#### Как работает Exit Node
+Exit Node направляет весь интернет-трафик участников ZeroTier-сети через этот хост.  
+Участники устанавливают маршрут по умолчанию `0.0.0.0/0` через ZeroTier-адрес этого узла.
+
+```
+ZT участник ──→ [ZeroTier] ──→ Exit Node ──→ [NAT/masquerade] ──→ Интернет
+```
+
+#### Требования для работы
+- ОС: **Linux** (iptables ≥ 1.8 или nftables ≥ 0.9)
+- ZeroTier One ≥ 1.10 запущен
+- Интерфейс WAN: реальный физический или виртуальный NIC с доступом в интернет
+- Интерфейс ZT: `zt*` интерфейс сети, через которую придёт трафик
+- Права: `root` или `CAP_NET_ADMIN + CAP_NET_RAW`
+- В ZeroTier Central для нужной сети: включить `allowDefault` для этого участника
+
+#### После включения (в ZeroTier Central)
+1. Открыть сеть → вкладка «Members»
+2. Найти этот узел → Advanced → поставить ✓ **Allow Default Route Override**
+3. Участники сети должны получить маршрут `0.0.0.0/0` автоматически
+
+---
+
+### RD2-3 🔴 HIGH — Справка L2 Bridge
+
+**Содержание справки:**
+
+#### Как работает L2 Bridge
+Подключает физическую Ethernet-сеть (LAN) к виртуальной ZeroTier-сети на уровне L2.  
+Физические устройства получают ZT-адреса и появляются в ZT-сети как обычные участники.
+
+```
+Физическое LAN (192.168.1.x) ←── Bridge (ebtables/brctl) ──→ ZeroTier сеть
+Устройства без ZT-клиента ─────────────────────────────────→ видны в ZT
+```
+
+#### Требования для работы
+- ОС: **Linux**
+- Пакеты: `bridge-utils` (`brctl`) + `ebtables`
+- ZeroTier One ≥ 1.10 запущен
+- В ZeroTier Central: включить **Bridging** для этого участника (вкладка Members → Advanced)
+- Права: `root`
+
+#### После включения (в ZeroTier Central)
+1. Открыть сеть → вкладка «Members»
+2. Найти этот узел → Advanced → поставить ✓ **Allow Bridging**
+3. В сети добавить IP-пул из диапазона физической LAN
+
+---
+
+### RD2-4 🔴 HIGH — Справка TCP Relay (Pylon)
+
+**Содержание справки:**
+
+#### Как работает TCP Relay
+Развёртывает [ZeroTier Pylon](https://github.com/zerotier/pylon) на удалённом сервере —  
+TCP-ретранслятор для участников ZT за строгим NAT или файрволом (только порт 443/tcp открыт).
+
+```
+ZT узел за NAT ──→ TCP:443 ──→ [Pylon на VPS] ──→ ZeroTier root
+```
+
+Pylon запускается в Docker-контейнере на VPS через SSH-подключение с этого хоста.
+
+#### Требования для работы
+- **Локально:** SSH-ключ (`~/.ssh/id_ed25519` или другой RSA/ED25519)
+- **Удалённо (VPS):**
+  - SSH-доступ (ключ добавлен в `authorized_keys`)
+  - Docker установлен или будет установлен автоматически
+  - Открытый входящий TCP-порт (по умолчанию 443)
+- Рекомендуемые ОС VPS: Ubuntu 22.04+, Debian 12+
+
+#### Процесс деплоя
+1. Указать хост (IP/hostname) и SSH-ключ
+2. ztnet-box подключается по SSH и запускает Docker-контейнер с Pylon
+3. Pylon-адрес прописывается в `local.conf` как `tcpFallbackRelay`
+4. ZeroTier-клиент начинает использовать Pylon при недоступности UDP
+
+---
+
+### RD2-5 🔴 HIGH — Log Panel: очистка + умолчания
+
+**Текущее поведение:**  
+Log Panel опрашивает `/api/logs/stream` (SSE) при открытии приложения,  
+даже если панель закрыта.
+
+**Требуемое поведение:**
+1. **По умолчанию** — панель закрыта, логи **выключены** (`level = off`)
+2. **SSE-подключение** открывается только после нажатия кнопки **▶ Play**
+3. **Кнопка «Clear»** — очищает текущий буфер логов в UI (не на сервере)
+4. **Кнопка ■ Stop** — закрывает SSE-подключение, перестаёт получать новые логи
+5. При закрытии панели — SSE отключается автоматически
+
+**Изменения в коде:**
+```
+www/src/js/components/log-panel.js:
+  - _stream: null по умолчанию (не открывать при init)
+  - _play(): открывает EventSource, ставит level из <select>
+  - _stop(): закрывает EventSource, не меняет level
+  - _clear(): очищает DOM #log-entries, сбрасывает счётчик
+  - init(): НЕ вызывает _play() автоматически
+
+src/server/handlers/logs.rs:
+  - GET /api/logs/level — текущий уровень (для синхронизации select)
+  - Уровень по умолчанию: 'off' если панель не активна
+```
+
+---
+
+### RD2-6 🟡 MEDIUM — Переработать README.md
+
+**Текущее состояние:** README.md содержит подробные технические детали, которые плохо обновляются.
+
+**Целевой README.md (компактный, ~80–120 строк):**
+
+```markdown
+# ZTNetwork Panel
+> ZeroTier management UI — self-hosted web panel for ZeroTier One
+
+[Badges: CI | Version | License]
+
+## What is it?
+Short 2-3 sentence description.
+
+## Quick Start
+- Requirements
+- One-liner install
+- Docker option (if any)
+
+## Features (short bulleted list)
+
+## Documentation
+→ [Installation](docs/installation.md)
+→ [Configuration](docs/configuration.md)
+→ [Exit Node setup](docs/features/exit-node.md)
+→ [L2 Bridge setup](docs/features/l2-bridge.md)
+→ [TCP Relay setup](docs/features/tcp-relay.md)
+→ [Development](docs/development.md)
+
+## License
+```
+
+---
+
+### RD2-7 🟡 MEDIUM — Создать docs/ структуру
+
+```
+docs/
+├── installation.md       — требования, сборка из исходников, конфиг
+├── configuration.md      — config.yml справочник всех параметров
+├── features/
+│   ├── exit-node.md      — детальное руководство Exit Node
+│   ├── l2-bridge.md      — детальное руководство L2 Bridge
+│   ├── tcp-relay.md      — детальное руководство TCP Relay
+│   └── controller.md     — управление локальным ZT-контроллером
+├── development.md        — сборка, тесты, архитектура, как добавить фичу
+└── screenshots/          — PNG скриншоты UI (генерируются workflows)
+```
+
+Каждый файл должен содержать:
+- Краткое описание что это
+- Требования (ОС, пакеты, права)
+- Пошаговая инструкция
+- Примеры конфигов / команд
+- Troubleshooting (типичные ошибки)
+
+
+---
+
+## Audit-4 — UX & Deserialization Bugs (2026-04-25)
+
+| # | Priority | Type | Issue | Status |
+|---|----------|------|-------|--------|
+| A4-1 | 🔴 Critical | Backend | `Dns` struct missing `#[serde(default)]` → ZT returns `{}` → deserialization failure on join/create | ✅ Fixed |
+| A4-2 | 🔴 Critical | Backend | `account_status()` called `GET /status` (server info) instead of `GET /self` (user/plan info) → token validation crash | ✅ Fixed |
+| A4-3 | 🟡 Medium | UX | `NO_ACTIVE_TOKEN` error shows raw string; no call-to-action to add a token | ✅ Fixed — `ERR_NO_ACTIVE_TOKEN` variant + `errToast()` with Settings link |
+| A4-4 | 🟡 Medium | UX | New Network dialog: `Modal.confirm()` binary yes/no → unclear; users don't know if Cancel = Central | ✅ Fixed — `Modal.choice()` with labelled cards: ZT Local / ZT Central |
+| A4-5 | 🟡 Medium | UI | Mobile layout overflow, forms not full-width, tables not scrollable, metric cards cramped | ✅ Fixed — extended `@media (max-width: 768px)` + `@media (max-width: 400px)` |

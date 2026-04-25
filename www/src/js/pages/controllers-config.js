@@ -155,7 +155,7 @@ const CtrlConfigPage = (() => {
         if (_src==='local') await api.put(`/local/controller/networks/${_id}/members/${nodeId}`, {authorized:false});
         else await api.put(`/central/networks/${_id}/members/${nodeId}`, {authorized:false});
         Toast.success(`Member ${nodeId} added`);
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
     async _save() {
       const name = document.getElementById('cfg-name')?.value||'';
@@ -190,7 +190,7 @@ const CtrlConfigPage = (() => {
         if (_src==='local') await api.put(`/local/controller/networks/${_id}`, body);
         else await api.put(`/central/networks/${_id}`, body);
         Toast.success('Saved');
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
     async _delete() {
       if (!await Modal.confirm('Delete this network and all its members? This cannot be undone.', {danger:true})) return;
@@ -198,7 +198,7 @@ const CtrlConfigPage = (() => {
         if (_src==='local') await api.delete(`/local/controller/networks/${_id}`);
         else await api.delete(`/central/networks/${_id}`);
         Toast.success('Deleted'); Router.navigate('/controllers/networks');
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
   };
 })();

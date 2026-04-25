@@ -129,12 +129,13 @@ pub struct CentralUser {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountStatus {
+    #[serde(default)]
     pub id: String,
-    #[serde(rename = "displayName")]
+    #[serde(rename = "displayName", default)]
     pub display_name: String,
     pub email: Option<String>,
     pub auth: Option<serde_json::Value>,
-    #[serde(rename = "underLimit")]
+    #[serde(rename = "underLimit", default)]
     pub under_limit: bool,
     #[serde(rename = "planType")]
     pub plan_type: Option<String>,

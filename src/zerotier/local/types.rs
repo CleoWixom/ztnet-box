@@ -163,9 +163,12 @@ pub struct Route {
     pub via: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)] // ZT returns {} when DNS is unconfigured — default all fields
 pub struct Dns {
+    #[serde(default)]
     pub domain: String,
+    #[serde(default)]
     pub servers: Vec<String>,
 }
 

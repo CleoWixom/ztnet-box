@@ -230,7 +230,9 @@ impl ZtCentralClient {
     }
 
     pub async fn account_status(&self) -> Result<AccountStatus, ApiError> {
-        self.request(Method::GET, "/status", None::<&()>).await
+        // /self returns the authenticated user's account including planType.
+        // /status returns server status (clock, version, etc.) — not user info.
+        self.request(Method::GET, "/self", None::<&()>).await
     }
 
     pub async fn create_api_token(&self, name: &str) -> Result<ApiTokenRecord, ApiError> {

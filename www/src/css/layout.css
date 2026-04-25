@@ -164,21 +164,33 @@
     transition: transform var(--t-base);
     z-index: 200;
   }
-  #sidebar.open {
-    transform: translateX(0);
-  }
+  #sidebar.open { transform: translateX(0); }
 
   /* Full-width page padding on small screens */
   .page { padding: var(--gap); }
 
-  /* Tables scroll horizontally instead of overflowing */
+  /* Tables: horizontal scroll + prevent text overflow */
   .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 480px; }
+  td, th { white-space: nowrap; }
 
   /* Cards grid: single column */
   .cards-grid { grid-template-columns: 1fr; }
 
-  /* Page header wraps on small screens */
-  .page-header { flex-wrap: wrap; }
+  /* Metric cards: 2-col grid on mobile */
+  .metrics-row { grid-template-columns: repeat(2, 1fr); gap: var(--gap-sm); }
+  .metric-card { padding: var(--gap-sm); }
+  .metric-card-value { font-size: 1.4rem; }
+
+  /* Page header: stack buttons below title */
+  .page-header { flex-wrap: wrap; gap: var(--gap-sm); }
+  .page-header .btn { flex: 1; min-width: 120px; text-align: center; }
+
+  /* Forms: full-width inputs */
+  .field { flex-direction: column; }
+  .field .input,
+  .field .select { width: 100% !important; }
+  .field-row { flex-direction: column; gap: var(--gap-sm); }
 
   /* IP pool: 2 columns instead of 4 on mobile */
   .ip-pool-grid { grid-template-columns: repeat(2, 1fr); }
@@ -187,8 +199,33 @@
   .side-panel { width: 100%; }
 
   /* Modal: full width with margin */
-  .modal { min-width: unset; width: calc(100% - var(--gap) * 2); }
+  .modal { min-width: unset; width: calc(100% - var(--gap) * 2); max-height: 90vh; overflow-y: auto; }
+
+  /* Choice cards: ensure full-width tap targets */
+  .choice-card { padding: var(--gap-sm); }
+
+  /* Section titles: slightly smaller */
+  .section-title { font-size: 0.85rem; }
+
+  /* Peers table: hide less-critical columns */
+  .peers-col-hide { display: none; }
+
+  /* Banner messages: break words */
+  .banner { word-break: break-word; }
+
+  /* Buttons in action rows: wrap */
+  .action-row { flex-wrap: wrap; gap: var(--gap-sm); }
+  .action-row .btn { flex: 1; min-width: 80px; }
 }
+
+@media (max-width: 400px) {
+  /* Very small phones */
+  .page { padding: var(--gap-sm); }
+  .metric-card-value { font-size: 1.2rem; }
+  .metrics-row { grid-template-columns: 1fr; }
+  .page-header .btn { font-size: 0.8rem; padding: 5px 10px; }
+}
+
 
 /* ── Collapsible nav group ─────────────────────────────────────────────────── */
 .nav-group-toggle {
