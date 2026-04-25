@@ -1346,13 +1346,13 @@ docs/
 
 | # | Приоритет | Тип | Компонент | Задача | Статус |
 |---|-----------|-----|-----------|--------|--------|
-| RD2-1 | 🔴 HIGH | Branding | Frontend | Переименовать «ZeroBox» → «ZTNetwork Panel» везде в UI | 🔲 Открыта |
-| RD2-2 | 🔴 HIGH | UX/Docs | Frontend | Справка Exit Node: принцип работы, требования, пошаговая настройка | 🔲 Открыта |
-| RD2-3 | 🔴 HIGH | UX/Docs | Frontend | Справка L2 Bridge: принцип работы, требования, пошаговая настройка | 🔲 Открыта |
-| RD2-4 | 🔴 HIGH | UX/Docs | Frontend | Справка TCP Relay: принцип работы, требования, пошаговая настройка | 🔲 Открыта |
-| RD2-5 | 🔴 HIGH | UX | Frontend | Log Panel: кнопка очистки + не опрашивать API пока панель закрыта/логи выкл | 🔲 Открыта |
-| RD2-6 | 🟡 MEDIUM | Docs | README + docs/ | Переработать README.md: компактно, только общее описание + ссылки на docs/ | 🔲 Открыта |
-| RD2-7 | 🟡 MEDIUM | Docs | docs/ | Создать docs/: installation.md, configuration.md, features/, development.md | 🔲 Открыта |
+| RD2-1 | 🔴 HIGH | Branding | Frontend | Переименовать «ZeroBox» → «ZTNetwork Panel» везде в UI | ✅ `b17e586` |
+| RD2-2 | 🔴 HIGH | UX/Docs | Frontend | Справка Exit Node: принцип работы, требования, пошаговая настройка | ✅ `b17e586` |
+| RD2-3 | 🔴 HIGH | UX/Docs | Frontend | Справка L2 Bridge: принцип работы, требования, пошаговая настройка | ✅ `b17e586` |
+| RD2-4 | 🔴 HIGH | UX/Docs | Frontend | Справка TCP Relay: принцип работы, требования, пошаговая настройка | ✅ `b17e586` |
+| RD2-5 | 🔴 HIGH | UX | Frontend | Log Panel: кнопка очистки + не опрашивать API пока панель закрыта/логи выкл | ✅ `b17e586` |
+| RD2-6 | 🟡 MEDIUM | Docs | README + docs/ | Переработать README.md: компактно, только общее описание + ссылки на docs/ | ✅ `b17e586` |
+| RD2-7 | 🟡 MEDIUM | Docs | docs/ | Создать docs/: installation.md, configuration.md, features/, development.md | ✅ `b17e586` |
 
 ---
 
@@ -1561,3 +1561,93 @@ docs/
 | A4-3 | 🟡 Medium | UX | `NO_ACTIVE_TOKEN` error shows raw string; no call-to-action to add a token | ✅ Fixed — `ERR_NO_ACTIVE_TOKEN` variant + `errToast()` with Settings link |
 | A4-4 | 🟡 Medium | UX | New Network dialog: `Modal.confirm()` binary yes/no → unclear; users don't know if Cancel = Central | ✅ Fixed — `Modal.choice()` with labelled cards: ZT Local / ZT Central |
 | A4-5 | 🟡 Medium | UI | Mobile layout overflow, forms not full-width, tables not scrollable, metric cards cramped | ✅ Fixed — extended `@media (max-width: 768px)` + `@media (max-width: 400px)` |
+
+---
+
+## Roadmap-2 — Реализация (коммит `b17e586`, 2026-04-25)
+
+### RD2-1 ✅ — Переименование «ZeroBox» → «ZTNetwork Panel»
+
+**Файлы:** `www/src/html/shell.html`, `www/src/js/z-init.js`, `build.rs`
+
+Все вхождения строки «ZeroBox» заменены на «ZTNetwork Panel»:
+- Sidebar logo text и `<title>` в `build.rs`
+- Заголовок мобильного бара в `shell.html`
+- Fallback-значение в `_updateMobileTitle()` в `z-init.js`
+
+---
+
+### RD2-2 ✅ — Справка Exit Node
+
+**Файл:** `www/src/js/pages/exitnode.js`
+
+Добавлен коллапсируемый блок `<div class="help-box hidden">` под заголовком страницы.
+Кнопка `? Help` в `page-header` переключает класс `hidden`.
+
+Содержимое: что такое Exit Node, требования (Linux, nftables/iptables, root, WAN-интерфейс),
+пошаговая настройка (5 шагов: deps → интерфейсы → Enable → Allow Default Route в контроллере → Default Route на девайсах).
+
+---
+
+### RD2-3 ✅ — Справка L2 Bridge
+
+**Файл:** `www/src/js/pages/bridge.js`
+
+Аналогичный коллапсируемый help-блок на странице L2 Bridge.
+
+Содержимое: принцип работы (Layer 2 forwarding, ARP/DHCP прозрачны), требования
+(systemd-networkd, iproute2, без dhcpcd/ifupdown конфликтов, root), 6-шаговая инструкция
+включая обязательный шаг «Enable Active Bridge» в контроллере.
+
+---
+
+### RD2-4 ✅ — Справка TCP Relay
+
+**Файл:** `www/src/js/pages/relay.js`
+
+Однострочный info-баннер заменён полноценным коллапсируемым help-блоком.
+
+Содержимое: как работает Pylon (зашифрованный TCP-relay), когда нужен (статус RELAY,
+заблокированный UDP, только 443/TCP), два пути установки (через UI → Deploy и вручную),
+предупреждение о влиянии Force TCP на производительность.
+
+---
+
+### RD2-5 ✅ — Log Panel: ленивая загрузка + SSE стоп при закрытии
+
+**Файл:** `www/src/js/components/log-panel.js`
+
+**Проблема:** при старте приложения `_loadInitial()` безусловно делал `GET /logs?limit=200`
+даже когда панель логов была закрыта. SSE-стрим (`EventSource`) продолжал работать
+пока панель была закрыта — бесполезный постоянный коннект к серверу.
+
+**Исправление:**
+- `_loadInitial()`: запрос истории логов пропускается если `_open === false`
+- `_toggle()` при закрытии: вызывает `_stopStream()` — убивает `EventSource`
+- `_toggle()` при открытии: если `_entries.length === 0` — загружает историю lazily,
+  иначе просто рендерит накопленное
+
+---
+
+### RD2-6 ✅ — Компактный README.md
+
+**Файл:** `README.md`
+
+412 строк → 62 строки. Убраны: подробные инструкции по установке, полная таблица конфигурации,
+длинные описания фич, примеры команд. Осталось: однострочный запуск, таблица фич (эмодзи + описание),
+Quick Start (3 команды), таблица ссылок на `docs/`, секция License.
+
+---
+
+### RD2-7 ✅ — Структура docs/
+
+**Новые файлы:**
+
+| Файл | Содержимое |
+|------|-----------|
+| `docs/installation.md` | Бинарник, сборка из исходников, systemd unit, примечание о sudo |
+| `docs/configuration.md` | Все поля `config.yml` с defaults, типами и описаниями |
+| `docs/development.md` | Build/run/test команды, CI-таблица, структура проекта (дерево `src/` и `www/`) |
+| `docs/features/exit-node.md` | Полное руководство: принцип, требования, setup, NDP Proxy |
+| `docs/features/l2-bridge.md` | Принцип Layer 2, setup, флаг Active Bridge в контроллере |
+| `docs/features/tcp-relay.md` | Pylon, оба пути деплоя (UI + ручной), Force TCP предупреждение |
