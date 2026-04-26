@@ -10,6 +10,14 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.12.1] — 2026-04-26
+
+### Chores
+- docs(audit): Roadmap-2 — RD2-1..7 marked resolved, implementation notes added (126ef45)
+- Merge pull request #22 from CleoWixom/chore/screenshots-20260425-180741 (64fccab)
+- docs(screenshots): update WebUI screenshots [skip ci] (2dad582)
+
+
 ## [0.12.0] — 2026-04-25
 
 
