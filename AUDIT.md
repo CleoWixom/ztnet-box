@@ -1651,3 +1651,39 @@ Quick Start (3 команды), таблица ссылок на `docs/`, сек
 | `docs/features/exit-node.md` | Полное руководство: принцип, требования, setup, NDP Proxy |
 | `docs/features/l2-bridge.md` | Принцип Layer 2, setup, флаг Active Bridge в контроллере |
 | `docs/features/tcp-relay.md` | Pylon, оба пути деплоя (UI + ручной), Force TCP предупреждение |
+
+---
+
+## Аудит по скриншотам — SCR2 (коммиты `ba56c64`, `(текущий)`, 2026-04-25)
+
+**Дата:** 2026-04-25  
+**Источник:** анализ скриншотов после успешного запуска Playwright (PR #22, v0.12.0)
+
+### Итоговая таблица SCR2
+
+| # | Приоритет | Проблема | Коммит |
+|---|-----------|----------|--------|
+| SCR2-1 | 🔴 Critical | CSS `.hidden` не определён → help-боксы всегда открыты | ✅ `ba56c64` |
+| SCR2-2 | 🟡 Medium | L2 Bridge: дублирование — старый `infoBox` + новый help-блок | ✅ `ba56c64` |
+| SCR2-3 | 🟡 Medium | Peers: версия планет показывала `-1.-1.-1` вместо `—` | ✅ `ba56c64` |
+| SCR2-4 | 🟡 Medium | Dashboard mobile: `node-status-bar` переполняется, таблица обрезается | ✅ `ba56c64` |
+| SCR2-5 | 🟢 Low | Sidebar subtitle `ZeroTier UI` → `ZeroTier Web UI` | ✅ `ba56c64` |
+| SCR2-6 | 🟡 Medium | Sidebar: метка секции `NODE` избыточна (один пункт — Dashboard) | ✅ (этот коммит) |
+| SCR2-7 | 🟡 Medium | Controllers sidebar: `Members` подсвечивается одновременно с `Networks` | ✅ (этот коммит) |
+| SCR2-8 | 🟢 Low | Physnet: нет кнопки `? Help` — несоответствие Exit Node / Bridge / Relay | ✅ (этот коммит) |
+
+### Детали SCR2-6..8
+
+**SCR2-6** — Убрана метка `Node` из sidebar. Секция содержала один пункт (Dashboard).
+Метка `NODE` занимала вертикальное пространство и не несла информации.
+
+**SCR2-7** — `Members` nav-item имел `data-route="/controllers/networks"` — совпадал с `Networks`.
+Роутер подсвечивал оба пункта одновременно при открытии Controller Networks.
+Исправлено: `data-route="/controllers/members"` (уникальный маршрут, который никогда
+не совпадает с `/controllers/networks`), `onclick` оставлен на `/controllers/networks`
+(Members открывается из контекста конкретной сети).
+
+**SCR2-8** — Physnet был единственной Gateway-страницей без кнопки `? Help`.
+Добавлены: кнопка в `page-header`, коллапсируемый help-блок с описанием NAT/L3 подхода,
+требованиями, 4-шаговой инструкцией и ссылкой на официальную документацию ZeroTier.
+Старый однострочный баннер убран.

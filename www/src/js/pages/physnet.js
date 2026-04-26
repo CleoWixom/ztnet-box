@@ -39,13 +39,29 @@ const PhysnetPage = (() => {
           <h1 class="page-title">Physical Network Routing</h1>
           <div class="text-dim text-sm">Route ZeroTier traffic to/from your physical LAN without touching your router</div>
         </div>
-        ${status?.enabled ? `<span class="badge badge-success">Active</span>` : `<span class="badge badge-muted">Inactive</span>`}
+        <div style="display:flex;gap:var(--gap-sm);align-items:center">
+          ${status?.enabled ? `<span class="badge badge-success">Active</span>` : `<span class="badge badge-muted">Inactive</span>`}
+          <button class="btn btn-ghost btn-sm" onclick="this.closest('.page').querySelector('.help-box').classList.toggle('hidden')" title="Show/hide help">? Help</button>
+        </div>
       </div>
 
-      <div class="banner banner-info mb">
-        ℹ️ Uses NAT/Masquerade. Allows remote ZeroTier clients to access your physical LAN.
-        Unlike L2 Bridge, does not support broadcast/multicast.
-        <a href="https://docs.zerotier.com/route-between-phys-and-virt/" target="_blank" style="margin-left:8px">Docs ↗</a>
+      <div class="help-box hidden card mb">
+        <div class="card-title mb-sm">What is Physical Routing?</div>
+        <p class="text-sm text-dim mb-sm">Physical Routing allows remote ZeroTier peers to access devices on your <strong>physical LAN</strong> without installing ZeroTier on those devices. It uses NAT/Masquerade — unlike L2 Bridge, it works at Layer 3 and does not support broadcast or multicast.</p>
+        <div class="card-title mb-sm mt">Requirements</div>
+        <ul class="text-sm text-dim mb-sm" style="padding-left:1.2rem;line-height:1.8">
+          <li>Linux with <code>iptables</code></li>
+          <li>Running as root (sudo)</li>
+          <li>A ZeroTier interface (<code>zt…</code>) and a physical/WAN interface</li>
+        </ul>
+        <div class="card-title mb-sm mt">How to set up</div>
+        <ol class="text-sm text-dim" style="padding-left:1.2rem;line-height:1.8">
+          <li>Select the ZeroTier interface (<code>zt…</code>) and WAN interface</li>
+          <li>Enter the physical LAN subnet (e.g. <code>192.168.1.0/24</code>) and this node's ZeroTier IP</li>
+          <li>Click <strong>Enable Physical Routing</strong></li>
+          <li>In your controller: add a <strong>managed route</strong> for the physical subnet via this node's ZeroTier IP (use /23 — one size wider than the physical /24)</li>
+        </ol>
+        <p class="text-sm text-dim mt-sm">📖 <a href="https://docs.zerotier.com/route-between-phys-and-virt/" target="_blank">ZeroTier docs: Route between physical and virtual networks ↗</a></p>
       </div>
 
       <div class="section"><div class="section-title">Dependencies</div>
