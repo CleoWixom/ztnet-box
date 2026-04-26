@@ -61,4 +61,4 @@ See [docs/configuration.md](docs/configuration.md) for all options.
 
 ## License
 
-MIT
+[GPL-3.0](LICENSE)

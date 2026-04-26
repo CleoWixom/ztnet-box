@@ -1687,3 +1687,159 @@ Quick Start (3 команды), таблица ссылок на `docs/`, сек
 Добавлены: кнопка в `page-header`, коллапсируемый help-блок с описанием NAT/L3 подхода,
 требованиями, 4-шаговой инструкцией и ссылкой на официальную документацию ZeroTier.
 Старый однострочный баннер убран.
+
+---
+
+## Roadmap-3 (2026-04-26) — Dashboard, Root Servers, Логирование
+
+---
+
+### RD3-1 🔴 HIGH — Dashboard: информация о сетях с привязкой к контроллеру
+
+**Файл:** `www/src/js/pages/dashboard.js`
+
+**Ответ на вопрос "join — local или central?":**  
+ZeroTier сам определяет маршрут. `POST /api/local/networks/:id` всегда идёт через локального ZT-демона. Если сеть принадлежит локальному контроллеру (первые 10 символов ID = адрес ноды) — она отображается как **Local Controller** сеть. Если нет — это либо ZeroTier Central сеть, либо сеть стороннего контроллера. Тип определяется по наличию `controller` объекта в ответе `GET /api/local/networks/:id`.
+
+**Что нужно добавить в Dashboard:**
+
+1. **Тип сети в карточке** — бейдж: `LOCAL CTRL` / `CENTRAL` / `EXTERNAL`  
+   Логика: если `net.id.startsWith(nodeAddress)` → LOCAL CTRL; если есть active Central токен и сеть есть в Central списке → CENTRAL; иначе → EXTERNAL
+
+2. **Assigned IPs** — уже показываются, но нужно скопировать по клику (copy-on-click)
+
+3. **Участники** — текущая реализация пытается запросить `/local/controller/networks/:id/members` и `/central/networks/:id/members`. Нужно добавить fallback: если ни один не ответил → показывать `—` вместо пустоты
+
+4. **Status подключения** — поле `status` из `/local/networks/:id`:  
+   `OK` → зелёный, `ACCESS_DENIED` → красный с подсказкой "Awaiting authorization", `NOT_FOUND` → серый "Network not found"
+
+5. **Кнопка Details** → переход на `/networks/:id`, кнопка **Leave** с confirm
+
+**Текущие проблемы в реализации:**
+- `renderNetworkCard` получает `net` из `/api/local/networks` (список), но `status` и `type` нужно брать из `/api/local/networks/:id` (детальный). Либо обогащать список дополнительными запросами, либо использовать поля которые уже есть в listNetworks ответе
+- Member dots: `lastOnline` в секундах (Unix timestamp), а не миллисекундах — нужна проверка масштаба
+
+---
+
+### RD3-2 🔴 HIGH — Root Servers: полная переработка страницы
+
+**Файл:** `www/src/js/pages/settings-roots.js`
+
+**Контекст из официальной документации:**
+
+Мoons — удобный способ добавить пользовательские корневые серверы в пул. Пользователи могут создавать moons чтобы снизить зависимость от инфраструктуры ZeroTier Inc. или разместить root-серверы ближе для лучшей производительности.
+
+Mobile clients должны быть настроены через UI или через специально форматированный URL. В обоих случаях необходимо base64-кодировать бинарный planet file.
+
+Custom root servers (planets) являются deprecated. Moons — рекомендуемый способ добавления собственных root-серверов при этом сохраняя совместимость с публичными планетами ZeroTier.
+
+**Что нужно реализовать:**
+
+#### Секция 1: Текущие Planets (публичные корни)
+- Таблица с текущими PLANET-пирами из `/api/local/peers` (filter role=PLANET)
+- Показывать: address, IP, latency, version
+- Это уже есть в Dashboard peers — нужно перенести/переиспользовать
+
+#### Секция 2: Moons (орбитирование) — уже частично реализовано
+- Список орбитируемых moons из `/api/local/moons`
+- Поля: world ID, timestamp, количество roots, стабильные endpoints
+- Форма: World ID + Seed ID → `POST /api/local/moons/:world_id`
+- Удаление: `DELETE /api/local/moons/:world_id`
+
+#### Секция 3: Planet File (НОВОЕ — не реализовано в backend)
+Необходимо base64-кодировать бинарный planet file для использования на мобильных клиентах.
+
+**Нужен новый backend handler:**
+- `GET /api/system/planet-file` — читает `/var/lib/zerotier-one/planet` → возвращает base64
+- `POST /api/system/planet-file` — принимает base64, сохраняет как бинарный файл, перезапускает zerotier
+- `DELETE /api/system/planet-file` — удаляет кастомный planet file (восстанавливает дефолтный), перезапускает
+
+**UI для Planet File:**
+- Область для вставки base64 текста
+- Кнопка загрузки файла (через `<input type="file">`)
+- Отображение текущего planet file: hash/fingerprint, дата изменения, source (custom/default)
+- **QR-код** для мобильных клиентов: генерировать QR из base64 строки `zerotier://join?planet=<base64>` — используя библиотеку `qrcode` (CDN) прямо в браузере
+- Кнопка копирования base64
+
+#### Секция 4: Создание собственного Moon (деплой) (НОВОЕ)
+Для создания moon нужен `zerotier-idtool` для генерации world definition. Результат — `.moon` файл, который нужно разместить в `moons.d` директории.
+
+**Минимальный UI:**
+- Форма: IP-адрес сервера, порт (default 9993)
+- Кнопка **Generate Moon** → вызов backend который запускает `zerotier-idtool` и создаёт `.moon` файл
+- Показывать World ID и ссылку на скачивание сгенерированного файла
+- Инструкция: куда положить файл на root-сервере
+
+**Новые backend эндпоинты (требуют реализации в Rust):**
+```
+GET  /api/system/planet-file          → { base64: string, is_custom: bool, modified: datetime }
+POST /api/system/planet-file          → body: { base64: string }
+DELETE /api/system/planet-file        → сбрасывает к дефолту
+POST /api/system/generate-moon        → body: { ip: string, port: u16, identity?: string }
+                                       → { world_id: string, moon_file_base64: string }
+```
+
+---
+
+### RD3-3 🟡 MEDIUM — Полный аудит логирования
+
+**Результат аудита:**
+
+Система логирования (`tracing` + кастомный `LogCollector` layer) полностью настроена, SSE-стрим работает, Log Panel в UI функционирует.
+
+**Проблема: 13 из 14 handler-файлов не содержат ни одного `tracing::` вызова.**
+
+| Файл | Вызовов tracing | Критические операции без лога |
+|------|----------------|-------------------------------|
+| `bridge.rs` | 0 | enable/disable bridge |
+| `central.rs` | 0 | create/delete network, update member |
+| `config.rs` | 0 | save global config |
+| `exitnode.rs` | 0 | enable/disable exit node |
+| `local.rs` | 0 | join/leave network, orbit/deorbit moon |
+| `local_config.rs` | 0 | update ZT local config |
+| `ndp.rs` | 0 | enable/disable NDP proxy |
+| `physnet.rs` | 0 | enable/disable physical routing |
+| `relay.rs` | 1 | deploy pylon ✓, но нет для local relay config |
+| `system.rs` | 0 | ZT install, zt-status |
+| `tokens.rs` | 0 | add/delete/activate token |
+| `metrics.rs` | 0 | (read-only, нижний приоритет) |
+
+**Что нужно добавить** — `tracing::info!` на каждую мутирующую операцию:
+
+```rust
+// Пример для local.rs
+pub async fn join_network(...) {
+    tracing::info!(network_id = %id, "joining ZeroTier network");
+    // ...
+    tracing::info!(network_id = %id, "joined network successfully");
+}
+
+pub async fn orbit_moon(...) {
+    tracing::info!(world_id = %world_id, "orbiting moon");
+}
+```
+
+**Приоритет по критичности:**
+1. `exitnode.rs` — enable/disable (системные операции с firewall)
+2. `bridge.rs` — enable/disable (системные операции с сетевыми интерфейсами)
+3. `physnet.rs` — enable/disable
+4. `tokens.rs` — add/delete/activate (безопасность)
+5. `local.rs` — join/leave network, orbit/deorbit moon
+6. `central.rs` — create/delete/update network и members
+7. `config.rs` — save config
+8. `system.rs` — ZT install
+
+**Также:**
+- Frontend: Log Panel не показывает source/target операции. Нужно добавить `tracing::info!` с полями (`network_id`, `node_id`, `action`) чтобы Log Panel был полезен а не только показывал HTTP-запросы
+
+---
+
+### Итоговая таблица Roadmap-3
+
+| # | Приоритет | Компонент | Задача | Статус |
+|---|-----------|-----------|--------|--------|
+| RD3-1 | 🔴 High | Frontend | Dashboard: тип сети (LOCAL/CENTRAL/EXTERNAL), status ACCESS_DENIED, copy IP | 🔲 |
+| RD3-2a | 🔴 High | Frontend + Backend | Root Servers: Planet File UI (upload/download/QR) | 🔲 |
+| RD3-2b | 🔴 High | Backend | Root Servers: новые эндпоинты /system/planet-file, /system/generate-moon | 🔲 |
+| RD3-2c | 🟡 Medium | Frontend | Root Servers: текущие Planets из peers + Moon deployment guide | 🔲 |
+| RD3-3 | 🟡 Medium | Backend (Rust) | Логирование: `tracing::info!` во все 13 handler-файлов на мутирующие операции | 🔲 |
