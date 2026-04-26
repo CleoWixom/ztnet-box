@@ -152,3 +152,25 @@
   display: flex; gap: var(--gap-sm); margin-top: var(--gap-xs);
   border-top: 1px solid var(--c-border); padding-top: var(--gap-sm);
 }
+
+/* ── Dashboard: node-status-bar mobile ────────────────────────────────────── */
+@media (max-width: 768px) {
+  .node-status-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--gap-sm);
+  }
+  .node-status-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap-xs) var(--gap);
+    width: 100%;
+  }
+  /* Peers table: hide Physical IP and Version on very small screens */
+  .table-wrap table th:nth-child(5),
+  .table-wrap table td:nth-child(5),
+  .table-wrap table th:nth-child(6),
+  .table-wrap table td:nth-child(6) {
+    display: none;
+  }
+}

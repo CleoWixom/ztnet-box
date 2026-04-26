@@ -131,7 +131,7 @@ const DashboardPage = (() => {
         <td><span class="badge ${roleClass}">${Utils.esc(p.role)}</span></td>
         <td class="${latCls}">${latMs}${typeof latMs === 'number' ? ' ms' : ''}</td>
         <td>${p.paths?.filter(x=>x.active).length || 0}</td>
-        <td>${Utils.esc(p.version || '—')}</td>
+        <td>${(!p.version || p.version.startsWith('-')) ? '—' : Utils.esc(p.version)}</td>
         <td class="text-sm text-dim mono">${Utils.esc(p.physicalAddress || p.physical_address || '—')}</td>
       </tr>`;
     }).join('');

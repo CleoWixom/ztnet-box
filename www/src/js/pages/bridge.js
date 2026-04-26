@@ -114,7 +114,6 @@ const BridgePage = (() => {
           <li>In your controller, enable <strong>Allow Bridging</strong> for this member</li>
         </ol>
       </div>
-      ${infoBox}
       <div class="section"><div class="section-title">Dependencies</div>
         <div class="card"><div class="step-list">${depsList}</div></div>
       </div>

@@ -227,3 +227,21 @@ tbody tr:hover { background: rgba(255,255,255,.03); }
 }
 .sidebar-zt-dot.online  { background: var(--c-success); }
 .sidebar-zt-dot.offline { background: var(--c-danger); }
+
+/* ── Utility ──────────────────────────────────────────────────────────────── */
+.hidden { display: none !important; }
+
+/* ── Help box (collapsible per-page documentation) ───────────────────────── */
+.help-box {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: var(--gap);
+  margin-bottom: var(--gap);
+}
+.help-box h3, .help-box .card-title { font-size: var(--fs-sm); font-weight: var(--fw-bold); margin-bottom: var(--gap-xs); }
+.help-box ul, .help-box ol { padding-left: 1.2rem; line-height: 1.8; }
+.help-box li { font-size: var(--fs-sm); color: var(--c-text-dim); }
+.help-box p  { font-size: var(--fs-sm); color: var(--c-text-dim); }
+.help-box code { font-family: var(--font-mono); font-size: .85em;
+  background: var(--c-bg); padding: 1px 4px; border-radius: 3px; }
