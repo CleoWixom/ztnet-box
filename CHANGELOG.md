@@ -10,6 +10,14 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-04-26
+
+### Chores
+- Merge pull request #23 from CleoWixom/chore/screenshots-20260426-103458 (c2ba3aa)
+- docs: Roadmap-3 — Dashboard, Root Servers, Logging audit + README GPL-3.0 (66dfdff)
+- docs(screenshots): update WebUI screenshots [skip ci] (1099e6c)
+
+
 ## [0.12.2] — 2026-04-26
 
 
