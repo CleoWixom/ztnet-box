@@ -10,6 +10,7 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
+use tracing;
 
 // ── View types (masked token, never send raw) ─────────────────────────────────
 
@@ -70,7 +71,8 @@ pub async fn add_token(
 
     let rate_limit = validate_and_detect_rate(&base_url, &req.token).await?;
 
-    let t = s.token_store.add(req.name, req.token, rate_limit).await;
+    let t = s.token_store.add(req.name.clone(), req.token, rate_limit).await;
+    tracing::info!(name = %t.name, token_id = %t.id, "API token added");
 
     // Persist to config
     persist_tokens(&s).await?;
@@ -140,6 +142,7 @@ pub async fn delete_token(
     if !removed {
         return Err(ApiError::NotFound);
     }
+    tracing::info!(token_id = %id, "API token deleted");
     persist_tokens(&s).await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -154,6 +157,7 @@ pub async fn activate_token(
     if !ok {
         return Err(ApiError::NotFound);
     }
+    tracing::info!(token_id = %id, "API token activated");
     persist_tokens(&s).await?;
     Ok(Json(serde_json::json!({ "is_active": true, "id": id })))
 }

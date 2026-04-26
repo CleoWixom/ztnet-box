@@ -5,6 +5,7 @@ use crate::{
 };
 use axum::{extract::State, response::IntoResponse, Json};
 use serde::Deserialize;
+use tracing;
 
 // ── GET /api/relay/status ─────────────────────────────────────────────────────
 

@@ -7,6 +7,7 @@ use crate::{
 };
 use axum::{extract::State, response::IntoResponse, Json};
 use serde::Deserialize;
+use tracing;
 
 // ── GET /api/physnet/platform ─────────────────────────────────────────────────
 
@@ -104,6 +105,7 @@ pub async fn enable(
         network_id: req.network_id,
     };
 
+        tracing::info!(zt_iface = %cfg.zt_iface, phy_iface = %cfg.phy_iface, "enabling physical network routing");
     physnet::rules::apply(&cfg).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
 
     let state = PhysNetState {
@@ -138,7 +140,8 @@ pub async fn disable(State(s): State<AppState>) -> Result<impl IntoResponse, Api
 
     let st = s.physnet_state.read().await.clone();
     if let Some(cfg) = st.config {
-        physnet::rules::remove(&cfg).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
+            tracing::info!("disabling physical network routing");
+    physnet::rules::remove(&cfg).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
     }
     *s.physnet_state.write().await = PhysNetState::default();
     s.persist_runtime_state().await;

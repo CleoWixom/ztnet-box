@@ -3,6 +3,7 @@ use crate::{
     zerotier::detection,
 };
 use axum::{extract::State, Json};
+use tracing;
 
 pub async fn zt_status(
     State(_state): State<AppState>,
@@ -13,6 +14,7 @@ pub async fn zt_status(
 pub async fn zt_install(
     State(_state): State<AppState>,
 ) -> Result<Json<detection::InstallResult>, ApiError> {
+    tracing::info!("ZeroTier install requested");
     match detection::detect_package_manager() {
         Some(pm) => detection::install(pm)
             .map(Json)

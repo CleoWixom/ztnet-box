@@ -32,9 +32,12 @@ pub async fn install_deps(State(s): State<AppState>) -> Result<impl IntoResponse
     let prefer_nftables = cfg.exitnode.nftables_preferred;
     drop(cfg);
 
-    deps::install_missing(prefer_nftables)
+    tracing::info!(prefer_nftables, "installing exit node dependencies");
+    let result = deps::install_missing(prefer_nftables)
         .map(Json)
-        .map_err(ApiError::ExitNode)
+        .map_err(ApiError::ExitNode)?;
+    tracing::info!("exit node dependencies installed");
+    Ok(result)
 }
 
 // ── GET /api/exitnode/interfaces ──────────────────────────────────────────────
@@ -129,6 +132,13 @@ pub async fn enable(
         );
     }
 
+    tracing::info!(
+        zt_interface = %req.zt_interface,
+        wan_interface = %req.wan_interface,
+        network_id = ?req.network_id,
+        enable_ipv6 = req.enable_ipv6,
+        "enabling exit node"
+    );
     let state = s
         .exitnode_manager
         .enable(
@@ -139,6 +149,12 @@ pub async fn enable(
             req.network_id,
         )
         .await?;
+    tracing::info!(
+        zt_interface = %state.zt_interface,
+        wan_interface = %state.wan_interface,
+        backend = ?state.backend,
+        "exit node enabled"
+    );
 
     Ok(Json(serde_json::json!({
         "enabled":       state.enabled,
@@ -156,6 +172,8 @@ pub async fn enable(
 // ── POST /api/exitnode/disable ────────────────────────────────────────────────
 
 pub async fn disable(State(s): State<AppState>) -> Result<impl IntoResponse, ApiError> {
+    tracing::info!("disabling exit node");
     s.exitnode_manager.disable().await?;
+    tracing::info!("exit node disabled");
     Ok(Json(serde_json::json!({ "status": "disabled" })))
 }

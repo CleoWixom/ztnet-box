@@ -44,6 +44,7 @@ pub async fn join_network(
     Json(body): Json<NetworkMembershipUpdate>,
 ) -> Result<impl IntoResponse, ApiError> {
     validate::network_id(&id)?;
+        tracing::info!(network_id = %id, "joining ZeroTier network");
     Ok(Json(client(&s).await?.join_network(&id, &body).await?))
 }
 
@@ -52,6 +53,7 @@ pub async fn leave_network(
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
     validate::network_id(&id)?;
+        tracing::info!(network_id = %id, "leaving ZeroTier network");
     client(&s).await?.leave_network(&id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -80,6 +82,7 @@ pub async fn create_controller_network(
 ) -> Result<impl IntoResponse, ApiError> {
     let cl = client(&s).await?;
     let status = cl.node_status().await?;
+        tracing::info!("creating controller network");
     Ok(Json(
         cl.create_controller_network(&status.address, &body).await?,
     ))
@@ -112,6 +115,7 @@ pub async fn delete_controller_network(
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
     validate::network_id(&id)?;
+        tracing::info!(network_id = %id, "deleting controller network");
     client(&s).await?.delete_controller_network(&id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -142,6 +146,7 @@ pub async fn update_member(
 ) -> Result<impl IntoResponse, ApiError> {
     validate::network_id(&net_id)?;
     validate::node_id(&node_id)?;
+        tracing::info!(network_id = %net_id, node_id = %node_id, "updating controller member");
     Ok(Json(
         client(&s)
             .await?
@@ -156,6 +161,7 @@ pub async fn delete_member(
 ) -> Result<StatusCode, ApiError> {
     validate::network_id(&net_id)?;
     validate::node_id(&node_id)?;
+        tracing::info!(network_id = %net_id, node_id = %node_id, "deleting controller member");
     client(&s).await?.delete_member(&net_id, &node_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -170,6 +176,7 @@ pub async fn orbit_moon(
     Json(body): Json<OrbitRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     validate::world_id(&world_id)?;
+        tracing::info!(world_id = %world_id, "orbiting moon");
     Ok(Json(client(&s).await?.orbit_moon(&world_id, &body).await?))
 }
 
@@ -178,6 +185,7 @@ pub async fn deorbit_moon(
     Path(world_id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
     validate::world_id(&world_id)?;
+        tracing::info!(world_id = %world_id, "deorbiting moon");
     client(&s).await?.deorbit_moon(&world_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

@@ -27,7 +27,10 @@ pub async fn create_network(
     State(s): State<AppState>,
     Json(body): Json<NetworkCreateOrUpdate>,
 ) -> Result<impl IntoResponse, ApiError> {
-    Ok(Json(client(&s).await?.create_network(&body).await?))
+    tracing::info!("creating Central network");
+    let net = client(&s).await?.create_network(&body).await?;
+    tracing::info!(network_id = ?net.id, "Central network created");
+    Ok(Json(net))
 }
 
 pub async fn get_network(
@@ -44,6 +47,7 @@ pub async fn update_network(
     Json(body): Json<NetworkCreateOrUpdate>,
 ) -> Result<impl IntoResponse, ApiError> {
     validate::network_id(&id)?;
+    tracing::info!(network_id = %id, "updating Central network");
     Ok(Json(client(&s).await?.update_network(&id, &body).await?))
 }
 
@@ -52,7 +56,9 @@ pub async fn delete_network(
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
     validate::network_id(&id)?;
+    tracing::info!(network_id = %id, "deleting Central network");
     client(&s).await?.delete_network(&id).await?;
+    tracing::info!(network_id = %id, "Central network deleted");
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -82,6 +88,7 @@ pub async fn update_member(
 ) -> Result<impl IntoResponse, ApiError> {
     validate::network_id(&net_id)?;
     validate::node_id(&node_id)?;
+    tracing::info!(network_id = %net_id, node_id = %node_id, "updating Central member");
     Ok(Json(
         client(&s)
             .await?
@@ -96,6 +103,7 @@ pub async fn delete_member(
 ) -> Result<StatusCode, ApiError> {
     validate::network_id(&net_id)?;
     validate::node_id(&node_id)?;
+    tracing::info!(network_id = %net_id, node_id = %node_id, "deleting Central member");
     client(&s).await?.delete_member(&net_id, &node_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

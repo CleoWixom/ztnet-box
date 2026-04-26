@@ -79,6 +79,7 @@ pub async fn update_network_local_conf(
         }));
     }
 
+    tracing::info!(network_id = %id, "updating network local configuration");
     local_config::write_network(&id, &conf).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
 
     Ok(Json(serde_json::json!({

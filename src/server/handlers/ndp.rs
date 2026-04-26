@@ -4,6 +4,7 @@ use crate::{
 };
 use axum::{extract::State, response::IntoResponse, Json};
 use serde::Deserialize;
+use tracing;
 
 // ── GET /api/exitnode/ndp/status ──────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ pub async fn enable(
         ipv6_prefix: req.ipv6_prefix,
     };
 
+    tracing::info!("enabling NDP proxy");
     ndp::enable(&cfg)
         .map(Json)
         .map_err(|e| ApiError::ZtLocal(e.to_string()))
@@ -85,6 +87,7 @@ pub async fn disable(
         return Err(ApiError::ZtLocal("Root privileges required".into()));
     }
 
+    tracing::info!("disabling NDP proxy");
     ndp::disable(req.remove_config)
         .map(Json)
         .map_err(|e| ApiError::ZtLocal(e.to_string()))

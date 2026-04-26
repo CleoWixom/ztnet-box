@@ -4,6 +4,7 @@ use crate::{
 };
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
+use tracing;
 
 // ── GET /api/settings/config ──────────────────────────────────────────────────
 
@@ -108,8 +109,10 @@ pub async fn update_config(
             cfg.zerotier.central.base_url = url;
         }
 
+        tracing::info!("saving global configuration");
         cfg.save(&state.config_path)
             .map_err(|e| ApiError::Config(e.to_string()))?;
+        tracing::info!("global configuration saved");
     }
 
     Ok(Json(serde_json::json!({ "status": "ok" })))
