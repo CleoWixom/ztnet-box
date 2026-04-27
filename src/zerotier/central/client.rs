@@ -90,7 +90,10 @@ impl ZtCentralClient {
         self.rate_limiter.acquire().await;
 
         let url = format!("{}{}", self.base_url, path);
-        let mut req = self.http.request(method, &url).bearer_auth(&self.token);
+        let mut req = self
+            .http
+            .request(method, &url)
+            .header("Authorization", format!("token {}", self.token));
 
         if let Some(b) = body {
             req = req.json(b);
@@ -109,7 +112,11 @@ impl ZtCentralClient {
             ));
         }
         if status == StatusCode::NOT_FOUND {
-            return Err(ApiError::NotFound);
+            // /self returns 404 when the token is invalid or the Central base URL is wrong.
+            return Err(ApiError::ZtCentral(
+                "AUTH_FAILED: token invalid or Central URL misconfigured (got 404 on /self)"
+                    .into(),
+            ));
         }
         if !status.is_success() {
             let text = resp.text().await.unwrap_or_default();
@@ -128,7 +135,7 @@ impl ZtCentralClient {
         let resp = self
             .http
             .request(method, &url)
-            .bearer_auth(&self.token)
+            .header("Authorization", format!("token {}", self.token))
             .send()
             .await
             .map_err(|e| ApiError::ZtCentral(e.to_string()))?;

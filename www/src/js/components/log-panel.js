@@ -61,14 +61,18 @@ const LogPanel = (() => {
         if (badge) badge.textContent = _level;
       }
     } catch (e) { /* best-effort */ }
-    // Only load log history when panel is open — don't hit the API unnecessarily
-    if (_open) {
-      try {
-        const data = await api.get('/logs?limit=200');
-        _entries = data || [];
-        _rerender();
-      } catch (e) { /* server may not have logs yet */ }
-    }
+
+    // Always load history and start streaming on init
+    // Backend already filters by min_level set on the server side
+    try {
+      const data = await api.get(`/logs?limit=200&level=${_level}`);
+      _entries = data || [];
+      _updateBadge();
+      if (_open) _rerender();
+    } catch (e) { /* server may not have logs yet */ }
+
+    // Auto-start SSE stream so log entries appear in real time
+    _startStream();
   }
 
   function _addEntry(entry) {
@@ -141,6 +145,11 @@ const LogPanel = (() => {
       _level = level;
       const badge = document.getElementById('log-bar-level');
       if (badge) badge.textContent = level;
+      // Reload history filtered by new level
+      const data = await api.get(`/logs?limit=200&level=${level}`);
+      _entries = data || [];
+      _updateBadge();
+      if (_open) _rerender();
     } catch (e) { Toast.error('Failed to set log level'); }
   }
 
@@ -211,18 +220,14 @@ const LogPanel = (() => {
       if (body) body.style.display = _open ? 'flex' : 'none';
       if (label) label.textContent = _open ? '▼ Logs' : '▲ Logs';
       if (_open) {
-        // Lazy-load history the first time the panel is opened
-        if (_entries.length === 0) {
-          api.get('/logs?limit=200').then(data => {
-            _entries = data || [];
-            _rerender();
-          }).catch(() => {});
-        } else {
+        // Load/reload history with current level filter
+        api.get(`/logs?limit=200&level=${_level}`).then(data => {
+          _entries = data || [];
+          _updateBadge();
           _rerender();
-        }
-      } else {
-        // Stop streaming when panel is closed to avoid idle SSE connections
-        _stopStream();
+        }).catch(() => {});
+        // Restart stream if it was stopped
+        if (!_streaming) _startStream();
       }
     },
     _toggleStream() {

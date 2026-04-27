@@ -18,8 +18,8 @@ pub struct NodeStatus {
 
 // ── Network Membership ────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
 pub struct NetworkMembership {
     pub id: String,
     pub name: String,
@@ -80,8 +80,8 @@ pub struct PeerPath {
 
 // ── Controller ────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
 pub struct ControllerNetwork {
     pub id: String,
     pub name: String,
@@ -105,8 +105,8 @@ pub struct ControllerNetworkCreate {
     pub private: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
 pub struct ControllerMember {
     pub node_id: String,
     pub authorized: bool,
