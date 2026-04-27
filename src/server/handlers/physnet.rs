@@ -105,7 +105,11 @@ pub async fn enable(
         network_id: req.network_id,
     };
 
-    tracing::info!(zt_iface = %cfg.zt_iface, phy_iface = %cfg.phy_iface, "enabling physical network routing");
+    tracing::info!(
+        zt_iface = %cfg.zt_iface,
+        phy_iface = %cfg.phy_iface,
+        "enabling physical network routing"
+    );
     physnet::rules::apply(&cfg).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
 
     let state = PhysNetState {

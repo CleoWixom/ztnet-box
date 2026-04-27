@@ -44,7 +44,7 @@ pub async fn join_network(
     Json(body): Json<NetworkMembershipUpdate>,
 ) -> Result<impl IntoResponse, ApiError> {
     validate::network_id(&id)?;
-        tracing::info!(network_id = %id, "joining ZeroTier network");
+    tracing::info!(network_id = %id, "joining ZeroTier network");
     Ok(Json(client(&s).await?.join_network(&id, &body).await?))
 }
 

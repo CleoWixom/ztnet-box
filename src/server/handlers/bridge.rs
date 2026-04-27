@@ -98,7 +98,12 @@ pub async fn enable(
         network_id: req.network_id.clone(),
     };
 
-    tracing::info!(zt_iface = %cfg.zt_iface, phy_iface = %cfg.phy_iface, network_id = %req.network_id, "enabling L2 bridge");
+    tracing::info!(
+        zt_iface = %cfg.zt_iface,
+        phy_iface = %cfg.phy_iface,
+        network_id = %req.network_id,
+        "enabling L2 bridge"
+    );
     rules::apply(&cfg).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
 
     let state = BridgeState {
@@ -130,8 +135,8 @@ pub async fn disable(State(s): State<AppState>) -> Result<impl IntoResponse, Api
 
     let st = s.bridge_state.read().await.clone();
     if let Some(cfg) = st.config {
-            tracing::info!("disabling L2 bridge");
-    rules::remove(&cfg).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
+        tracing::info!("disabling L2 bridge");
+        rules::remove(&cfg).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
     }
     *s.bridge_state.write().await = BridgeState::default();
     s.persist_runtime_state().await;
