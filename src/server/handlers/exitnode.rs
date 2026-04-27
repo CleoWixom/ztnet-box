@@ -150,8 +150,8 @@ pub async fn enable(
         )
         .await?;
     tracing::info!(
-        zt_interface = %state.zt_interface,
-        wan_interface = %state.wan_interface,
+        zt_interface = ?state.zt_interface,
+        wan_interface = ?state.wan_interface,
         backend = ?state.backend,
         "exit node enabled"
     );
