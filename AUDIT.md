@@ -1843,3 +1843,59 @@ pub async fn orbit_moon(...) {
 | RD3-2b | 🔴 High | Backend | Root Servers: новые эндпоинты /system/planet-file, /system/generate-moon | 🔲 |
 | RD3-2c | 🟡 Medium | Frontend | Root Servers: текущие Planets из peers + Moon deployment guide | 🔲 |
 | RD3-3 | 🟡 Medium | Backend (Rust) | Логирование: `tracing::info!` во все 13 handler-файлов на мутирующие операции | 🔲 |
+
+## Audit-5 — ZeroTier API соответствие официальной документации (2026-04-27)
+
+**Источники:**
+- [ZeroTier Client/Service API](https://github.com/zerotier/zerotier-one-api-spec/blob/main/main.tsp) (официальный TypeSpec)
+- [ZeroTier Legacy Central API](https://docs.zerotier.com/api/central/legacy/) + реальные ответы API
+
+### 🔴 Критические — ломают функциональность
+
+| ID | Приоритет | Файл | Описание | Статус |
+|----|-----------|------|----------|--------|
+| ZT-C-2 | 🔴 Critical | `local/types.rs` | `NetworkMembership.dns` — ZT возвращает `[]` (пустой массив) для пустого DNS, текущий `Option<Dns>` не обрабатывает массив → deserialization error | 🔲 |
+| ZT-C-6 | 🔴 Critical | `local/types.rs` | `ControllerMember` — локальный контроллер возвращает поле `"id"` (адрес ноды), а не `"nodeId"` (Central). Текущий `#[serde(rename="nodeId")]` не работает для local controller | 🔲 |
+| ZT-C-7 | 🔴 Critical | `local/types.rs` | `V6AssignMode.plan6` — опечатка, должно быть `"6plane"` (spec: `` `6plane`?: boolean ``). Поле никогда не десериализуется | 🔲 |
+| ZT-C-11 | 🔴 Critical | `central/types.rs` | `CentralMember` — Legacy Central API оборачивает мутируемые поля в `config: {...}`. Текущая структура читает `authorized`, `ipAssignments` и др. напрямую → поля всегда пусты/дефолтны | 🔲 |
+| ZT-C-12 | 🔴 Critical | `central/types.rs` | `CentralMemberUpdate` — обновление члена требует тела `{"config": {...}}`. Текущая структура отправляет поля напрямую → сервер игнорирует изменения | 🔲 |
+| ZT-C-13 | 🔴 Critical | `central/client.rs` | `user()` использует `GET /auth` — несуществующий endpoint. Правильный путь: `GET /self` | 🔲 |
+| ZT-C-14 | 🔴 Critical | `central/types.rs` | `AccountStatus.planType` — поле не существует в ответе `GET /self`. Тарификация определяется через `subscriptions`, не `planType` → rate limit всегда Free | 🔲 |
+
+### 🟡 Высокие — некорректное поведение
+
+| ID | Приоритет | Файл | Описание | Статус |
+|----|-----------|------|----------|--------|
+| ZT-C-1 | 🟡 High | `local/types.rs` | `NodeStatus.world_id` → должно быть `planetWorldId`. Нет полей: `versionMajor/Minor/Rev/Build`, `config.settings.primaryPort`, `config.settings.surfaceAddresses` | 🔲 |
+| ZT-C-3 | 🟡 High | `local/types.rs` | `NetworkMembership` — отсутствуют поля: `portDeviceName` (имя TUN-интерфейса), `multicastSubscriptions`, `authenticationURL`, `authenticationExpiryTime` | 🔲 |
+| ZT-C-4 | 🟡 High | `local/types.rs` | `PeerInfo` — нет поля `tunneled: bool`. `PeerPath` — нет `localSocket: u64`. Тип `latency: i32` должен быть `i64` (spec: `uSafeint \| -1`) | 🔲 |
+| ZT-C-5 | 🟡 High | `local/types.rs` | `ControllerNetwork` — отсутствуют: `nwid`, `objtype`, `revision`, `capabilities`, `rules`, `tags`. Без `nwid` нельзя получить сеть по дублированному ID | 🔲 |
+| ZT-C-8 | 🟡 High | `local/types.rs` | `ControllerNetworkCreate` слишком ограничен — нет полей для `ipAssignmentPools`, `routes`, `mtu`, `v4AssignMode`, `v6AssignMode`, `multicastLimit` | 🔲 |
+| ZT-C-9 | 🟡 High | `local/client.rs` | `network_members()` — N+1 запросов: `GET /controller/network/{id}/member` → N×`GET /controller/network/{id}/member/{node_id}`. При 100+ членах — 100+ последовательных HTTP запросов | 🔲 |
+| ZT-C-10 | 🟡 High | `central/types.rs` | `CentralNetwork` — отсутствуют: `totalMemberCount`, `config.creationTime`, `config.lastModified`, `config.id`, `config.capabilities`, `config.rules`, `config.tags` | 🔲 |
+
+### 🟢 Низкие — улучшение соответствия
+
+| ID | Приоритет | Файл | Описание | Статус |
+|----|-----------|------|----------|--------|
+| ZT-M-1 | 🟢 Low | `local/client.rs` | Auth header: `X-ZT1-Auth` → официальный стандарт `X-ZT1-AUTH` (ZT принимает оба, но spec использует верхний регистр) | 🔲 |
+| ZT-M-2 | 🟢 Low | `local/client.rs` | `create_controller_network` использует `getrandom` локально — ZT поддерживает `POST /controller/` для генерации случайного сетевого ID на сервере | 🔲 |
+| ZT-M-3 | 🟢 Low | `local/client.rs` | `leave_network` — DELETE `/network/{id}` возвращает `{"result": true}`. Текущий `request_empty()` игнорирует тело и не различает успех от ошибки по телу ответа | 🔲 |
+| ZT-L-4 | 🟢 Low | `local/client.rs` | Добавить поддержку `GET /unstable/controller/network/{id}/member` для получения полного списка членов одним запросом (вместо N+1) | 🔲 |
+
+### Примечания
+
+**ZT-C-11/12 (CentralMember/Update)** — наиболее критические для работы приложения. Все операции с членами сети через Central API (авторизация, смена IP, мосты) не работают из-за отсутствия обёртки `{"config": {...}}`.
+
+**ZT-C-7 (V6AssignMode)** — поле `plan6` является опечаткой вместо `6plane`. В Rust нельзя использовать `6plane` как имя поля (начинается с цифры), поэтому требуется `#[serde(rename = "6plane")]`:
+```rust
+#[serde(rename = "6plane", default)]
+pub six_plane: bool,
+```
+
+**ZT-C-14 (planType)** — `GET /self` возвращает объект `subscriptions` из которого нужно извлечь тип плана:
+```json
+{"subscriptions": {"zerotier": {"planId": "paid", ...}}}
+```
+Текущая логика определения тарифа через `planType` всегда возвращает `Free`.
+
