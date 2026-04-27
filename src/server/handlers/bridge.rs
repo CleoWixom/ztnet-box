@@ -2,9 +2,9 @@ use crate::{
     bridge::{deps, platform, rules, BridgeConfig, BridgeState},
     server::{error::ApiError, state::AppState, validate},
 };
-use tracing;
 use axum::{extract::State, response::IntoResponse, Json};
 use serde::Deserialize;
+use tracing;
 
 // ── GET /api/bridge/platform ──────────────────────────────────────────────────
 
@@ -98,7 +98,7 @@ pub async fn enable(
         network_id: req.network_id.clone(),
     };
 
-        tracing::info!(zt_iface = %cfg.zt_iface, phy_iface = %cfg.phy_iface, network_id = %req.network_id, "enabling L2 bridge");
+    tracing::info!(zt_iface = %cfg.zt_iface, phy_iface = %cfg.phy_iface, network_id = %req.network_id, "enabling L2 bridge");
     rules::apply(&cfg).map_err(|e| ApiError::ZtLocal(e.to_string()))?;
 
     let state = BridgeState {

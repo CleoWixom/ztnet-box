@@ -71,7 +71,10 @@ pub async fn add_token(
 
     let rate_limit = validate_and_detect_rate(&base_url, &req.token).await?;
 
-    let t = s.token_store.add(req.name.clone(), req.token, rate_limit).await;
+    let t = s
+        .token_store
+        .add(req.name.clone(), req.token, rate_limit)
+        .await;
     tracing::info!(name = %t.name, token_id = %t.id, "API token added");
 
     // Persist to config
