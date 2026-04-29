@@ -203,7 +203,7 @@ pub struct CentralMemberUpdateConfig {
 
 // ── Account ───────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct CentralUser {
     pub id: String,
