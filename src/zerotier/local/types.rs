@@ -260,6 +260,7 @@ pub struct V6AssignMode {
 ///   - `{"domain":"...","servers":[...]}` (configured)
 ///   - `{}`                              (empty object, unconfigured)
 ///   - `[]`                              (empty array, some versions)
+///
 /// This deserializer handles all three cases. (ZT-C-2)
 fn deserialize_dns_flex<'de, D>(d: D) -> Result<Option<Dns>, D::Error>
 where
