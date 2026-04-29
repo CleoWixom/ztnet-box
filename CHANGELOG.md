@@ -10,6 +10,14 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.13.5] — 2026-04-29
+
+### Chores
+- Document ZeroTier API compliance audit findings (98346b0)
+- Merge pull request #25 from CleoWixom/chore/screenshots-20260427-102849 (f130376)
+- docs(screenshots): update WebUI screenshots [skip ci] (05b8dec)
+
+
 ## [0.13.4] — 2026-04-27
 
 
