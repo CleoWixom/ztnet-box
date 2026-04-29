@@ -67,7 +67,14 @@ pub async fn list_members(
     Path(net_id): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
     validate::network_id(&net_id)?;
-    Ok(Json(client(&s).await?.network_members(&net_id).await?))
+    let members: Vec<CentralMemberView> = client(&s)
+        .await?
+        .network_members(&net_id)
+        .await?
+        .into_iter()
+        .map(CentralMemberView::from)
+        .collect();
+    Ok(Json(members))
 }
 
 pub async fn get_member(
@@ -76,25 +83,27 @@ pub async fn get_member(
 ) -> Result<impl IntoResponse, ApiError> {
     validate::network_id(&net_id)?;
     validate::node_id(&node_id)?;
-    Ok(Json(
+    Ok(Json(CentralMemberView::from(
         client(&s).await?.network_member(&net_id, &node_id).await?,
-    ))
+    )))
 }
 
+/// Frontend sends flat fields; we wrap them in {"config":{...}} for Legacy Central API (ZT-C-12)
 pub async fn update_member(
     State(s): State<AppState>,
     Path((net_id, node_id)): Path<(String, String)>,
-    Json(body): Json<CentralMemberUpdate>,
+    Json(body): Json<CentralMemberUpdateConfig>,
 ) -> Result<impl IntoResponse, ApiError> {
     validate::network_id(&net_id)?;
     validate::node_id(&node_id)?;
     tracing::info!(network_id = %net_id, node_id = %node_id, "updating Central member");
-    Ok(Json(
+    let wrapped = CentralMemberUpdate { config: body };
+    Ok(Json(CentralMemberView::from(
         client(&s)
             .await?
-            .update_member(&net_id, &node_id, &body)
+            .update_member(&net_id, &node_id, &wrapped)
             .await?,
-    ))
+    )))
 }
 
 pub async fn delete_member(

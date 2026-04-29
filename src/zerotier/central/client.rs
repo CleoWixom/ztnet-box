@@ -114,8 +114,7 @@ impl ZtCentralClient {
         if status == StatusCode::NOT_FOUND {
             // /self returns 404 when the token is invalid or the Central base URL is wrong.
             return Err(ApiError::ZtCentral(
-                "AUTH_FAILED: token invalid or Central URL misconfigured (got 404 on /self)"
-                    .into(),
+                "AUTH_FAILED: token invalid or Central URL misconfigured (got 404 on /self)".into(),
             ));
         }
         if !status.is_success() {
@@ -233,7 +232,9 @@ impl ZtCentralClient {
     // ── Account ───────────────────────────────────────────────────────────────
 
     pub async fn user(&self) -> Result<CentralUser, ApiError> {
-        self.request(Method::GET, "/auth", None::<&()>).await
+        // /self returns the authenticated user's profile (ZT-C-13)
+        // /auth is not a documented endpoint and does not return user info
+        self.request(Method::GET, "/self", None::<&()>).await
     }
 
     pub async fn account_status(&self) -> Result<AccountStatus, ApiError> {
@@ -333,13 +334,16 @@ mod tests {
 
     #[test]
     fn account_status_rate_limit_paid() {
+        // ZT-C-14: planType is gone, now read from subscriptions.zerotier.planId
         let s = AccountStatus {
             id: "x".into(),
             display_name: "x".into(),
             email: None,
             auth: None,
             under_limit: true,
-            plan_type: Some("paid".into()),
+            subscriptions: Some(serde_json::json!({
+                "zerotier": { "planId": "paid" }
+            })),
         };
         assert!(matches!(s.rate_limit(), RateLimit::Paid));
     }
@@ -352,7 +356,9 @@ mod tests {
             email: None,
             auth: None,
             under_limit: true,
-            plan_type: Some("free".into()),
+            subscriptions: Some(serde_json::json!({
+                "zerotier": { "planId": "free" }
+            })),
         };
         assert!(matches!(s.rate_limit(), RateLimit::Free));
     }
@@ -365,7 +371,7 @@ mod tests {
             email: None,
             auth: None,
             under_limit: true,
-            plan_type: None,
+            subscriptions: None,
         };
         assert!(matches!(s.rate_limit(), RateLimit::Free));
     }

@@ -69,25 +69,18 @@ pub struct NetworkCreateOrUpdate {
 
 // ── Members ───────────────────────────────────────────────────────────────────
 
+/// Legacy Central API wraps mutable member fields inside a `config` object.
+/// Top-level fields (name, networkId, lastOnline, physicalAddress, etc.) are
+/// returned directly. Mutable fields (authorized, ipAssignments, …) live in
+/// `config`. (ZT-C-11)
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct CentralMember {
+    /// Member node address (10-hex-char ZeroTier address)
     #[serde(rename = "nodeId")]
     pub node_id: String,
     pub name: Option<String>,
     pub description: Option<String>,
-    #[serde(default)]
-    pub authorized: bool,
-    #[serde(rename = "activeBridge", default)]
-    pub active_bridge: bool,
-    #[serde(rename = "noAutoAssignIps", default)]
-    pub no_auto_assign_ips: bool,
-    #[serde(rename = "ipAssignments", default)]
-    pub ip_assignments: Vec<String>,
-    #[serde(default)]
-    pub capabilities: Vec<i64>,
-    #[serde(default)]
-    pub tags: Vec<Vec<i64>>,
     #[serde(rename = "networkId")]
     pub network_id: Option<String>,
     #[serde(rename = "lastOnline")]
@@ -100,15 +93,99 @@ pub struct CentralMember {
     pub protocol_version: Option<i32>,
     #[serde(rename = "supportsRulesEngine")]
     pub supports_rules_engine: Option<bool>,
-    #[serde(rename = "ssoExempt", default)]
-    pub sso_exempt: bool,
     pub identity: Option<String>,
+    /// The mutable fields are nested under "config" in Legacy Central API.
+    /// Use #[serde(flatten)] on CentralMemberConfig when returning to frontend
+    /// so the UI receives a flat object (ZT-C-11).
+    pub config: CentralMemberConfig,
+}
+
+impl CentralMember {
+    /// Convenience accessors that delegate to config (avoids m.config.authorized everywhere)
+    pub fn authorized(&self) -> bool {
+        self.config.authorized
+    }
+    pub fn ip_assignments(&self) -> &Vec<String> {
+        &self.config.ip_assignments
+    }
+    pub fn active_bridge(&self) -> bool {
+        self.config.active_bridge
+    }
+    pub fn no_auto_assign_ips(&self) -> bool {
+        self.config.no_auto_assign_ips
+    }
+    pub fn sso_exempt(&self) -> bool {
+        self.config.sso_exempt
+    }
+}
+
+/// Flat view of CentralMember for serialization to the frontend.
+/// Combines top-level and config fields into one flat JSON object.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CentralMemberView {
+    pub node_id: String,
+    pub name: Option<String>,
+    pub network_id: Option<String>,
+    pub last_online: Option<i64>,
+    pub physical_address: Option<String>,
+    pub client_version: Option<String>,
+    // Flattened from config
+    pub authorized: bool,
+    pub active_bridge: bool,
+    pub no_auto_assign_ips: bool,
+    pub ip_assignments: Vec<String>,
+    pub sso_exempt: bool,
+    pub capabilities: Vec<i64>,
+    pub tags: Vec<Vec<i64>>,
+}
+
+impl From<CentralMember> for CentralMemberView {
+    fn from(m: CentralMember) -> Self {
+        Self {
+            node_id: m.node_id,
+            name: m.name,
+            network_id: m.network_id,
+            last_online: m.last_online,
+            physical_address: m.physical_address,
+            client_version: m.client_version,
+            authorized: m.config.authorized,
+            active_bridge: m.config.active_bridge,
+            no_auto_assign_ips: m.config.no_auto_assign_ips,
+            ip_assignments: m.config.ip_assignments,
+            sso_exempt: m.config.sso_exempt,
+            capabilities: m.config.capabilities,
+            tags: m.config.tags,
+        }
+    }
+}
+
+/// Fields nested under `member.config` in Legacy Central API responses.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct CentralMemberConfig {
+    pub authorized: bool,
+    pub active_bridge: bool,
+    pub no_auto_assign_ips: bool,
+    pub ip_assignments: Vec<String>,
+    pub capabilities: Vec<i64>,
+    pub tags: Vec<Vec<i64>>,
+    pub sso_exempt: bool,
+    /// ZT node address repeated inside config
+    #[serde(rename = "id")]
+    pub id: String,
+    pub nwid: String,
+}
+
+/// Legacy Central API member update — wraps fields in {"config": {...}} (ZT-C-12)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CentralMemberUpdate {
+    pub config: CentralMemberUpdateConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct CentralMemberUpdate {
-    pub name: Option<String>,
-    pub description: Option<String>,
+#[serde(rename_all = "camelCase")]
+pub struct CentralMemberUpdateConfig {
     pub authorized: Option<bool>,
     #[serde(rename = "activeBridge")]
     pub active_bridge: Option<bool>,
@@ -120,21 +197,28 @@ pub struct CentralMemberUpdate {
     pub tags: Option<Vec<Vec<i64>>>,
     #[serde(rename = "ssoExempt")]
     pub sso_exempt: Option<bool>,
+    pub name: Option<String>,
+    pub description: Option<String>,
 }
 
 // ── Account ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct CentralUser {
     pub id: String,
-    #[serde(rename = "displayName")]
+    #[serde(rename = "displayName", default)]
     pub display_name: String,
+    #[serde(default)]
     pub email: String,
     #[serde(rename = "smsNumber")]
     pub sms_number: Option<String>,
+    pub subscriptions: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Response from GET /self in Central API (ZT-C-14)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct AccountStatus {
     #[serde(default)]
     pub id: String,
@@ -144,17 +228,35 @@ pub struct AccountStatus {
     pub auth: Option<serde_json::Value>,
     #[serde(rename = "underLimit", default)]
     pub under_limit: bool,
-    #[serde(rename = "planType")]
-    pub plan_type: Option<String>,
+    /// Subscriptions object from /self — contains plan info (ZT-C-14)
+    /// {"zerotier": {"planId": "free"|"paid"|"business", ...}}
+    pub subscriptions: Option<serde_json::Value>,
 }
 
 impl AccountStatus {
-    /// Определяет RateLimit по plan_type из Central API
+    /// Determine rate limit from subscriptions.zerotier.planId (ZT-C-14)
+    /// planType field does not exist in /self response — must read subscriptions
     pub fn rate_limit(&self) -> RateLimit {
-        match self.plan_type.as_deref() {
-            Some("paid") | Some("business") | Some("enterprise") => RateLimit::Paid,
-            _ => RateLimit::Free,
+        if let Some(subs) = &self.subscriptions {
+            if let Some(plan_id) = subs
+                .get("zerotier")
+                .and_then(|z| z.get("planId"))
+                .and_then(|p| p.as_str())
+            {
+                return match plan_id {
+                    "paid" | "business" | "enterprise" | "pro" => RateLimit::Paid,
+                    _ => RateLimit::Free,
+                };
+            }
+            // Fallback: check top-level "plan" field some API versions use
+            if let Some(plan) = subs.get("plan").and_then(|p| p.as_str()) {
+                return match plan {
+                    "paid" | "business" | "enterprise" | "pro" => RateLimit::Paid,
+                    _ => RateLimit::Free,
+                };
+            }
         }
+        RateLimit::Free
     }
 }
 
