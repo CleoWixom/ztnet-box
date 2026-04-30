@@ -10,6 +10,12 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.13.8] — 2026-04-30
+
+### Chores
+- docs(audit): Audit-6 — 7 UI/UX bugs from manual mobile testing (UX-1..7) (dcca9e0)
+
+
 ## [0.13.7] — 2026-04-29
 
 
