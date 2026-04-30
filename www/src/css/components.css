@@ -245,3 +245,21 @@ tbody tr:hover { background: rgba(255,255,255,.03); }
 .help-box p  { font-size: var(--fs-sm); color: var(--c-text-dim); }
 .help-box code { font-family: var(--font-mono); font-size: .85em;
   background: var(--c-bg); padding: 1px 4px; border-radius: 3px; }
+
+/* ── Log Panel: horizontal scroll for long lines ────────────────────────── */
+.log-entry {
+  white-space: pre;
+  overflow-x: auto;
+  word-break: normal;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 2px var(--gap-sm);
+  min-width: 0;
+}
+.log-entry:hover { background: var(--c-surface-hover, rgba(255,255,255,.04)); }
+
+/* Log body itself scrolls horizontally per-entry, not the whole panel */
+#log-body .log-list {
+  overflow-x: hidden;
+}

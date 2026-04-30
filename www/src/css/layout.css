@@ -246,3 +246,44 @@
   max-height: 200px; /* enough for 4 items */
 }
 .nav-group.collapsed .nav-group-items { max-height: 0; }
+
+/* ── Controllers split layout ─────────────────────────────────────────────── */
+.ctrl-split-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+  align-items: start;
+}
+.ctrl-nets-pane, .ctrl-members-pane {
+  min-width: 0;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.ctrl-members-pane { min-height: 200px; }
+.row-selected td { background: var(--c-surface-hover, rgba(79,124,255,.08)); }
+
+@media (max-width: 900px) {
+  .ctrl-split-layout { grid-template-columns: 1fr; }
+}
+
+/* ── UX-6: Mobile table fixes ─────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  /* Forms stack vertically */
+  .input-row { flex-direction: column; }
+  .input-row .input,
+  .input-row .select { width: 100%; }
+
+  /* Log panel height on mobile */
+  #log-body { max-height: 40vh; }
+
+  /* Page header stacks on very small screens */
+  .page-header { flex-direction: column; align-items: flex-start; gap: var(--gap-sm); }
+  .page-header > div:last-child,
+  .page-header > button:last-child { align-self: stretch; }
+
+  /* Join inline in dashboard */
+  .join-inline { flex-direction: column; width: 100%; }
+  .join-inline .input-sm { width: 100%; }
+}

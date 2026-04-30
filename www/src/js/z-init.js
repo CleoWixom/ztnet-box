@@ -74,7 +74,8 @@ Router.on('/dashboard',                      () => { DashboardPage.init(); retur
 Router.on('/networks',                       () => { NetworksPage.init(); });
 Router.on('/networks/:id',                   (p) => NetworkDetailPage.init(p));
 Router.on('/controllers/networks',           () => { CtrlNetworksPage.init(); });
-Router.on('/controllers/members/:id',        (p) => { CtrlMembersPage.init(p); });
+// /controllers/members/:id — merged into /controllers/networks (UX-5)
+// Kept for backward-compat: clicking Members in sidebar goes to /controllers/networks
 Router.on('/controllers/config/:id',         (p) => { CtrlConfigPage.init(p); });
 Router.on('/exitnode',                       () => { ExitnodePage.init(); });
 Router.on('/physnet',                        () => { PhysnetPage.init(); });
