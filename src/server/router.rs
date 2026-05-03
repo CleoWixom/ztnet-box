@@ -14,7 +14,7 @@ use axum::{
     http::{HeaderName, HeaderValue, Method},
     middleware,
     response::{Html, IntoResponse},
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use serde_json::json;
@@ -186,6 +186,12 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
         .route("/health", get(health_handler))
         .route("/system/zt-status", get(sys_handler::zt_status))
         .route("/system/zt-install", post(sys_handler::zt_install))
+        .route(
+            "/system/planet-file",
+            get(sys_handler::get_planet_file)
+                .post(sys_handler::upload_planet_file)
+                .delete(sys_handler::reset_planet_file),
+        )
         .route(
             "/settings/config",
             get(cfg_handler::get_config).put(cfg_handler::update_config),

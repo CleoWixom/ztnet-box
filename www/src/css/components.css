@@ -263,3 +263,16 @@ tbody tr:hover { background: rgba(255,255,255,.03); }
 #log-body .log-list {
   overflow-x: hidden;
 }
+
+/* ── Tab count badge ──────────────────────────────────────────────────────── */
+.tab-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  background: var(--c-border); color: var(--c-text-dim);
+  border-radius: 9px; font-size: 10px; font-weight: var(--fw-bold);
+  margin-left: 4px; vertical-align: middle;
+}
+.tab.active .tab-count {
+  background: var(--c-primary-dim, rgba(79,124,255,.2));
+  color: var(--c-primary);
+}

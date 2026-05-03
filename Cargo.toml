@@ -74,6 +74,7 @@ getrandom          = "0.2"
 chrono             = { version = "0.4", features = ["serde"] }
 nix                = { version = "0.28", features = ["user", "process", "net"] }
 anyhow             = "1"
+base64             = "0.22"
 
 [build-dependencies]
 # только std, нет внешних build-deps

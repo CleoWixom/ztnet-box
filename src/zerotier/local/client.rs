@@ -2,6 +2,7 @@ use super::types::*;
 use crate::{config::schema::LocalConfig, server::error::ApiError};
 use reqwest::{Client, Method, StatusCode};
 use serde::{de::DeserializeOwned, Serialize};
+use std::sync::Arc;
 
 // ── Client ────────────────────────────────────────────────────────────────────
 
@@ -199,8 +200,7 @@ impl ZtLocalClient {
     // ── Controller — Members ──────────────────────────────────────────────────
 
     pub async fn network_members(&self, net_id: &str) -> Result<Vec<ControllerMember>, ApiError> {
-        // ZT returns a map { node_id: revision } for /member, but detailed list needs per-member calls
-        // Return the summarised list from /member/{net_id}/member
+        // Step 1: GET /controller/network/{id}/member → { node_id: revision, … }
         let ids: std::collections::HashMap<String, serde_json::Value> = self
             .request(
                 Method::GET,
@@ -208,11 +208,17 @@ impl ZtLocalClient {
                 None::<&()>,
             )
             .await?;
+        // Step 2: fetch all member details in parallel (ZT-C-9: was sequential N+1)
+        let mut set = tokio::task::JoinSet::new();
+        let client = std::sync::Arc::new(self.clone());
+        for id in ids.into_keys() {
+            let c   = client.clone();
+            let nid = net_id.to_string();
+            set.spawn(async move { c.network_member(&nid, &id).await });
+        }
         let mut members = Vec::new();
-        for id in ids.keys() {
-            if let Ok(m) = self.network_member(net_id, id).await {
-                members.push(m);
-            }
+        while let Some(res) = set.join_next().await {
+            if let Ok(Ok(m)) = res { members.push(m); }
         }
         Ok(members)
     }
