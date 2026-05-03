@@ -10,6 +10,13 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.13.9] — 2026-05-03
+
+### Chores
+- Merge pull request #26 from CleoWixom/chore/screenshots-20260430-111954 (f99bd2c)
+- docs(screenshots): update WebUI screenshots [skip ci] (1c3278f)
+
+
 ## [0.13.8] — 2026-04-30
 
 ### Chores
