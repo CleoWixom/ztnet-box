@@ -20,7 +20,7 @@ const CtrlNetworksPage = (() => {
   // ── Load networks ────────────────────────────────────────────────────────────
   async function loadNets() {
     document.getElementById('content').innerHTML =
-      '<div class="page"><div class="loading-row"><div class="spinner"></div> Loading…</div></div>';
+      Utils.pageLoading();
 
     _nets = [];
     // Local controller networks

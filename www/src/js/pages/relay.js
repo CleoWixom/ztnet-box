@@ -116,7 +116,7 @@ const RelayPage = (() => {
   return {
     async init() {
       document.getElementById('content').innerHTML =
-        '<div class="page"><div class="loading-row"><div class="spinner"></div> Loading...</div></div>';
+        Utils.pageLoading();
       await load();
     },
     async _saveLocal() {

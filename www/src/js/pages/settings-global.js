@@ -3,7 +3,7 @@ const SettingsGlobalPage = (() => {
 
   return {
     async init() {
-      document.getElementById('content').innerHTML = '<div class="page"><div class="loading-row"><div class="spinner"></div> Loading...</div></div>';
+      document.getElementById('content').innerHTML = Utils.pageLoading();
       let cfg;
       try { cfg = await api.get('/settings/config'); State.set('config', cfg); }
       catch(e) { document.getElementById('content').innerHTML = `<div class="page"><div class="banner banner-danger">❌ ${e.message}</div></div>`; return; }
@@ -88,7 +88,7 @@ const SettingsGlobalPage = (() => {
         const serverChanged = host !== _origHost || port !== _origPort;
         Toast.success(serverChanged ? 'Saved. Restart ztnet-box for server changes.' : 'Settings saved.');
         _origHost = host; _origPort = port;
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
   };
 })();

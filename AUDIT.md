@@ -1854,23 +1854,23 @@ pub async fn orbit_moon(...) {
 
 | ID | Приоритет | Файл | Описание | Статус |
 |----|-----------|------|----------|--------|
-| ZT-C-2 | 🔴 Critical | `local/types.rs` | `NetworkMembership.dns` — ZT возвращает `[]` (пустой массив) для пустого DNS, текущий `Option<Dns>` не обрабатывает массив → deserialization error | 🔲 |
-| ZT-C-6 | 🔴 Critical | `local/types.rs` | `ControllerMember` — локальный контроллер возвращает поле `"id"` (адрес ноды), а не `"nodeId"` (Central). Текущий `#[serde(rename="nodeId")]` не работает для local controller | 🔲 |
-| ZT-C-7 | 🔴 Critical | `local/types.rs` | `V6AssignMode.plan6` — опечатка, должно быть `"6plane"` (spec: `` `6plane`?: boolean ``). Поле никогда не десериализуется | 🔲 |
-| ZT-C-11 | 🔴 Critical | `central/types.rs` | `CentralMember` — Legacy Central API оборачивает мутируемые поля в `config: {...}`. Текущая структура читает `authorized`, `ipAssignments` и др. напрямую → поля всегда пусты/дефолтны | 🔲 |
-| ZT-C-12 | 🔴 Critical | `central/types.rs` | `CentralMemberUpdate` — обновление члена требует тела `{"config": {...}}`. Текущая структура отправляет поля напрямую → сервер игнорирует изменения | 🔲 |
-| ZT-C-13 | 🔴 Critical | `central/client.rs` | `user()` использует `GET /auth` — несуществующий endpoint. Правильный путь: `GET /self` | 🔲 |
-| ZT-C-14 | 🔴 Critical | `central/types.rs` | `AccountStatus.planType` — поле не существует в ответе `GET /self`. Тарификация определяется через `subscriptions`, не `planType` → rate limit всегда Free | 🔲 |
+| ZT-C-2 | ✅ Fixed | `local/types.rs` | `NetworkMembership.dns` — ZT возвращает `[]` (пустой массив) для пустого DNS, текущий `Option<Dns>` не обрабатывает массив → deserialization error | 🔲 |
+| ZT-C-6 | ✅ Fixed | `local/types.rs` | `ControllerMember` — локальный контроллер возвращает поле `"id"` (адрес ноды), а не `"nodeId"` (Central). Текущий `#[serde(rename="nodeId")]` не работает для local controller | 🔲 |
+| ZT-C-7 | ✅ Fixed | `local/types.rs` | `V6AssignMode.plan6` — опечатка, должно быть `"6plane"` (spec: `` `6plane`?: boolean ``). Поле никогда не десериализуется | 🔲 |
+| ZT-C-11 | ✅ Fixed | `central/types.rs` | `CentralMember` — Legacy Central API оборачивает мутируемые поля в `config: {...}`. Текущая структура читает `authorized`, `ipAssignments` и др. напрямую → поля всегда пусты/дефолтны | 🔲 |
+| ZT-C-12 | ✅ Fixed | `central/types.rs` | `CentralMemberUpdate` — обновление члена требует тела `{"config": {...}}`. Текущая структура отправляет поля напрямую → сервер игнорирует изменения | 🔲 |
+| ZT-C-13 | ✅ Fixed | `central/client.rs` | `user()` использует `GET /auth` — несуществующий endpoint. Правильный путь: `GET /self` | 🔲 |
+| ZT-C-14 | ✅ Fixed | `central/types.rs` | `AccountStatus.planType` — поле не существует в ответе `GET /self`. Тарификация определяется через `subscriptions`, не `planType` → rate limit всегда Free | 🔲 |
 
 ### 🟡 Высокие — некорректное поведение
 
 | ID | Приоритет | Файл | Описание | Статус |
 |----|-----------|------|----------|--------|
-| ZT-C-1 | 🟡 High | `local/types.rs` | `NodeStatus.world_id` → должно быть `planetWorldId`. Нет полей: `versionMajor/Minor/Rev/Build`, `config.settings.primaryPort`, `config.settings.surfaceAddresses` | 🔲 |
-| ZT-C-3 | 🟡 High | `local/types.rs` | `NetworkMembership` — отсутствуют поля: `portDeviceName` (имя TUN-интерфейса), `multicastSubscriptions`, `authenticationURL`, `authenticationExpiryTime` | 🔲 |
-| ZT-C-4 | 🟡 High | `local/types.rs` | `PeerInfo` — нет поля `tunneled: bool`. `PeerPath` — нет `localSocket: u64`. Тип `latency: i32` должен быть `i64` (spec: `uSafeint \| -1`) | 🔲 |
-| ZT-C-5 | 🟡 High | `local/types.rs` | `ControllerNetwork` — отсутствуют: `nwid`, `objtype`, `revision`, `capabilities`, `rules`, `tags`. Без `nwid` нельзя получить сеть по дублированному ID | 🔲 |
-| ZT-C-8 | 🟡 High | `local/types.rs` | `ControllerNetworkCreate` слишком ограничен — нет полей для `ipAssignmentPools`, `routes`, `mtu`, `v4AssignMode`, `v6AssignMode`, `multicastLimit` | 🔲 |
+| ZT-C-1 | ✅ Fixed | `local/types.rs` | `NodeStatus.world_id` → должно быть `planetWorldId`. Нет полей: `versionMajor/Minor/Rev/Build`, `config.settings.primaryPort`, `config.settings.surfaceAddresses` | 🔲 |
+| ZT-C-3 | ✅ Fixed | `local/types.rs` | `NetworkMembership` — отсутствуют поля: `portDeviceName` (имя TUN-интерфейса), `multicastSubscriptions`, `authenticationURL`, `authenticationExpiryTime` | 🔲 |
+| ZT-C-4 | ✅ Fixed | `local/types.rs` | `PeerInfo` — нет поля `tunneled: bool`. `PeerPath` — нет `localSocket: u64`. Тип `latency: i32` должен быть `i64` (spec: `uSafeint \| -1`) | 🔲 |
+| ZT-C-5 | ✅ Fixed | `local/types.rs` | `ControllerNetwork` — отсутствуют: `nwid`, `objtype`, `revision`, `capabilities`, `rules`, `tags`. Без `nwid` нельзя получить сеть по дублированному ID | 🔲 |
+| ZT-C-8 | ✅ Fixed | `local/types.rs` | `ControllerNetworkCreate` слишком ограничен — нет полей для `ipAssignmentPools`, `routes`, `mtu`, `v4AssignMode`, `v6AssignMode`, `multicastLimit` | 🔲 |
 | ZT-C-9 | 🟡 High | `local/client.rs` | `network_members()` — N+1 запросов: `GET /controller/network/{id}/member` → N×`GET /controller/network/{id}/member/{node_id}`. При 100+ членах — 100+ последовательных HTTP запросов | 🔲 |
 | ZT-C-10 | 🟡 High | `central/types.rs` | `CentralNetwork` — отсутствуют: `totalMemberCount`, `config.creationTime`, `config.lastModified`, `config.id`, `config.capabilities`, `config.rules`, `config.tags` | 🔲 |
 
@@ -2035,3 +2035,15 @@ pub six_plane: bool,
 - `settings-global.js` — кнопка Save не в заголовке
 - `settings-tokens.js` — кнопка Add Token иногда в двух местах
 - `exitnode.js` — Dependencies и Configuration не в едином .section паттерне
+
+---
+
+## Audit-6 — QR-ошибки и единый layout (2026-04-30)
+
+| ID | Приоритет | Компонент | Описание | Статус |
+|----|-----------|-----------|----------|--------|
+| UX-Q1 | 🔴 Critical | `qrcode.js` | QR error на Network Details: `finder()` separator loop выходил за границы матрицы (`M[size][7]`, `M[7][size]`) при финальных finder pattern'ах. Исправлено: двойная проверка `r+7 < size && c+i < size` и `c+7 < size && r+i < size` | ✅ Fixed |
+| UX-Q2 | 🔴 Critical | `settings-roots.js` | QR-код не отображался на странице Root Servers — функция вообще не была реализована. Добавлена кнопка [QR] для каждого moon, панель `#moon-qr-panel` и вызов `QRCode.render(worldId, canvas)` | ✅ Fixed |
+| UX-L1 | 🟡 Medium | Все страницы | Непоследовательный текст загрузки: `"Loading..."` vs `"Loading…"`. Стандартизировано: все страницы используют `"Loading…"` | ✅ Fixed |
+| UX-L2 | 🟡 Medium | Все страницы | Повторяющийся inline HTML для состояния загрузки. Добавлены `Utils.pageLoading(title?)` и `Utils.pageError(msg)` в `state.js`. Все 12 страниц переведены на `Utils.pageLoading()` | ✅ Fixed |
+| UX-L3 | 🟡 Medium | Многие страницы | `Toast.error(e.message)` не обрабатывает `ERR_NO_ACTIVE_TOKEN`. Стандартизировано: `exitnode.js`, `networks.js`, `physnet.js`, `relay.js`, `settings-global.js`, `settings-tokens.js` переведены на `errToast(e)` | ✅ Fixed |

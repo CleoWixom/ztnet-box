@@ -48,5 +48,36 @@ const Utils = (() => {
     return 'latency-bad';
   }
 
-  return { esc, latencyClass };
+  /**
+   * Collapsible help section (RD2-2/3/4).
+   */
+  function helpSection(id, title, content) {
+    return `
+      <details class="help-section" id="${id}">
+        <summary class="help-summary">
+          <span class="help-icon">?</span> ${Utils.esc(title)}
+        </summary>
+        <div class="help-body">${content}</div>
+      </details>`;
+  }
+
+  /**
+   * Standard loading placeholder for page init().
+   * @param {string=} title - optional page title shown while loading
+   */
+  function pageLoading(title) {
+    return `<div class="page">
+      ${title ? `<div class="page-header"><h1 class="page-title">${Utils.esc(title)}</h1></div>` : ''}
+      <div class="loading-row"><div class="spinner"></div> Loading…</div>
+    </div>`;
+  }
+
+  /**
+   * Standard error state for page-level failures.
+   */
+  function pageError(message) {
+    return `<div class="page"><div class="banner banner-danger">❌ ${Utils.esc(message)}</div></div>`;
+  }
+
+  return { esc, latencyClass, helpSection, pageLoading, pageError };
 })();

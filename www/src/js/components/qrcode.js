@@ -101,16 +101,16 @@ const QRCode = (() => {
     const size = version.size;
     const M = Array.from({length: size}, () => new Int8Array(size).fill(-1));
 
-    // Finder patterns
+    // Finder patterns + separators
     function finder(r, c) {
       for (let dr = 0; dr < 7; dr++)
         for (let dc = 0; dc < 7; dc++)
           M[r+dr][c+dc] = (dr===0||dr===6||dc===0||dc===6||
             (dr>=2&&dr<=4&&dc>=2&&dc<=4)) ? 1 : 0;
-      // Separators
+      // Separators — guard against out-of-bounds on small versions
       for (let i = 0; i < 8; i++) {
-        if (r+7 < size) M[r+7][c+i] = 0;
-        if (c+7 < size) M[r+i][c+7] = 0;
+        if (r+7 < size && c+i < size) M[r+7][c+i] = 0;
+        if (c+7 < size && r+i < size) M[r+i][c+7] = 0;
       }
     }
     finder(0,0); finder(0,size-7); finder(size-7,0);

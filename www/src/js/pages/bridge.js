@@ -142,7 +142,7 @@ const BridgePage = (() => {
 
   return {
     async init() {
-      document.getElementById('content').innerHTML = '<div class="page"><div class="loading-row"><div class="spinner"></div> Loading...</div></div>';
+      document.getElementById('content').innerHTML = Utils.pageLoading();
       try { const nets = await api.get('/local/networks'); State.set('networks', nets); } catch (e) {}
       await load();
     },

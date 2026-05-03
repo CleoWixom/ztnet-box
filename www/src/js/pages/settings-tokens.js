@@ -51,7 +51,7 @@ const SettingsTokensPage = (() => {
 
   return {
     async init() {
-      document.getElementById('content').innerHTML = '<div class="page"><div class="loading-row"><div class="spinner"></div> Loading...</div></div>';
+      document.getElementById('content').innerHTML = Utils.pageLoading();
       try { _tokens = await api.get('/settings/tokens'); } catch(e) { _tokens = []; }
       render();
     },
@@ -79,7 +79,7 @@ const SettingsTokensPage = (() => {
           document.getElementById('verify-result').innerHTML = `<div class="banner banner-danger mt">❌ ${res.error||'Invalid token'}</div>`;
           if (btn) btn.disabled = true;
         }
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
     async _add() {
       const name = document.getElementById('tok-name')?.value?.trim();
@@ -91,16 +91,16 @@ const SettingsTokensPage = (() => {
         Toast.success('Token added');
         _tokens = await api.get('/settings/tokens');
         render();
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
     async _activate(id) {
       try { await api.post(`/settings/tokens/${id}/activate`); Toast.success('Active token updated'); _tokens = await api.get('/settings/tokens'); render(); }
-      catch(e) { Toast.error(e.message); }
+      catch(e) { errToast(e); }
     },
     async _delete(id, name) {
       if (!await Modal.confirm(`Delete token "${name}"?`, {danger:true})) return;
       try { await api.delete(`/settings/tokens/${id}`); Toast.success('Deleted'); _tokens = await api.get('/settings/tokens'); render(); }
-      catch(e) { Toast.error(e.message); }
+      catch(e) { errToast(e); }
     },
   };
 })();

@@ -76,7 +76,7 @@ const NetworkDetailPage = (() => {
 
   return {
     async init({ id }) {
-      document.getElementById('content').innerHTML = '<div class="page"><div class="loading-row"><div class="spinner"></div> Loading...</div></div>';
+      document.getElementById('content').innerHTML = Utils.pageLoading();
       try {
         const n = await api.get(`/local/networks/${id}`);
         renderDetail(n, 'details');

@@ -86,7 +86,7 @@ const NetworksPage = (() => {
   // ── Load ──────────────────────────────────────────────────────────────────────
   async function load() {
     document.getElementById('content').innerHTML =
-      '<div class="page"><div class="loading-row"><div class="spinner"></div> Loading…</div></div>';
+      Utils.pageLoading();
 
     // Fetch node address + local networks + central networks in parallel
     const [nodeRes, localRes, centralRes] = await Promise.allSettled([
@@ -123,7 +123,7 @@ const NetworksPage = (() => {
         await api.post(`/local/networks/${id}`, {});
         Toast.success('Joined ' + id);
         load();
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
 
     async _leave(id) {
@@ -132,7 +132,7 @@ const NetworksPage = (() => {
         await api.delete(`/local/networks/${id}`);
         Toast.success('Left ' + id);
         load();
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
   };
 })();

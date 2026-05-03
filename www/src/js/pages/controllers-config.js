@@ -128,7 +128,7 @@ const CtrlConfigPage = (() => {
   return {
     async init({ id }) {
       _id = id; _src = 'local';
-      document.getElementById('content').innerHTML = '<div class="page"><div class="loading-row"><div class="spinner"></div> Loading...</div></div>';
+      document.getElementById('content').innerHTML = Utils.pageLoading();
       try {
         _net = await api.get(`/local/controller/networks/${id}`);
       } catch(e) {

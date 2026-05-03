@@ -168,12 +168,12 @@ const PhysnetPage = (() => {
         if (res.warnings?.length) res.warnings.forEach(w => Toast.info(w));
         Toast.success('Physical routing enabled');
         load();
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
     async _disable() {
       if (!await Modal.confirm('Disable Physical Network Routing? iptables rules will be removed.', {danger:true})) return;
       try { await api.post('/physnet/disable'); Toast.success('Disabled'); load(); }
-      catch(e) { Toast.error(e.message); }
+      catch(e) { errToast(e); }
     },
   };
 })();

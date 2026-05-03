@@ -6,7 +6,7 @@ const SettingsZtNodePage = (() => {
 
   async function init() {
     document.getElementById('content').innerHTML =
-      '<div class="page"><div class="loading-row"><div class="spinner"></div> Loading...</div></div>';
+      Utils.pageLoading();
     try {
       _conf = await api.get('/local/config');
       render();

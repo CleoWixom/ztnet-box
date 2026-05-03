@@ -176,7 +176,7 @@ const ExitnodePage = (() => {
 
   return {
     async init() {
-      document.getElementById('content').innerHTML = '<div class="page"><div class="loading-row"><div class="spinner"></div> Loading...</div></div>';
+      document.getElementById('content').innerHTML = Utils.pageLoading();
       try { const nets = await api.get('/local/networks'); State.set('networks', nets); } catch(e){}
       await load();
     },
@@ -187,7 +187,7 @@ const ExitnodePage = (() => {
     },
     async _installDeps() {
       try { await api.post('/exitnode/deps'); Toast.success('Dependencies installed'); load(); }
-      catch(e) { Toast.error(e.message); }
+      catch(e) { errToast(e); }
     },
     async _enable() {
       const ztIface = document.getElementById('en-zt-iface')?.value;
@@ -207,16 +207,16 @@ const ExitnodePage = (() => {
         if (res.warnings?.length) res.warnings.forEach(w => Toast.warn(w));
         Toast.success('Exit Node enabled');
         load();
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
     async _disable() {
       if (!await Modal.confirm('Disable Exit Node?', {danger:true})) return;
       try { await api.post('/exitnode/disable'); Toast.success('Exit Node disabled'); load(); }
-      catch(e) { Toast.error(e.message); }
+      catch(e) { errToast(e); }
     },
     async _ndpInstall() {
       try { await api.post('/exitnode/ndp/install'); Toast.success('ndppd installed'); load(); }
-      catch(e) { Toast.error(e.message); }
+      catch(e) { errToast(e); }
     },
     async _ndpEnable() {
       const wan = document.getElementById('ndp-wan')?.value;
@@ -227,7 +227,7 @@ const ExitnodePage = (() => {
         await api.post('/exitnode/ndp/enable', { wan_iface: wan, ipv6_prefix: prefix });
         Toast.success('NDP Proxy enabled');
         load();
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
     async _ndpDisable() {
       if (!await Modal.confirm('Disable NDP Proxy?', {danger:true})) return;
@@ -235,7 +235,7 @@ const ExitnodePage = (() => {
         await api.post('/exitnode/ndp/disable', { remove_config: false });
         Toast.success('NDP Proxy disabled');
         load();
-      } catch(e) { Toast.error(e.message); }
+      } catch(e) { errToast(e); }
     },
   };
 })();
