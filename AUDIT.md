@@ -1838,11 +1838,11 @@ pub async fn orbit_moon(...) {
 
 | # | Приоритет | Компонент | Задача | Статус |
 |---|-----------|-----------|--------|--------|
-| RD3-1 | 🔴 High | Frontend | Dashboard: тип сети (LOCAL/CENTRAL/EXTERNAL), status ACCESS_DENIED, copy IP | 🔲 |
-| RD3-2a | 🔴 High | Frontend + Backend | Root Servers: Planet File UI (upload/download/QR) | 🔲 |
-| RD3-2b | 🔴 High | Backend | Root Servers: новые эндпоинты /system/planet-file, /system/generate-moon | 🔲 |
-| RD3-2c | 🟡 Medium | Frontend | Root Servers: текущие Planets из peers + Moon deployment guide | 🔲 |
-| RD3-3 | 🟡 Medium | Backend (Rust) | Логирование: `tracing::info!` во все 13 handler-файлов на мутирующие операции | 🔲 |
+| RD3-1 | 🔴 High | Frontend | Dashboard: тип сети (LOCAL/CENTRAL/EXTERNAL), status ACCESS_DENIED, copy IP | ✅ (в networks.js) |
+| RD3-2a | 🔴 High | Frontend + Backend | Root Servers: Planet File UI (upload/download/QR) | ✅ `4a3868d` |
+| RD3-2b | 🔴 High | Backend | Root Servers: /system/planet-file ✅; /system/generate-moon 🔲 |
+| RD3-2c | 🟡 Medium | Frontend | Root Servers: текущие Planets из peers + Moon deployment guide | ✅ `4a3868d` |
+| RD3-3 | 🟡 Medium | Backend (Rust) | Логирование: `tracing::info!` во все 13 handler-файлов на мутирующие операции | ✅ `8126d85` |
 
 ## Audit-5 — ZeroTier API соответствие официальной документации (2026-04-27)
 
@@ -1854,19 +1854,19 @@ pub async fn orbit_moon(...) {
 
 | ID | Приоритет | Файл | Описание | Статус |
 |----|-----------|------|----------|--------|
-| ZT-C-2 | ✅ Fixed | `local/types.rs` | `NetworkMembership.dns` — ZT возвращает `[]` (пустой массив) для пустого DNS, текущий `Option<Dns>` не обрабатывает массив → deserialization error | 🔲 |
-| ZT-C-6 | ✅ Fixed | `local/types.rs` | `ControllerMember` — локальный контроллер возвращает поле `"id"` (адрес ноды), а не `"nodeId"` (Central). Текущий `#[serde(rename="nodeId")]` не работает для local controller | 🔲 |
-| ZT-C-7 | ✅ Fixed | `local/types.rs` | `V6AssignMode.plan6` — опечатка, должно быть `"6plane"` (spec: `` `6plane`?: boolean ``). Поле никогда не десериализуется | 🔲 |
-| ZT-C-11 | ✅ Fixed | `central/types.rs` | `CentralMember` — Legacy Central API оборачивает мутируемые поля в `config: {...}`. Текущая структура читает `authorized`, `ipAssignments` и др. напрямую → поля всегда пусты/дефолтны | 🔲 |
-| ZT-C-12 | ✅ Fixed | `central/types.rs` | `CentralMemberUpdate` — обновление члена требует тела `{"config": {...}}`. Текущая структура отправляет поля напрямую → сервер игнорирует изменения | 🔲 |
-| ZT-C-13 | ✅ Fixed | `central/client.rs` | `user()` использует `GET /auth` — несуществующий endpoint. Правильный путь: `GET /self` | 🔲 |
-| ZT-C-14 | ✅ Fixed | `central/types.rs` | `AccountStatus.planType` — поле не существует в ответе `GET /self`. Тарификация определяется через `subscriptions`, не `planType` → rate limit всегда Free | 🔲 |
+| ZT-C-2 | ✅ Fixed | `local/types.rs` | `NetworkMembership.dns` — ZT возвращает `[]` (пустой массив) для пустого DNS, текущий `Option<Dns>` не обрабатывает массив → deserialization error |✅ |
+| ZT-C-6 | ✅ Fixed | `local/types.rs` | `ControllerMember` — локальный контроллер возвращает поле `"id"` (адрес ноды), а не `"nodeId"` (Central). Текущий `#[serde(rename="nodeId")]` не работает для local controller |✅ |
+| ZT-C-7 | ✅ Fixed | `local/types.rs` | `V6AssignMode.plan6` — опечатка, должно быть `"6plane"` (spec: `` `6plane`?: boolean ``). Поле никогда не десериализуется |✅ |
+| ZT-C-11 | ✅ Fixed | `central/types.rs` | `CentralMember` — Legacy Central API оборачивает мутируемые поля в `config: {...}`. Текущая структура читает `authorized`, `ipAssignments` и др. напрямую → поля всегда пусты/дефолтны |✅ |
+| ZT-C-12 | ✅ Fixed | `central/types.rs` | `CentralMemberUpdate` — обновление члена требует тела `{"config": {...}}`. Текущая структура отправляет поля напрямую → сервер игнорирует изменения |✅ |
+| ZT-C-13 | ✅ Fixed | `central/client.rs` | `user()` использует `GET /auth` — несуществующий endpoint. Правильный путь: `GET /self` |✅ |
+| ZT-C-14 | ✅ Fixed | `central/types.rs` | `AccountStatus.planType` — поле не существует в ответе `GET /self`. Тарификация определяется через `subscriptions`, не `planType` → rate limit всегда Free |✅ |
 
 ### 🟡 Высокие — некорректное поведение
 
 | ID | Приоритет | Файл | Описание | Статус |
 |----|-----------|------|----------|--------|
-| ZT-C-1 | ✅ Fixed | `local/types.rs` | `NodeStatus.world_id` → должно быть `planetWorldId`. Нет полей: `versionMajor/Minor/Rev/Build`, `config.settings.primaryPort`, `config.settings.surfaceAddresses` | 🔲 |
+| ZT-C-1 | ✅ Fixed | `local/types.rs` | `NodeStatus.world_id` → должно быть `planetWorldId`. Нет полей: `versionMajor/Minor/Rev/Build`, `config.settings.primaryPort`, `config.settings.surfaceAddresses` |✅ |
 | ZT-C-3 | ✅ Fixed | `local/types.rs` | `NetworkMembership` — отсутствуют поля: `portDeviceName` (имя TUN-интерфейса), `multicastSubscriptions`, `authenticationURL`, `authenticationExpiryTime` | 🔲 |
 | ZT-C-4 | ✅ Fixed | `local/types.rs` | `PeerInfo` — нет поля `tunneled: bool`. `PeerPath` — нет `localSocket: u64`. Тип `latency: i32` должен быть `i64` (spec: `uSafeint \| -1`) | 🔲 |
 | ZT-C-5 | ✅ Fixed | `local/types.rs` | `ControllerNetwork` — отсутствуют: `nwid`, `objtype`, `revision`, `capabilities`, `rules`, `tags`. Без `nwid` нельзя получить сеть по дублированному ID | 🔲 |
@@ -1911,7 +1911,7 @@ pub six_plane: bool,
 
 | # | Приоритет | Компонент | Проблема | Статус |
 |---|-----------|-----------|----------|--------|
-| UX-1 | 🔴 High | Frontend | QR-код на странице Root Servers не отображается | 🔲 |
+| UX-1 | 🔴 High | Frontend | QR-код на странице Root Servers не отображается | ✅ `4a3868d` |
 | UX-2 | 🔴 High | Frontend / Backend | Log Panel переполнена `info ztnet_box::server::middleware` — HTTP access-логи засоряют вывод; отсутствует горизонтальный скроллинг длинных строк | ✅ |
 | UX-3 | 🔴 High | Frontend | Отсутствует возможность отключения/удаления (leave) сетей на странице My Networks | ✅ |
 | UX-4 | 🔴 High | Frontend | My Networks: сеть Central отображается как локальная (`Local  45b6e887e21780b3  LANFriendly  OK`), вкладка «Central» пуста | ✅ |
