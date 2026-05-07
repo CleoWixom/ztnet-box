@@ -10,6 +10,14 @@ Version bumps are automated via [Conventional Commits](.github/COMMIT_CONVENTION
 
 ## [Unreleased]
 
+## [0.14.1] — 2026-05-07
+
+### Chores
+- docs(audit): mark RD3-1..3, ZT-C-1..14 resolved in tables (0fc19be)
+- Merge pull request #27 from CleoWixom/chore/screenshots-20260503-054913 (3a7ce46)
+- docs(screenshots): update WebUI screenshots [skip ci] (68cc43c)
+
+
 ## [0.14.0] — 2026-05-03
 
 
