@@ -29,7 +29,6 @@ const RelayPage = (() => {
             <input class="input" id="rel-endpoint" placeholder="e.g. 1.2.3.4/443" value="${local.tcp_fallback_relay || ''}">
             <div class="text-dim text-sm">Custom relay endpoint. Leave empty to use ZeroTier's default roots.</div>
           </div>
-          <button class="btn btn-primary mt-sm" onclick="RelayPage._saveLocal()">Save Local Config</button>
         </div>
       </div>`;
 
@@ -87,7 +86,10 @@ const RelayPage = (() => {
     el.innerHTML = `<div class="page">
       <div class="page-header">
         <h1 class="page-title">TCP Relay (Pylon)</h1>
-        <button class="btn btn-ghost btn-sm" onclick="this.closest('.page').querySelector('.help-box').classList.toggle('hidden')" title="Show/hide help">? Help</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="RelayPage._saveLocal()">Save Config</button>
+          <button class="btn btn-ghost btn-sm" onclick="this.closest('.page').querySelector('.help-box').classList.toggle('hidden')" title="Show/hide help">? Help</button>
+        </div>
       </div>
       <div class="help-box hidden card mb">
         <div class="card-title mb-sm">What is TCP Relay?</div>

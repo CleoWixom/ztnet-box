@@ -1867,21 +1867,21 @@ pub async fn orbit_moon(...) {
 | ID | Приоритет | Файл | Описание | Статус |
 |----|-----------|------|----------|--------|
 | ZT-C-1 | ✅ Fixed | `local/types.rs` | `NodeStatus.world_id` → должно быть `planetWorldId`. Нет полей: `versionMajor/Minor/Rev/Build`, `config.settings.primaryPort`, `config.settings.surfaceAddresses` |✅ |
-| ZT-C-3 | ✅ Fixed | `local/types.rs` | `NetworkMembership` — отсутствуют поля: `portDeviceName` (имя TUN-интерфейса), `multicastSubscriptions`, `authenticationURL`, `authenticationExpiryTime` | 🔲 |
-| ZT-C-4 | ✅ Fixed | `local/types.rs` | `PeerInfo` — нет поля `tunneled: bool`. `PeerPath` — нет `localSocket: u64`. Тип `latency: i32` должен быть `i64` (spec: `uSafeint \| -1`) | 🔲 |
-| ZT-C-5 | ✅ Fixed | `local/types.rs` | `ControllerNetwork` — отсутствуют: `nwid`, `objtype`, `revision`, `capabilities`, `rules`, `tags`. Без `nwid` нельзя получить сеть по дублированному ID | 🔲 |
-| ZT-C-8 | ✅ Fixed | `local/types.rs` | `ControllerNetworkCreate` слишком ограничен — нет полей для `ipAssignmentPools`, `routes`, `mtu`, `v4AssignMode`, `v6AssignMode`, `multicastLimit` | 🔲 |
-| ZT-C-9 | 🟡 High | `local/client.rs` | `network_members()` — N+1 запросов: `GET /controller/network/{id}/member` → N×`GET /controller/network/{id}/member/{node_id}`. При 100+ членах — 100+ последовательных HTTP запросов | 🔲 |
-| ZT-C-10 | 🟡 High | `central/types.rs` | `CentralNetwork` — отсутствуют: `totalMemberCount`, `config.creationTime`, `config.lastModified`, `config.id`, `config.capabilities`, `config.rules`, `config.tags` | 🔲 |
+| ZT-C-3 | ✅ Fixed | `local/types.rs` | `NetworkMembership` — отсутствуют поля: `portDeviceName` (имя TUN-интерфейса), `multicastSubscriptions`, `authenticationURL`, `authenticationExpiryTime` |✅ |
+| ZT-C-4 | ✅ Fixed | `local/types.rs` | `PeerInfo` — нет поля `tunneled: bool`. `PeerPath` — нет `localSocket: u64`. Тип `latency: i32` должен быть `i64` (spec: `uSafeint \| -1`) |✅ |
+| ZT-C-5 | ✅ Fixed | `local/types.rs` | `ControllerNetwork` — отсутствуют: `nwid`, `objtype`, `revision`, `capabilities`, `rules`, `tags`. Без `nwid` нельзя получить сеть по дублированному ID |✅ |
+| ZT-C-8 | ✅ Fixed | `local/types.rs` | `ControllerNetworkCreate` слишком ограничен — нет полей для `ipAssignmentPools`, `routes`, `mtu`, `v4AssignMode`, `v6AssignMode`, `multicastLimit` |✅ |
+| ZT-C-9 | 🟡 High | `local/client.rs` | `network_members()` — N+1 запросов: `GET /controller/network/{id}/member` → N×`GET /controller/network/{id}/member/{node_id}`. При 100+ членах — 100+ последовательных HTTP запросов | ✅ `4a3868d` |
+| ZT-C-10 | 🟡 High | `central/types.rs` | `CentralNetwork` — отсутствуют: `totalMemberCount`, `config.creationTime`, `config.lastModified`, `config.id`, `config.capabilities`, `config.rules`, `config.tags` | ✅ |
 
 ### 🟢 Низкие — улучшение соответствия
 
 | ID | Приоритет | Файл | Описание | Статус |
 |----|-----------|------|----------|--------|
-| ZT-M-1 | 🟢 Low | `local/client.rs` | Auth header: `X-ZT1-Auth` → официальный стандарт `X-ZT1-AUTH` (ZT принимает оба, но spec использует верхний регистр) | 🔲 |
-| ZT-M-2 | 🟢 Low | `local/client.rs` | `create_controller_network` использует `getrandom` локально — ZT поддерживает `POST /controller/` для генерации случайного сетевого ID на сервере | 🔲 |
-| ZT-M-3 | 🟢 Low | `local/client.rs` | `leave_network` — DELETE `/network/{id}` возвращает `{"result": true}`. Текущий `request_empty()` игнорирует тело и не различает успех от ошибки по телу ответа | 🔲 |
-| ZT-L-4 | 🟢 Low | `local/client.rs` | Добавить поддержку `GET /unstable/controller/network/{id}/member` для получения полного списка членов одним запросом (вместо N+1) | 🔲 |
+| ZT-M-1 | 🟢 Low | `local/client.rs` | Auth header: `X-ZT1-Auth` → официальный стандарт `X-ZT1-AUTH` (ZT принимает оба, но spec использует верхний регистр) | ✅ |
+| ZT-M-2 | 🟢 Low | `local/client.rs` | `create_controller_network` использует `getrandom` локально — ZT поддерживает `POST /controller/` для генерации случайного сетевого ID на сервере | ✅ |
+| ZT-M-3 | 🟢 Low | `local/client.rs` | `leave_network` — DELETE `/network/{id}` возвращает `{"result": true}`. Текущий `request_empty()` игнорирует тело и не различает успех от ошибки по телу ответа | ✅ |
+| ZT-L-4 | 🟢 Low | `local/client.rs` | Добавить поддержку `GET /unstable/controller/network/{id}/member` для получения полного списка членов одним запросом (вместо N+1) | ✅ |
 
 ### Примечания
 
@@ -1917,7 +1917,7 @@ pub six_plane: bool,
 | UX-4 | 🔴 High | Frontend | My Networks: сеть Central отображается как локальная (`Local  45b6e887e21780b3  LANFriendly  OK`), вкладка «Central» пуста | ✅ |
 | UX-5 | 🔴 High | Frontend | Раздел Controllers: страницы Networks и Members избыточно разделены — нужно объединить в одну страницу (список сетей + inline таблица членов при выборе) | ✅ |
 | UX-6 | 🔴 High | CSS | Отсутствует мобильная адаптация по ширине и высоте: контент выходит за экран, горизонтальный скролл, переполнение таблиц | ✅ |
-| UX-7 | 🟡 Medium | Frontend | Непоследовательная структура страниц: у каждой страницы свой layout — нет единого паттерна для заголовка, кнопок действий, текстовых полей | 🔲 |
+| UX-7 | 🟡 Medium | Frontend | Непоследовательная структура страниц: у каждой страницы свой layout — нет единого паттерна для заголовка, кнопок действий, текстовых полей | ✅ |
 
 ---
 

@@ -125,7 +125,7 @@ pub async fn list_members(
     Path(net_id): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
     validate::network_id(&net_id)?;
-    Ok(Json(client(&s).await?.network_members(&net_id).await?))
+    Ok(Json(client(&s).await?.network_members_bulk(&net_id).await?))
 }
 
 pub async fn get_member(

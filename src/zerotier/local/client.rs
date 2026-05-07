@@ -60,7 +60,7 @@ impl ZtLocalClient {
         let mut req = self
             .http
             .request(method, &url)
-            .header("X-ZT1-Auth", &self.token);
+            .header("X-ZT1-AUTH", &self.token);
 
         if let Some(b) = body {
             req = req.json(b);
@@ -87,7 +87,7 @@ impl ZtLocalClient {
         let resp = self
             .http
             .request(method, &url)
-            .header("X-ZT1-Auth", &self.token)
+            .header("X-ZT1-AUTH", &self.token)
             .send()
             .await
             .map_err(|e| ApiError::ZtLocal(e.to_string()))?;
@@ -128,8 +128,19 @@ impl ZtLocalClient {
     }
 
     pub async fn leave_network(&self, id: &str) -> Result<(), ApiError> {
-        self.request_empty(Method::DELETE, &format!("/network/{id}"))
-            .await
+        // ZT-M-3: DELETE /network/{id} returns {"result":true} on success.
+        // Parse response body to distinguish success from errors.
+        let result: serde_json::Value = self
+            .request(Method::DELETE, &format!("/network/{id}"), None::<&()>)
+            .await?;
+        if result["result"] == true || result["result"] == serde_json::Value::Null {
+            Ok(())
+        } else {
+            Err(ApiError::ZtLocal(format!(
+                "leave_network failed: {}",
+                result
+            )))
+        }
     }
 
     // ── Peers ─────────────────────────────────────────────────────────────────
@@ -164,13 +175,9 @@ impl ZtLocalClient {
         node_address: &str,
         cfg: &ControllerNetworkCreate,
     ) -> Result<ControllerNetwork, ApiError> {
-        // Network ID = node_address (10 hex chars) + 6 random hex chars
-        let mut buf = [0u8; 6];
-        getrandom::getrandom(&mut buf).map_err(|e| {
-            ApiError::ZtLocal(format!("Failed to generate random network suffix: {e}"))
-        })?;
-        let suffix: String = buf.iter().map(|b| format!("{b:02x}")).collect();
-        let net_id = format!("{node_address}{suffix}");
+        // ZT-M-2: POST /controller/network/{nodeid}______ — ZT generates
+        // the random 6-char suffix server-side. Underscore padding fills to 16 chars.
+        let net_id = format!("{node_address}______");
         self.request(
             Method::POST,
             &format!("/controller/network/{net_id}"),
@@ -221,6 +228,26 @@ impl ZtLocalClient {
             if let Ok(Ok(m)) = res { members.push(m); }
         }
         Ok(members)
+    }
+
+    /// ZT-L-4: GET /unstable/controller/network/{id}/member returns all member
+    /// details in a single request — much faster than N individual fetches.
+    /// Falls back to the stable N+1 approach if the endpoint returns 404 or errors.
+    pub async fn network_members_bulk(
+        &self,
+        net_id: &str,
+    ) -> Result<Vec<ControllerMember>, ApiError> {
+        match self
+            .request::<Vec<ControllerMember>>(
+                Method::GET,
+                &format!("/unstable/controller/network/{net_id}/member"),
+                None::<&()>,
+            )
+            .await
+        {
+            Ok(members) => Ok(members),
+            Err(_) => self.network_members(net_id).await, // fall back to stable N+1
+        }
     }
 
     pub async fn network_member(
