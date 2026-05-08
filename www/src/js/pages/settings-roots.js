@@ -58,7 +58,7 @@ const SettingsRootsPage = (() => {
     const planetRows = planets.map(p => `<tr>
       <td class="mono">${Utils.esc(p.address)}</td>
       <td>${p.latency >= 0 ? p.latency + ' ms' : '—'}</td>
-      <td class="text-sm">${Utils.esc(p.version || '—')}</td>
+      <td class="text-sm">${(!p.version || p.version.startsWith('-')) ? '—' : Utils.esc(p.version)}</td>
       <td>${(p.paths || []).filter(x => x.active).map(x =>
         `<div class="mono text-sm">${Utils.esc(x.address)}</div>`).join('')}</td>
     </tr>`).join('');
