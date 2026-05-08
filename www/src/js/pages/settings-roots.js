@@ -120,6 +120,30 @@ const SettingsRootsPage = (() => {
         </div>
       </div>
 
+      <!-- Generate Moon section -->
+      <div class="section">
+        <div class="section-title">Generate Moon Server</div>
+        <div class="card">
+          <p class="text-sm text-dim mb">
+            Generate a <code>.moon</code> file to run your own ZeroTier root server.
+            Requires <code>zerotier-idtool</code> on this machine.
+          </p>
+          <div class="field">
+            <label class="field-label">Stable Endpoint <span class="text-dim">(IP/port)</span></label>
+            <input class="input" id="gen-moon-endpoint" placeholder="1.2.3.4/9993">
+            <div class="text-dim text-sm mt-sm">Public IP and UDP port of this root server</div>
+          </div>
+          <div class="field">
+            <label class="field-label">Identity Path <span class="text-dim">(optional)</span></label>
+            <input class="input" id="gen-moon-identity" placeholder="/var/lib/zerotier-one/identity.public">
+          </div>
+          <button class="btn btn-primary mt" onclick="SettingsRootsPage._generateMoon()">
+            Generate Moon File
+          </button>
+          <div id="gen-moon-result" class="mt"></div>
+        </div>
+      </div>
+
       <!-- Planet File section -->
       <div class="section">
         <div class="section-title">Planet File</div>
@@ -220,6 +244,43 @@ const SettingsRootsPage = (() => {
       if (!await Modal.confirm('Reset to default ZeroTier planet file?', { danger: true })) return;
       try { await api.delete('/system/planet-file'); Toast.success('Reset to default'); load(); }
       catch(e) { Toast.error(e.message); }
+    },
+
+    async _generateMoon() {
+      const endpoint = document.getElementById('gen-moon-endpoint')?.value?.trim();
+      const identityPath = document.getElementById('gen-moon-identity')?.value?.trim();
+      if (!endpoint) return Toast.error('Stable endpoint is required (e.g. 1.2.3.4/9993)');
+      const btn = document.querySelector('#gen-moon-result')?.previousElementSibling;
+      if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+      try {
+        const res = await api.post('/system/generate-moon', {
+          stable_endpoint: endpoint,
+          identity_path: identityPath || undefined,
+        });
+        document.getElementById('gen-moon-result').innerHTML = `
+          <div class="banner banner-success mb">
+            ✅ Moon generated — World ID: <strong class="mono">${Utils.esc(res.world_id)}</strong>
+          </div>
+          <div class="field">
+            <label class="field-label">Setup Instructions</label>
+            <pre class="textarea" style="white-space:pre-wrap;padding:8px">${Utils.esc(res.instructions)}</pre>
+          </div>
+          <div class="field">
+            <label class="field-label">.moon file (base64)</label>
+            <textarea class="textarea" rows="3" readonly onclick="this.select()"
+              style="font-family:var(--font-mono);font-size:11px">${Utils.esc(res.moon_file_base64)}</textarea>
+          </div>
+          <button class="btn btn-ghost btn-sm mt-sm" onclick="
+            const a=document.createElement('a');
+            a.href='data:application/octet-stream;base64,${Utils.esc(res.moon_file_base64)}';
+            a.download='${Utils.esc(res.world_id)}.moon';a.click()">
+            ⬇ Download .moon file
+          </button>`;
+      } catch(e) {
+        Toast.error(e.message);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Generate Moon File'; }
+      }
     },
   };
 })();

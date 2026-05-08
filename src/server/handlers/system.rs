@@ -6,6 +6,7 @@ use axum::{extract::State, http::StatusCode, Json};
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use tempfile;
 use tracing;
 
 pub async fn zt_status(
@@ -127,4 +128,131 @@ pub async fn reset_planet_file(
         .status();
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+// ── Generate Moon ─────────────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct GenerateMoonRequest {
+    /// Stable endpoint for the moon, e.g. "1.2.3.4/9993"
+    pub stable_endpoint: String,
+    /// Optional: existing ZT identity for this node (if empty, uses /var/lib/zerotier-one/identity.secret)
+    pub identity_path: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct GenerateMoonResponse {
+    pub world_id: String,
+    pub moon_file_base64: String,
+    pub instructions: String,
+}
+
+pub async fn generate_moon(
+    State(_): State<AppState>,
+    Json(body): Json<GenerateMoonRequest>,
+) -> Result<Json<GenerateMoonResponse>, ApiError> {
+    if body.stable_endpoint.trim().is_empty() {
+        return Err(ApiError::InvalidInput(
+            "stable_endpoint is required (e.g. '1.2.3.4/9993')".into(),
+        ));
+    }
+
+    // Find zerotier-idtool
+    let idtool = which_idtool().ok_or_else(|| {
+        ApiError::Internal(
+            "zerotier-idtool not found — install ZeroTier on this machine".into(),
+        )
+    })?;
+
+    // Read identity.public from the identity path
+    let identity_path = body
+        .identity_path
+        .unwrap_or_else(|| "/var/lib/zerotier-one/identity.public".into());
+
+    let identity = std::fs::read_to_string(&identity_path).map_err(|e| {
+        ApiError::Internal(format!("Cannot read identity from {identity_path}: {e}"))
+    })?;
+
+    // Write identity to a temp dir so zerotier-idtool can use it
+    let tmpdir = tempfile::tempdir()
+        .map_err(|e| ApiError::Internal(format!("tempdir: {e}")))?;
+    let id_file = tmpdir.path().join("identity.public");
+    std::fs::write(&id_file, identity.trim())
+        .map_err(|e| ApiError::Internal(format!("write identity: {e}")))?;
+
+    // Run: zerotier-idtool genmoon <identity.public>
+    let out = std::process::Command::new(&idtool)
+        .args(["genmoon", id_file.to_str().unwrap()])
+        .current_dir(tmpdir.path())
+        .output()
+        .map_err(|e| ApiError::Internal(format!("zerotier-idtool failed: {e}")))?;
+
+    if !out.status.success() {
+        return Err(ApiError::Internal(format!(
+            "zerotier-idtool genmoon failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        )));
+    }
+
+    // Find generated .moon file
+    let moon_file = std::fs::read_dir(tmpdir.path())
+        .map_err(|e| ApiError::Internal(e.to_string()))?
+        .filter_map(|e| e.ok())
+        .find(|e| {
+            e.path()
+                .extension()
+                .map(|x| x == "moon")
+                .unwrap_or(false)
+        })
+        .ok_or_else(|| ApiError::Internal("genmoon did not produce a .moon file".into()))?;
+
+    let moon_bytes = std::fs::read(moon_file.path())
+        .map_err(|e| ApiError::Internal(e.to_string()))?;
+
+    // Extract world ID from filename (e.g. "000000deadbeef.moon")
+    let world_id = moon_file
+        .path()
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .map(|s| s.trim_start_matches('0').to_string())
+        .unwrap_or_default();
+
+    let moon_b64 = B64.encode(&moon_bytes);
+
+    tracing::info!(world_id = %world_id, endpoint = %body.stable_endpoint, "moon generated");
+
+    Ok(Json(GenerateMoonResponse {
+        world_id: world_id.clone(),
+        moon_file_base64: moon_b64,
+        instructions: format!(
+            "1. Copy the .moon file to /var/lib/zerotier-one/moons.d/ on your root server.\n\
+             2. Restart zerotier-one on the root server.\n\
+             3. Orbit this moon on client nodes: zerotier-cli orbit {world_id} {world_id}\n\
+             4. Or use the 'Orbit a Moon' form on this page with World ID: {world_id}"
+        ),
+    }))
+}
+
+fn which_idtool() -> Option<std::path::PathBuf> {
+    for candidate in &[
+        "/usr/sbin/zerotier-idtool",
+        "/usr/local/sbin/zerotier-idtool",
+        "/usr/bin/zerotier-idtool",
+    ] {
+        let p = std::path::Path::new(candidate);
+        if p.exists() {
+            return Some(p.to_path_buf());
+        }
+    }
+    // Try PATH
+    std::process::Command::new("which")
+        .arg("zerotier-idtool")
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| {
+            String::from_utf8(o.stdout)
+                .ok()
+                .map(|s| std::path::PathBuf::from(s.trim()))
+        })
 }

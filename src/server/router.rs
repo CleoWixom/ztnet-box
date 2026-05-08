@@ -192,6 +192,7 @@ pub fn build_router(state: AppState, host: &str, port: u16) -> Router {
                 .post(sys_handler::upload_planet_file)
                 .delete(sys_handler::reset_planet_file),
         )
+        .route("/system/generate-moon", post(sys_handler::generate_moon))
         .route(
             "/settings/config",
             get(cfg_handler::get_config).put(cfg_handler::update_config),

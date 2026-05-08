@@ -1840,7 +1840,7 @@ pub async fn orbit_moon(...) {
 |---|-----------|-----------|--------|--------|
 | RD3-1 | 🔴 High | Frontend | Dashboard: тип сети (LOCAL/CENTRAL/EXTERNAL), status ACCESS_DENIED, copy IP | ✅ (в networks.js) |
 | RD3-2a | 🔴 High | Frontend + Backend | Root Servers: Planet File UI (upload/download/QR) | ✅ `4a3868d` |
-| RD3-2b | 🔴 High | Backend | Root Servers: /system/planet-file ✅; /system/generate-moon 🔲 |
+| RD3-2b | 🔴 High | Backend | Root Servers: /system/planet-file ✅; /system/generate-moon ✅ |
 | RD3-2c | 🟡 Medium | Frontend | Root Servers: текущие Planets из peers + Moon deployment guide | ✅ `4a3868d` |
 | RD3-3 | 🟡 Medium | Backend (Rust) | Логирование: `tracing::info!` во все 13 handler-файлов на мутирующие операции | ✅ `8126d85` |
 
